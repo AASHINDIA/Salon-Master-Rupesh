@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import User from './User.js'; // Assuming you have a User model
+import User from '../Users/User';
 
 const candidateSchema = new mongoose.Schema({
     user_id: {
