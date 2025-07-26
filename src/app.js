@@ -11,8 +11,7 @@ import { xss } from 'express-xss-sanitizer';
 
 // Main route definitions
 import notFound from './Middlewares/notFound.js';
-import errorHandler from './Middlewares/errorHandler.js';
-
+import { errorHandler } from './Middlewares/errorHandler.js';
 //import  Router
 
 import authRout from './Route/authRoute/authRoute.js'
@@ -73,8 +72,8 @@ app.use('/api/v1/auth', authRout);
 // ----------------------------------------
 // Product Routes
 // ---------------------------
-    app.use('/api/v1/category',CategoryRuoute)
-    app.use('/api/v1/product',ProductRuoute)
+app.use('/api/v1/category', CategoryRuoute)
+app.use('/api/v1/product', ProductRuoute)
 
 // ---------------------------
 // ---------------------------

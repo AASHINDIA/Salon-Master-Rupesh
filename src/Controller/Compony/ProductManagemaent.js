@@ -3,6 +3,8 @@ import Category from '../../Modal/Compony/Category.js';
 import Product from '../../Modal/Compony/Products.js';
 import mongoose from 'mongoose';
 import { validationResult } from 'express-validator';
+import { uploadImageToCloudinary } from '../../Utils/imageUpload.js';
+import { uploadMultipleImages } from '../../Middlewares/uploadMiddleware.js';
 
 // Helper function to build product query filters
 const buildProductFilters = (query) => {
@@ -46,37 +48,90 @@ const buildProductFilters = (query) => {
  */
 export const createProduct = async (req, res) => {
   try {
-    // Validate request
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+    // 1. Validate request body
+    const { originalPrice, discountPercent, name, description } = req.body;
+    
+    if (!name || !description || originalPrice === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, description, and original price are required'
+      });
     }
 
-    const { originalPrice, discountPercent } = req.body;
-    
-    // Calculate final price
-    const price = originalPrice * (1 - (discountPercent || 0) / 100);
-    
-    // Create product
-    const product = new Product({
+    // 2. Handle image uploads if present
+    let imageUrls = [];
+    if (req.files && req.files.length > 0) {
+      try {
+        const uploadPromises = req.files.map(file => 
+          uploadImageToCloudinary(file.path, { folder: 'products' })
+        );
+        const results = await Promise.all(uploadPromises);
+        imageUrls = results.map(result => result.url);
+      } catch (uploadError) {
+        console.error('Image upload failed:', uploadError);
+        throw new Error('Failed to upload product images');
+      }
+    }
+
+    // 3. Calculate final price
+    const discount = discountPercent || 0;
+    const price = originalPrice * (1 - discount / 100);
+    const roundedPrice = Math.round(price * 100) / 100;
+
+    // 4. Create product document
+    const productData = {
       ...req.body,
-      UserId: req.user.id, // Assuming vendor ID comes from auth middleware
-      price: Math.round(price * 100) / 100
-    });
+      UserId: req.user.id, // From auth middleware
+      price: roundedPrice,
+      images: imageUrls
+    };
 
-    await product.save();
+    // 5. Save to database
+    const product = await Product.create(productData);
 
+    // 6. Return success response
     res.status(201).json({
       success: true,
-      data: product
+      data: {
+        id: product._id,
+        name: product.name,
+        price: product.price,
+        originalPrice: product.originalPrice,
+        discountPercent: product.discountPercent,
+        images: product.images,
+        status: product.status
+      }
     });
+
   } catch (error) {
+    console.error('Product creation error:', error);
+    
+    // Handle specific error types
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: Object.values(error.errors).map(err => err.message)
+      });
+    }
+
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Product with this slug already exists'
+      });
+    }
+
+    // Generic error response
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message || 'Failed to create product'
     });
   }
 };
+
+export const uploadProductImages = uploadMultipleImages('images', 10);
+
 
 /**
  * Get all products with filtering, sorting, and pagination

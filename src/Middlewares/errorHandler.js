@@ -1,9 +1,19 @@
-const errorHandler = (err, req, res, next) => {
-    console.error(err.stack);
-    res.status(err.statusCode || 500).json({
-        success: false,
-        message: err.message || 'Internal Server Error',
-    });
-};
+import multer from 'multer';
 
-export default errorHandler;
+export const errorHandler = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({
+      error: {
+        message: err.message,
+        code: err.code
+      }
+    });
+  } else if (err) {
+    return res.status(500).json({
+      error: {
+        message: err.message
+      }
+    });
+  }
+  next();
+};

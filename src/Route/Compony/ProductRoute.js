@@ -3,6 +3,7 @@ import express from 'express';
 
 import {
     createProduct,
+    uploadProductImages,
     getProducts,
     getProduct,
     updateProduct,
@@ -12,7 +13,7 @@ import {
     getVendorProducts
 } from '../../Controller/Compony/ProductManagemaent.js';
 import { validateProduct } from '../../validator/product.validator.js';
-import { protect ,roleCheck} from '../../Middlewares/authMiddleware/auth.js';
+import { protect, roleCheck } from '../../Middlewares/authMiddleware/auth.js';
 const router = express.Router();
 
 // Public routes
@@ -24,7 +25,17 @@ router.get('/vendor/:vendorId', getVendorProducts); // Optional vendorId
 router.use(protect);
 
 // Vendor-specific routes
-router.post('/', roleCheck('compony'), validateProduct, createProduct);
+router.post('/',);
+
+router.post(
+    '/products',
+    roleCheck('compony'),
+    validateProduct,
+    protect,
+    uploadProductImages,
+    createProduct
+);
+
 router.put('/:id', roleCheck('compony'), validateProduct, updateProduct);
 router.patch('/:id/inventory', roleCheck('compony'), updateInventory);
 router.patch('/:id/status', roleCheck('compony'), updateStatus);
