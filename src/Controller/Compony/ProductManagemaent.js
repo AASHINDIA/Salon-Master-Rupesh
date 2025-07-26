@@ -3,26 +3,26 @@ import Category from '../../Modal/Compony/Category.js';
 import Product from '../../Modal/Compony/Products.js';
 import mongoose from 'mongoose';
 import { validationResult } from 'express-validator';
-import { uploadImageToCloudinary } from '../../Utils/imageUpload.js';
-import { uploadMultipleImages } from '../../Middlewares/uploadMiddleware.js';
+import { uploadToCloudinary } from '../../Utils/imageUpload.js'
+
 
 // Helper function to build product query filters
 const buildProductFilters = (query) => {
   const filters = {};
-  const { 
-    category, 
-    status, 
-    minPrice, 
-    maxPrice, 
-    search, 
-    vendor, 
-    inStock 
+  const {
+    category,
+    status,
+    minPrice,
+    maxPrice,
+    search,
+    vendor,
+    inStock
   } = query;
 
   if (category) filters.category = category;
   if (status) filters.status = status;
   if (vendor) filters.UserId = vendor;
-  
+
   if (minPrice || maxPrice) {
     filters.price = {};
     if (minPrice) filters.price.$gte = parseFloat(minPrice);
@@ -43,69 +43,104 @@ const buildProductFilters = (query) => {
   return filters;
 };
 
+
 /**
- * Create a new product
+ * @desc    Create a new product
+ * @route   POST /api/products
+ * @access  Private/Vendor
+ * @param   {Object} req - Request object
+ * @param   {Object} res - Response object
+ * @returns {Object} - Created product data
  */
 export const createProduct = async (req, res) => {
+  // 1. Validate request using express-validator
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation failed',
+      errors: errors.array().map(err => err.msg)
+    });
+  }
+
+  // 2. Extract required fields with destructuring
+  const {
+    name,
+    description,
+    originalPrice,
+    discountPercent = 0,
+    category,
+    specifications = {},
+    trackQuantity = false,
+    quantity = 0,
+    tags = []
+  } = req.body;
+
   try {
-    // 1. Validate request body
-    const { originalPrice, discountPercent, name, description } = req.body;
-    
-    if (!name || !description || originalPrice === undefined) {
+    // 3. Validate essential fields
+    if (!name || !description || originalPrice === undefined || !category) {
       return res.status(400).json({
         success: false,
-        message: 'Name, description, and original price are required'
+        message: 'Name, description, original price, and category are required'
       });
     }
 
-    // 2. Handle image uploads if present
-    let imageUrls = [];
+    // 4. Handle image uploads
+    let images = [];
     if (req.files && req.files.length > 0) {
       try {
-        const uploadPromises = req.files.map(file => 
-          uploadImageToCloudinary(file.path, { folder: 'products' })
+        // Upload all images in parallel
+        const uploadPromises = req.files.map(file =>
+          uploadToCloudinary(file.path, 'products')
         );
-        const results = await Promise.all(uploadPromises);
-        imageUrls = results.map(result => result.url);
+        const uploadResults = await Promise.all(uploadPromises);
+        images = uploadResults.map(result => ({
+          url: result.url,
+          publicId: result.public_id
+        }));
       } catch (uploadError) {
-        console.error('Image upload failed:', uploadError);
-        throw new Error('Failed to upload product images');
+        console.error('Image upload error:', uploadError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to upload product images'
+        });
       }
     }
 
-    // 3. Calculate final price
-    const discount = discountPercent || 0;
-    const price = originalPrice * (1 - discount / 100);
-    const roundedPrice = Math.round(price * 100) / 100;
+    // 5. Calculate pricing
+    const price = calculateDiscountedPrice(originalPrice, discountPercent);
 
-    // 4. Create product document
+    // 6. Create product object
     const productData = {
-      ...req.body,
-      UserId: req.user.id, // From auth middleware
-      price: roundedPrice,
-      images: imageUrls
+      name,
+      description,
+      originalPrice: parseFloat(originalPrice),
+      price,
+      discountPercent: parseFloat(discountPercent),
+      category: new mongoose.Types.ObjectId(category),
+      specifications,
+      images,
+      trackQuantity,
+      quantity: trackQuantity ? parseInt(quantity) : 0,
+      tags,
+      UserId: req.user.id, // From authentication middleware
+      status: 'draft' // Default status
     };
 
-    // 5. Save to database
+    // 7. Save to database
     const product = await Product.create(productData);
 
-    // 6. Return success response
-    res.status(201).json({
+    // 8. Format response
+    const response = formatProductResponse(product);
+
+    return res.status(201).json({
       success: true,
-      data: {
-        id: product._id,
-        name: product.name,
-        price: product.price,
-        originalPrice: product.originalPrice,
-        discountPercent: product.discountPercent,
-        images: product.images,
-        status: product.status
-      }
+      data: response
     });
 
   } catch (error) {
     console.error('Product creation error:', error);
-    
+
     // Handle specific error types
     if (error.name === 'ValidationError') {
       return res.status(400).json({
@@ -118,19 +153,51 @@ export const createProduct = async (req, res) => {
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
-        message: 'Product with this slug already exists'
+        message: 'Product with this name already exists'
+      });
+    }
+
+    // Handle invalid category ID
+    if (error.name === 'CastError' && error.path === 'category') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid category ID'
       });
     }
 
     // Generic error response
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: error.message || 'Failed to create product'
+      message: 'Internal server error'
     });
   }
 };
 
-export const uploadProductImages = uploadMultipleImages('images', 10);
+// Helper function to calculate discounted price
+const calculateDiscountedPrice = (originalPrice, discountPercent) => {
+  const discount = parseFloat(discountPercent) || 0;
+  const price = parseFloat(originalPrice) * (1 - discount / 100);
+  return Math.round(price * 100) / 100; // Round to 2 decimal places
+};
+
+// Helper function to format product response
+const formatProductResponse = (product) => {
+  return {
+    id: product._id,
+    name: product.name,
+    description: product.description,
+    price: product.price,
+    originalPrice: product.originalPrice,
+    discountPercent: product.discountPercent,
+    category: product.category,
+    images: product.images.map(img => img.url),
+    specifications: product.specifications,
+    status: product.status,
+    createdAt: product.createdAt,
+    updatedAt: product.updatedAt
+  };
+};
+
 
 
 /**
@@ -140,17 +207,17 @@ export const getProducts = async (req, res) => {
   try {
     // Build filters
     const filters = buildProductFilters(req.query);
-    
+
     // Sorting
     const sortBy = req.query.sortBy || '-createdAt';
     const sortOrder = {};
     sortOrder[sortBy.replace('-', '')] = sortBy.startsWith('-') ? -1 : 1;
-    
+
     // Pagination
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
-    
+
     // Query products with population
     const products = await Product.find(filters)
       .sort(sortOrder)
@@ -158,10 +225,10 @@ export const getProducts = async (req, res) => {
       .limit(limit)
       .populate('category', 'name slug')
       .populate('UserId', 'name email');
-    
+
     // Count total for pagination info
     const total = await Product.countDocuments(filters);
-    
+
     res.json({
       success: true,
       data: products,
@@ -186,7 +253,7 @@ export const getProducts = async (req, res) => {
 export const getProduct = async (req, res) => {
   try {
     let product;
-    
+
     // Check if the identifier is a valid ObjectId
     if (mongoose.Types.ObjectId.isValid(req.params.id)) {
       product = await Product.findById(req.params.id)
@@ -198,14 +265,14 @@ export const getProduct = async (req, res) => {
         .populate('category', 'name slug')
         .populate('UserId', 'name email');
     }
-    
+
     if (!product) {
       return res.status(404).json({
         success: false,
         message: 'Product not found'
       });
     }
-    
+
     res.json({
       success: true,
       data: product
@@ -228,16 +295,16 @@ export const updateProduct = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    
+
     const product = await Product.findById(req.params.id);
-    
+
     if (!product) {
       return res.status(404).json({
         success: false,
         message: 'Product not found'
       });
     }
-    
+
     // Check if the current user is the product owner
     if (product.UserId.toString() !== req.user.id && !req.user.isAdmin) {
       return res.status(403).json({
@@ -245,21 +312,21 @@ export const updateProduct = async (req, res) => {
         message: 'Not authorized to update this product'
       });
     }
-    
+
     // Handle price updates
     if (req.body.originalPrice || req.body.discountPercent) {
       const originalPrice = req.body.originalPrice || product.originalPrice;
       const discountPercent = req.body.discountPercent || product.discountPercent;
       req.body.price = originalPrice * (1 - discountPercent / 100);
     }
-    
+
     // Update product
     const updatedProduct = await Product.findByIdAndUpdate(
       req.params.id,
       { ...req.body, updatedAt: new Date() },
       { new: true, runValidators: true }
     );
-    
+
     res.json({
       success: true,
       data: updatedProduct
@@ -278,14 +345,14 @@ export const updateProduct = async (req, res) => {
 export const deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-    
+
     if (!product) {
       return res.status(404).json({
         success: false,
         message: 'Product not found'
       });
     }
-    
+
     // Check if the current user is the product owner or admin
     if (product.UserId.toString() !== req.user.id && !req.user.isAdmin) {
       return res.status(403).json({
@@ -293,11 +360,11 @@ export const deleteProduct = async (req, res) => {
         message: 'Not authorized to delete this product'
       });
     }
-    
+
     // Soft delete by changing status
     product.status = 'archived';
     await product.save();
-    
+
     res.json({
       success: true,
       message: 'Product archived successfully'
@@ -316,16 +383,16 @@ export const deleteProduct = async (req, res) => {
 export const updateInventory = async (req, res) => {
   try {
     const { quantity, action } = req.body;
-    
+
     const product = await Product.findById(req.params.id);
-    
+
     if (!product) {
       return res.status(404).json({
         success: false,
         message: 'Product not found'
       });
     }
-    
+
     // Check if the current user is the product owner or admin
     if (product.UserId.toString() !== req.user.id && !req.user.isAdmin) {
       return res.status(403).json({
@@ -333,7 +400,7 @@ export const updateInventory = async (req, res) => {
         message: 'Not authorized to update this product'
       });
     }
-    
+
     // Handle different inventory actions
     switch (action) {
       case 'increment':
@@ -351,16 +418,16 @@ export const updateInventory = async (req, res) => {
           message: 'Invalid inventory action'
         });
     }
-    
+
     // Update status if quantity reaches zero
     if (product.trackQuantity && product.quantity === 0) {
       product.status = 'out_of_stock';
     } else if (product.status === 'out_of_stock' && product.quantity > 0) {
       product.status = 'active';
     }
-    
+
     await product.save();
-    
+
     res.json({
       success: true,
       data: product
@@ -379,16 +446,16 @@ export const updateInventory = async (req, res) => {
 export const updateStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    
+
     const product = await Product.findById(req.params.id);
-    
+
     if (!product) {
       return res.status(404).json({
         success: false,
         message: 'Product not found'
       });
     }
-    
+
     // Check if the current user is the product owner or admin
     if (product.UserId.toString() !== req.user.id && !req.user.isAdmin) {
       return res.status(403).json({
@@ -396,10 +463,10 @@ export const updateStatus = async (req, res) => {
         message: 'Not authorized to update this product'
       });
     }
-    
+
     product.status = status;
     await product.save();
-    
+
     res.json({
       success: true,
       data: product
@@ -418,30 +485,30 @@ export const updateStatus = async (req, res) => {
 export const getVendorProducts = async (req, res) => {
   try {
     const vendorId = req.params.vendorId || req.user.id;
-    
+
     // Build filters
     const filters = { UserId: vendorId, ...buildProductFilters(req.query) };
-    
+
     // Sorting
     const sortBy = req.query.sortBy || '-createdAt';
     const sortOrder = {};
     sortOrder[sortBy.replace('-', '')] = sortBy.startsWith('-') ? -1 : 1;
-    
+
     // Pagination
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
-    
+
     // Query products
     const products = await Product.find(filters)
       .sort(sortOrder)
       .skip(skip)
       .limit(limit)
       .populate('category', 'name slug');
-    
+
     // Count total for pagination info
     const total = await Product.countDocuments(filters);
-    
+
     res.json({
       success: true,
       data: products,

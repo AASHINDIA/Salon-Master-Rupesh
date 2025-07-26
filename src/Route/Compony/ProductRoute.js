@@ -1,9 +1,8 @@
 import express from 'express';
 
-
 import {
     createProduct,
-    uploadProductImages,
+    
     getProducts,
     getProduct,
     updateProduct,
@@ -24,15 +23,14 @@ router.get('/vendor/:vendorId', getVendorProducts); // Optional vendorId
 // Protected routes (require authentication)
 router.use(protect);
 
-// Vendor-specific routes
-router.post('/',);
+
 
 router.post(
     '/products',
     roleCheck('compony'),
     validateProduct,
     protect,
-    uploadProductImages,
+   
     createProduct
 );
 
