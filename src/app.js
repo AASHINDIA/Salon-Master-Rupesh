@@ -16,6 +16,9 @@ import errorHandler from './Middlewares/errorHandler.js';
 //import  Router
 
 import authRout from './Route/authRoute/authRoute.js'
+import CategoryRuoute from './Route/Compony/Category.js'
+import ProductRuoute from './Route/Compony/ProductRoute.js'
+
 
 
 const app = express();
@@ -68,7 +71,12 @@ app.get('/', (req, res) => {
 // --------------------------------
 app.use('/api/v1/auth', authRout);
 // ----------------------------------------
+// Product Routes
+// ---------------------------
+    app.use('/api/v1/category',CategoryRuoute)
+    app.use('/api/v1/product',ProductRuoute)
 
+// ---------------------------
 // ---------------------------
 // 🧱 Error Handlers
 // ---------------------------

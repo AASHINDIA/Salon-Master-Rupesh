@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import User from '../../Modal/Users/User';
+import User from '../../Modal/Users/User.js';
 
 export const protect = async (req, res, next) => {
     try {
@@ -62,15 +62,45 @@ export const protect = async (req, res, next) => {
     }
 };
 
-// Role-based access control middleware
-export const roleCheck = (roles) => {
+
+
+
+/**
+ * Role-based authorization middleware
+ * @param {string[]} allowedRoles - Array of permitted roles
+ */
+
+export const roleCheck = (allowedRoles) => {
     return (req, res, next) => {
-        if (!roles.includes(req.user.domain_type)) {
-            return res.status(403).json({
+        // 1. Check if user exists (must come after protect middleware)
+        if (!req.user) {
+            return res.status(401).json({
                 success: false,
-                message: `User role ${req.user.domain_type} is not authorized to access this route`
+                message: 'User not authenticated'
             });
         }
-        next();
+
+        // 2. Superadmin bypass (has all access)
+        if (req.user.domain_type === 'superadmin') {
+            return next();
+        }
+
+        // 3. Check if user has any of the allowed roles
+        if (allowedRoles.includes(req.user.domain_type)) {
+            return next();
+        }
+
+        // 4. Check for hierarchical permissions (optional)
+        // Example: company can access worker routes
+        if (req.user.domain_type === 'company' && allowedRoles.includes('worker')) {
+            return next();
+        }
+
+        // 5. If no permissions match
+        return res.status(403).json({
+            success: false,
+            message: `Access denied. Required roles: ${allowedRoles.join(', ')}`,
+            yourRole: req.user.domain_type
+        });
     };
 };
