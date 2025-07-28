@@ -28,7 +28,7 @@ router.use(protect);
 router.post(
     '/products',
     roleCheck('compony'),
-  
+    validateProduct,
     protect,
    
     createProduct
