@@ -92,7 +92,7 @@ export const roleCheck = (allowedRoles) => {
 
         // 4. Check for hierarchical permissions (optional)
         // Example: company can access worker routes
-        if (req.user.domain_type === 'company' && allowedRoles.includes('worker')) {
+        if (req.user.domain_type === 'company') {
             return next();
         }
 

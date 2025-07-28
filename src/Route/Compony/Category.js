@@ -21,7 +21,7 @@ router.get('/:id/products', getCategoryProducts);
 
 // Protected routes (admin only)
 router.use(protect);
-router.use(roleCheck('superadmin'));
+router.use(roleCheck('company','superadmin'));
 
 router.post('/', validateCategory, createCategory);
 router.put('/:id', validateCategory, updateCategory);
