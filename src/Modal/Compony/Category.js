@@ -7,12 +7,11 @@ const categorySchema = new mongoose.Schema({
         required: [true, 'Category name is required'],
         trim: true,
         maxlength: [50, 'Category name cannot exceed 50 characters'],
-        unique: true
+        
     },
     slug: {
         type: String,
         required: [true, 'Slug is required'],
-        unique: true,
         lowercase: true,
         match: [/^[a-z0-9-]+$/, 'Slug can only contain letters, numbers and hyphens']
     },

@@ -44,13 +44,12 @@ const buildProductFilters = (query) => {
 };
 
 
+
+
 /**
  * @desc    Create a new product
  * @route   POST /api/products
- * @access  Private/Vendor
- * @param   {Object} req - Request object
- * @param   {Object} res - Response object
- * @returns {Object} - Created product data
+ * @access  Private (Vendor/Admin)
  */
 export const createProduct = async (req, res) => {
   // 1. Validate request using express-validator
@@ -66,26 +65,37 @@ export const createProduct = async (req, res) => {
   // 2. Extract required fields with destructuring
   const {
     name,
+    slug,
     description,
+    shortDescription = '',
     originalPrice,
     discountPercent = 0,
     category,
-    specifications = {},
-    trackQuantity = false,
+    tags = [],
+    trackQuantity = true,
     quantity = 0,
-    tags = []
+    status = 'draft'
   } = req.body;
 
   try {
     // 3. Validate essential fields
-    if (!name || !description || originalPrice === undefined || !category) {
+    if (!name || !slug || !description || originalPrice === undefined || !category) {
       return res.status(400).json({
         success: false,
-        message: 'Name, description, original price, and category are required'
+        message: 'Name, slug, description, original price, and category are required'
       });
     }
 
-    // 4. Handle image uploads
+    // 4. Check if slug is already taken
+    const existingProduct = await Product.findOne({ slug });
+    if (existingProduct) {
+      return res.status(400).json({
+        success: false,
+        message: 'Product with this slug already exists'
+      });
+    }
+
+    // 5. Handle image uploads
     let images = [];
     if (req.files && req.files.length > 0) {
       try {
@@ -94,10 +104,12 @@ export const createProduct = async (req, res) => {
           uploadToCloudinary(file.path, 'products')
         );
         const uploadResults = await Promise.all(uploadPromises);
-        images = uploadResults.map(result => ({
-          url: result.url,
-          publicId: result.public_id
-        }));
+        images = uploadResults.map(result => result.secure_url);
+        
+        // Cleanup: Delete temporary files after upload
+        req.files.forEach(file => {
+          fs.unlinkSync(file.path);
+        });
       } catch (uploadError) {
         console.error('Image upload error:', uploadError);
         return res.status(500).json({
@@ -107,34 +119,62 @@ export const createProduct = async (req, res) => {
       }
     }
 
-    // 5. Calculate pricing
-    const price = calculateDiscountedPrice(originalPrice, discountPercent);
+    // 6. Validate category exists (optional - remove if you don't want this check)
+    const categoryExists = await mongoose.model('Category').exists({ _id: category });
+    if (!categoryExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'Specified category does not exist'
+      });
+    }
 
-    // 6. Create product object
+    // 7. Create product object according to schema
     const productData = {
+      UserId: req.user._id, // From authentication middleware
       name,
+      slug,
       description,
+      shortDescription,
       originalPrice: parseFloat(originalPrice),
-      price,
       discountPercent: parseFloat(discountPercent),
+      // price will be calculated in pre-save hook
       category: new mongoose.Types.ObjectId(category),
-      specifications,
-      images,
+      tags: tags.filter(tag => tag.length <= 30), // Filter out invalid tags
       trackQuantity,
       quantity: trackQuantity ? parseInt(quantity) : 0,
-      tags,
-      UserId: req.user.id, // From authentication middleware
-      status: 'draft' // Default status
+      images,
+      status: ['draft', 'active', 'archived', 'out_of_stock'].includes(status) 
+        ? status 
+        : 'draft'
     };
 
-    // 7. Save to database
+    // 8. Save to database
     const product = await Product.create(productData);
 
-    // 8. Format response
-    const response = formatProductResponse(product);
+    // 9. Format response
+    const response = {
+      id: product._id,
+      name: product.name,
+      slug: product.slug,
+      description: product.description,
+      shortDescription: product.shortDescription,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      discountPercent: product.discountPercent,
+      category: product.category,
+      tags: product.tags,
+      images: product.images,
+      quantity: product.quantity,
+      trackQuantity: product.trackQuantity,
+      status: product.status,
+      rating: product.rating,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt
+    };
 
     return res.status(201).json({
       success: true,
+      message: 'Product created successfully',
       data: response
     });
 
@@ -151,9 +191,10 @@ export const createProduct = async (req, res) => {
     }
 
     if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
       return res.status(400).json({
         success: false,
-        message: 'Product with this name already exists'
+        message: `Product with this ${field} already exists`
       });
     }
 
@@ -168,7 +209,8 @@ export const createProduct = async (req, res) => {
     // Generic error response
     return res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
