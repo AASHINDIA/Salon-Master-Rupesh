@@ -17,12 +17,7 @@ const categorySchema = new mongoose.Schema({
         match: [/^[a-z0-9-]+$/, 'Slug can only contain letters, numbers and hyphens']
     },
 
-    // Hierarchy
-    parent: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Category',
-        default: null
-    },
+  
 
     // Display
     description: {
@@ -50,7 +45,6 @@ const categorySchema = new mongoose.Schema({
 
 // Indexes for better query performance
 categorySchema.index({ name: 'text', description: 'text' });
-categorySchema.index({ parent: 1 });
 categorySchema.index({ isActive: 1 });
 
 // Middleware to update timestamps

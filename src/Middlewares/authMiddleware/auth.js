@@ -99,7 +99,7 @@ export const roleCheck = (allowedRoles) => {
         // 5. If no permissions match
         return res.status(403).json({
             success: false,
-            message: `Access denied. Required roles: ${allowedRoles.join(', ')}`,
+            message: `Access denied. Required roles: ${allowedRoles}}`,
             yourRole: req.user.domain_type
         });
     };

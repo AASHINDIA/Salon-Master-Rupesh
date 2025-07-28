@@ -18,6 +18,7 @@ cloudinary.config({
  * @returns {Promise<{url: string, public_id: string}>} - Cloudinary response with secure URL and public ID
  * @throws {Error} - If upload fails
  */
+
 export const uploadToCloudinary = async (
   filePath,
   folder = 'uploads',
@@ -66,6 +67,7 @@ export const uploadToCloudinary = async (
  * @returns {Promise<{result: string}>} - Cloudinary deletion result
  * @throws {Error} - If deletion fails
  */
+
 export const deleteFromCloudinary = async (
   publicId,
   options = { resource_type: 'image' }
@@ -93,6 +95,7 @@ export const deleteFromCloudinary = async (
  * @param {string} url - Cloudinary URL
  * @returns {string} - Public ID
  */
+
 export const getPublicIdFromUrl = (url) => {
   if (!url) return null;
 

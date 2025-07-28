@@ -3,44 +3,6 @@ import Category from '../../Modal/Compony/Category.js';
 import mongoose from 'mongoose';
 import { validationResult } from 'express-validator';
 
-// Helper function to build category tree recursively
-const buildCategoryTree = async (parentId = null) => {
-    const categories = await Category.find({ parent: parentId, isActive: true });
-
-    const tree = await Promise.all(categories.map(async category => {
-        const children = await buildCategoryTree(category._id);
-
-        // Get product count for this category (including subcategories)
-        const categoryIds = [category._id, ...await getDescendantCategoryIds(category._id)];
-        const productCount = await Product.countDocuments({
-            category: { $in: categoryIds },
-            status: 'active'
-        });
-
-        return {
-            ...category.toObject(),
-            children,
-            productCount
-        };
-    }));
-
-    return tree;
-};
-
-// Helper function to get all descendant category IDs
-const getDescendantCategoryIds = async (parentId) => {
-    const children = await Category.find({ parent: parentId });
-    let descendants = [];
-
-    for (const child of children) {
-        descendants.push(child._id);
-        const childDescendants = await getDescendantCategoryIds(child._id);
-        descendants = [...descendants, ...childDescendants];
-    }
-
-    return descendants;
-};
-
 /**
  * Create a new category
  */
@@ -68,30 +30,57 @@ export const createCategory = async (req, res) => {
 };
 
 /**
- * Get all categories (flat list or tree structure)
+ * Get all categories with pagination and search
  */
 export const getCategories = async (req, res) => {
     try {
-        const { tree } = req.query;
+        const { search, page = 1, limit = 10, sortBy = 'name', sortOrder = 'asc', isActive } = req.query;
 
-        if (tree === 'true') {
-            // Return as hierarchical tree
-            const categoryTree = await buildCategoryTree();
-            res.json({
-                success: true,
-                data: categoryTree
-            });
-        } else {
-            // Return flat list
-            const categories = await Category.find()
-                .sort({ name: 1 })
-                .populate('parent', 'name slug');
+        // Build query
+        const query = {};
 
-            res.json({
-                success: true,
-                data: categories
-            });
+        // Search functionality
+        if (search) {
+            query.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } },
+                { slug: { $regex: search, $options: 'i' } }
+            ];
         }
+
+        // Filter by active status if provided
+        if (isActive !== undefined) {
+            query.isActive = isActive === 'true';
+        }
+
+        // Sorting options
+        const sortOptions = {};
+        sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+        // Pagination
+        const pageNumber = parseInt(page);
+        const limitNumber = parseInt(limit);
+        const skip = (pageNumber - 1) * limitNumber;
+
+        // Get total count for pagination
+        const total = await Category.countDocuments(query);
+
+        // Execute query
+        const categories = await Category.find(query)
+            .sort(sortOptions)
+            .skip(skip)
+            .limit(limitNumber);
+
+        res.json({
+            success: true,
+            data: categories,
+            pagination: {
+                page: pageNumber,
+                limit: limitNumber,
+                total,
+                pages: Math.ceil(total / limitNumber)
+            }
+        });
     } catch (error) {
         res.status(500).json({
             success: false,
@@ -109,12 +98,10 @@ export const getCategory = async (req, res) => {
 
         // Check if the identifier is a valid ObjectId
         if (mongoose.Types.ObjectId.isValid(req.params.id)) {
-            category = await Category.findById(req.params.id)
-                .populate('parent', 'name slug');
+            category = await Category.findById(req.params.id);
         } else {
             // Otherwise search by slug
-            category = await Category.findOne({ slug: req.params.id })
-                .populate('parent', 'name slug');
+            category = await Category.findOne({ slug: req.params.id });
         }
 
         if (!category) {
@@ -124,10 +111,9 @@ export const getCategory = async (req, res) => {
             });
         }
 
-        // Get product count for this category (including subcategories)
-        const categoryIds = [category._id, ...await getDescendantCategoryIds(category._id)];
+        // Get product count for this category
         const productCount = await Product.countDocuments({
-            category: { $in: categoryIds },
+            category: category._id,
             status: 'active'
         });
 
@@ -196,15 +182,6 @@ export const deleteCategory = async (req, res) => {
             });
         }
 
-        // Check if category has subcategories
-        const hasChildren = await Category.exists({ parent: category._id });
-        if (hasChildren) {
-            return res.status(400).json({
-                success: false,
-                message: 'Cannot delete category with subcategories'
-            });
-        }
-
         // Check if category has products
         const hasProducts = await Product.exists({ category: category._id });
         if (hasProducts) {
@@ -249,13 +226,10 @@ export const getCategoryProducts = async (req, res) => {
             });
         }
 
-        // Get all category IDs (including subcategories)
-        const categoryIds = [category._id, ...await getDescendantCategoryIds(category._id)];
-
         // Build product filters
         const filters = {
-            category: { $in: categoryIds },
-            ...buildProductFilters(req.query)
+            category: category._id,
+            status: 'active'
         };
 
         // Sorting
