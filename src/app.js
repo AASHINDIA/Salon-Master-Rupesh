@@ -43,6 +43,7 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser()); // Parse cookies
 app.use(hpp()); // HTTP Parameter Pollution protection
 
+app.set('trust proxy', 1); // or true
 
 // 4. Other middlewares
 app.use(morgan('dev')); // Logging

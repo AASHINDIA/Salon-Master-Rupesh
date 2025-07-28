@@ -20,7 +20,7 @@ const router = express.Router();
 // Public routes
 router.get('/', getProducts);
 router.get('/:id', getProduct);
-router.get('/vendor/:vendorId', getVendorProducts); // Optional vendorId
+router.get('/vendor', protect, getVendorProducts);
 
 // Protected routes (require authentication)
 router.use(protect);

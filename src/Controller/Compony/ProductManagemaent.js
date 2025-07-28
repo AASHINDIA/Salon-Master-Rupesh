@@ -4,6 +4,8 @@ import Product from '../../Modal/Compony/Products.js';
 import mongoose from 'mongoose';
 import { validationResult } from 'express-validator';
 import { uploadToCloudinary } from '../../Utils/imageUpload.js'
+import fs from 'fs'; // For unlinkSync or existsSync
+import fsp from 'fs/promises'; // If you want async/await
 
 
 // Helper function to build product query filters
@@ -526,7 +528,7 @@ export const updateStatus = async (req, res) => {
  */
 export const getVendorProducts = async (req, res) => {
   try {
-    const vendorId = req.params.vendorId || req.user.id;
+    const vendorId =  req.user.id;
 
     // Build filters
     const filters = { UserId: vendorId, ...buildProductFilters(req.query) };
