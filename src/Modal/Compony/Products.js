@@ -21,8 +21,7 @@ const productSchema = new mongoose.Schema({
   slug: {
     type: String,
     required: [true, 'Slug is required'],
-    unique: true,
-    lowercase: true,
+    
     match: [/^[a-z0-9-]+$/, 'Slug can only contain lowercase letters, numbers, and hyphens']
   },
 

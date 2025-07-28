@@ -61,7 +61,7 @@ export const createProduct = async (req, res) => {
       errors: errors.array().map(err => err.msg)
     });
   }
-
+  
   // 2. Extract required fields with destructuring
   const {
     name,
