@@ -1,5 +1,4 @@
 import express from 'express';
-
 import {
     createProduct,
     getProducts,
@@ -12,8 +11,11 @@ import {
 } from '../../Controller/Compony/ProductManagemaent.js';
 import { validateProduct } from '../../validator/product.validator.js';
 import { protect, roleCheck } from '../../Middlewares/authMiddleware/auth.js';
-import upload from '../../Middlewares/Multer.js';
+import upload from '../../Utils/multer.js';
 const router = express.Router();
+
+
+
 
 // Public routes
 router.get('/', getProducts);
