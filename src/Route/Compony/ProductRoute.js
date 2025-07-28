@@ -12,6 +12,7 @@ import {
 } from '../../Controller/Compony/ProductManagemaent.js';
 import { validateProduct } from '../../validator/product.validator.js';
 import { protect, roleCheck } from '../../Middlewares/authMiddleware/auth.js';
+import upload from '../../Middlewares/Multer.js';
 const router = express.Router();
 
 // Public routes
@@ -27,9 +28,9 @@ router.use(protect);
 router.post(
     '/products',
     roleCheck('compony'),
-    validateProduct,
     protect,
-   
+    upload.array('images', 10),   // ✅ Use this to handle multipart/form-data
+    validateProduct,
     createProduct
 );
 
