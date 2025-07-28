@@ -54,7 +54,7 @@ const buildProductFilters = (query) => {
  * @access  Private (Vendor/Admin)
  */
 export const createProduct = async (req, res) => {
-  // 1. Validate request using express-validator
+  // Validate request
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
@@ -63,8 +63,7 @@ export const createProduct = async (req, res) => {
       errors: errors.array().map(err => err.msg)
     });
   }
-  
-  // 2. Extract required fields with destructuring
+
   const {
     name,
     slug,
@@ -80,7 +79,7 @@ export const createProduct = async (req, res) => {
   } = req.body;
 
   try {
-    // 3. Validate essential fields
+    // Basic validation
     if (!name || !slug || !description || originalPrice === undefined || !category) {
       return res.status(400).json({
         success: false,
@@ -88,7 +87,7 @@ export const createProduct = async (req, res) => {
       });
     }
 
-    // 4. Check if slug is already taken
+    // Check if slug exists
     const existingProduct = await Product.findOne({ slug });
     if (existingProduct) {
       return res.status(400).json({
@@ -97,31 +96,57 @@ export const createProduct = async (req, res) => {
       });
     }
 
-    // 5. Handle image uploads
+    // Handle image uploads
     let images = [];
     if (req.files && req.files.length > 0) {
       try {
-        // Upload all images in parallel
-        const uploadPromises = req.files.map(file =>
-          uploadToCloudinary(file.path, 'products')
-        );
-        const uploadResults = await Promise.all(uploadPromises);
-        images = uploadResults.map(result => result.secure_url);
-        
-        // Cleanup: Delete temporary files after upload
-        req.files.forEach(file => {
-          fs.unlinkSync(file.path);
-        });
+        // Upload images sequentially to avoid overloading Cloudinary
+        for (const file of req.files) {
+          if (!file.path) {
+            console.error('File path missing:', file);
+            continue;
+          }
+
+          const result = await uploadToCloudinary(file.path, 'products');
+          images.push(result.secure_url);
+
+          // Clean up temp file
+          try {
+            await fsp.unlink(file.path);
+          } catch (unlinkError) {
+            console.error('Error deleting temp file:', unlinkError);
+          }
+        }
+
+        if (images.length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'No valid images were uploaded'
+          });
+        }
       } catch (uploadError) {
         console.error('Image upload error:', uploadError);
         return res.status(500).json({
           success: false,
-          message: 'Failed to upload product images'
+          message: 'Failed to upload product images',
+          error: process.env.NODE_ENV === 'development' ? uploadError.message : undefined
         });
       }
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one product image is required'
+      });
     }
 
-    // 6. Validate category exists (optional - remove if you don't want this check)
+    // Validate category exists
+    if (!mongoose.Types.ObjectId.isValid(category)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid category ID'
+      });
+    }
+
     const categoryExists = await mongoose.model('Category').exists({ _id: category });
     if (!categoryExists) {
       return res.status(400).json({
@@ -130,30 +155,39 @@ export const createProduct = async (req, res) => {
       });
     }
 
-    // 7. Create product object according to schema
+    // Parse tags if they're sent as JSON string
+    let parsedTags = [];
+    try {
+      parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
+      if (!Array.isArray(parsedTags)) {
+        parsedTags = [];
+      }
+    } catch (e) {
+      parsedTags = [];
+    }
+
+    // Create product
     const productData = {
-      UserId: req.user._id, // From authentication middleware
+      UserId: req.user._id,
       name,
       slug,
       description,
       shortDescription,
       originalPrice: parseFloat(originalPrice),
       discountPercent: parseFloat(discountPercent),
-      // price will be calculated in pre-save hook
       category: new mongoose.Types.ObjectId(category),
-      tags: tags.filter(tag => tag.length <= 30), // Filter out invalid tags
+      tags: parsedTags.filter(tag => typeof tag === 'string' && tag.length <= 30),
       trackQuantity,
       quantity: trackQuantity ? parseInt(quantity) : 0,
       images,
-      status: ['draft', 'active', 'archived', 'out_of_stock'].includes(status) 
-        ? status 
+      status: ['draft', 'active', 'archived', 'out_of_stock'].includes(status)
+        ? status
         : 'draft'
     };
 
-    // 8. Save to database
     const product = await Product.create(productData);
 
-    // 9. Format response
+    // Format response
     const response = {
       id: product._id,
       name: product.name,
@@ -183,7 +217,7 @@ export const createProduct = async (req, res) => {
   } catch (error) {
     console.error('Product creation error:', error);
 
-    // Handle specific error types
+    // Handle specific errors
     if (error.name === 'ValidationError') {
       return res.status(400).json({
         success: false,
@@ -200,15 +234,6 @@ export const createProduct = async (req, res) => {
       });
     }
 
-    // Handle invalid category ID
-    if (error.name === 'CastError' && error.path === 'category') {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid category ID'
-      });
-    }
-
-    // Generic error response
     return res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -216,7 +241,6 @@ export const createProduct = async (req, res) => {
     });
   }
 };
-
 // Helper function to calculate discounted price
 const calculateDiscountedPrice = (originalPrice, discountPercent) => {
   const discount = parseFloat(discountPercent) || 0;
@@ -528,7 +552,7 @@ export const updateStatus = async (req, res) => {
  */
 export const getVendorProducts = async (req, res) => {
   try {
-    const vendorId =  req.user.id;
+    const vendorId = req.user.id;
 
     // Build filters
     const filters = { UserId: vendorId, ...buildProductFilters(req.query) };
