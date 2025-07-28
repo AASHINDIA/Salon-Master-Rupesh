@@ -3,11 +3,7 @@ import mongoose from 'mongoose';
 
 export const validateProduct = [
   // Vendor Reference Validation
-  body('UserId')
-    .notEmpty().withMessage('Vendor ID is required')
-    .custom((value) => mongoose.Types.ObjectId.isValid(value))
-    .withMessage('Invalid Vendor ID format'),
-
+ 
   // Basic Info Validation
   body('name')
     .trim()
