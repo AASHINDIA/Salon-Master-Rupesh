@@ -18,7 +18,7 @@ import authRout from './Route/authRoute/authRoute.js'
 import CategoryRuoute from './Route/Compony/Category.js'
 import ProductRuoute from './Route/Compony/ProductRoute.js'
 
-
+import TraningVideos from './Route/SuperAdmin/TraningVideosRoute/TraningVideosRoute.js'
 
 const app = express();
 
@@ -77,6 +77,7 @@ app.use('/api/v1/category', CategoryRuoute)
 app.use('/api/v1/product', ProductRuoute)
 
 // ---------------------------
+app.use('/api/v1/TraningVideos', TraningVideos)
 // ---------------------------
 // 🧱 Error Handlers
 // ---------------------------

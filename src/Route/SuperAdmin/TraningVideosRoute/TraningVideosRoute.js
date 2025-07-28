@@ -9,7 +9,7 @@ import {
     restoreTrendingVideo,
     permanentDeleteTrendingVideo
 } from '../../../Controller/Tranginvideo/TrendingVideo.js';
-import { protect } from '../middleware/authMiddleware.js';
+import { protect } from '../../../Middlewares/authMiddleware/auth.js';
 
 const router = express.Router();
 

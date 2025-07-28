@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import TrendingVideo from '../../Modal/SuperAdmin/TraningVideos';
+import TrendingVideo from '../../Modal/SuperAdmin/TraningVideos.js';
 
 /**
  * @desc    Create a new trending video
