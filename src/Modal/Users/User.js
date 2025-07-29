@@ -67,7 +67,7 @@ const UserSchema = new mongoose.Schema({
     },
 
     // 📱 Device token (e.g., for push notifications)
-    device_token: {
+    devicetoken: {
         type: String,
     }
 

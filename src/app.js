@@ -19,6 +19,11 @@ import CategoryRuoute from './Route/Compony/Category.js'
 import ProductRuoute from './Route/Compony/ProductRoute.js'
 
 import TraningVideos from './Route/SuperAdmin/TraningVideosRoute/TraningVideosRoute.js'
+import candidate from './Route/Worker/candidateRoutes.js'
+import salon from './Route/Salon/salonRoutes.js'
+import compnay from './Route/Compony/companyRoutes.js'
+import JobPost from './Route/JOB/jobPostingRoutes.js'
+import JobApp from './Route/JOB/jobApplicationRoutes.js'
 
 const app = express();
 
@@ -78,6 +83,14 @@ app.use('/api/v1/product', ProductRuoute)
 
 // ---------------------------
 app.use('/api/v1/TraningVideos', TraningVideos)
+app.use('/api/v1/candidate', candidate)
+app.use('/api/v1/salon', salon)
+app.use('/api/v1/compnay', compnay)
+// ---------------------------
+//-------------JOB----------------
+// ---------------------------
+app.use('/api/v1/jobpost', JobPost)
+app.use('/api/v1/jobapp', JobApp)
 // ---------------------------
 // 🧱 Error Handlers
 // ---------------------------

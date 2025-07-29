@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import User from '../Users/User';
 
 const candidateSchema = new mongoose.Schema({
     user_id: {
@@ -8,7 +7,12 @@ const candidateSchema = new mongoose.Schema({
         required: true
     },
     image: {
-        type: String, // Stores path/URL of the candidate's image
+        type: String, 
+    },
+    uniquename: {
+        type: String,
+        required: true
+
     },
     id_no: {
         type: String,

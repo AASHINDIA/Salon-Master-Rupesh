@@ -10,26 +10,16 @@ const createTrendingVideo = async (req, res) => {
     try {
         const { title, description, link, duration, categories } = req.body;
 
-        // Extract YouTube ID if it's a YouTube URL
-        let videoLink = link;
-        if (link.includes('youtube.com') || link.includes('youtu.be')) {
-            const youtubeId = extractYouTubeId(link);
-            if (!youtubeId) {
-                return res.status(400).json({ message: 'Invalid YouTube URL' });
-            }
-            videoLink = `https://www.youtube.com/watch?v=${youtubeId}`;
-        }
-
         const video = new TrendingVideo({
             title,
             description,
-            link: videoLink,
+            link, // Use the link directly without any validation
             duration,
             categories: categories || ['general']
         });
 
         const createdVideo = await video.save();
-        
+
         res.status(201).json({
             _id: createdVideo._id,
             title: createdVideo.title,
@@ -56,15 +46,15 @@ const createTrendingVideo = async (req, res) => {
  */
 const getTrendingVideos = async (req, res) => {
     try {
-        const { 
-            page = 1, 
-            limit = 10, 
-            sort = '-createdAt', 
-            search, 
-            category, 
-            minDuration, 
+        const {
+            page = 1,
+            limit = 10,
+            sort = '-createdAt',
+            search,
+            category,
+            minDuration,
             maxDuration,
-            active 
+            active
         } = req.query;
 
         // Build the query
@@ -185,9 +175,9 @@ const updateTrendingVideo = async (req, res) => {
             updatedAt: updatedVideo.updatedAt
         });
     } catch (error) {
-        res.status(400).json({ 
+        res.status(400).json({
             message: error.message,
-            error: error.errors 
+            error: error.errors
         });
     }
 };

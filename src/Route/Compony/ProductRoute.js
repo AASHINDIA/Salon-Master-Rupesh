@@ -10,14 +10,14 @@ import {
     getVendorProducts
 } from '../../Controller/Compony/ProductManagemaent.js';
 import { validateProduct } from '../../validator/product.validator.js';
+import multer from 'multer';
 import { protect, roleCheck } from '../../Middlewares/authMiddleware/auth.js';
 const router = express.Router();
 // utils/multer.js
-import multer from 'multer';
 
 const storage = multer.memoryStorage(); // ✅ stores buffer in memory
 
- const upload = multer({ storage });
+const upload = multer({ storage });
 
 
 

@@ -6,8 +6,8 @@ import { validationResult } from 'express-validator';
 import { uploadToCloudinary } from '../../Utils/imageUpload.js'
 import fs from 'fs'; // For unlinkSync or existsSync
 import fsp from 'fs/promises'; // If you want async/await
-
-
+import { sendNotification } from '../../Utils/sendNotification.js';
+import User from '../../Modal/Users/User.js';
 // Helper function to build product query filters
 const buildProductFilters = (query) => {
   const filters = {};
@@ -204,7 +204,16 @@ export const createProduct = async (req, res) => {
     });
 
     await product.save();
+    const users = await User.find({ devicetoken: { $exists: true, $ne: '' } }).select('devicetoken');
+    const tokens = users.map(user => user.devicetoken).filter(Boolean);
 
+    await sendNotification(tokens, {
+      title: '🛍️ New Product Launched!',
+      body: `${product.name} is now available at ₹${product.price}`
+    }, {
+      productId: product._id.toString(),
+      slug: product.slug
+    });
     return res.status(201).json({
       success: true,
       message: 'Product created successfully',
