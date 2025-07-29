@@ -11,9 +11,13 @@ import {
 } from '../../Controller/Compony/ProductManagemaent.js';
 import { validateProduct } from '../../validator/product.validator.js';
 import { protect, roleCheck } from '../../Middlewares/authMiddleware/auth.js';
-import upload from '../../Utils/multer.js';
 const router = express.Router();
+// utils/multer.js
+import multer from 'multer';
 
+const storage = multer.memoryStorage(); // ✅ stores buffer in memory
+
+ const upload = multer({ storage });
 
 
 
@@ -31,8 +35,7 @@ router.post(
     '/products',
     roleCheck('compony'),
     protect,
-    upload.array('images', 10),   // ✅ Use this to handle multipart/form-data
-    validateProduct,
+    upload.array("images", 10),
     createProduct
 );
 

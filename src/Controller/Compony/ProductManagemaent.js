@@ -53,14 +53,14 @@ const buildProductFilters = (query) => {
  * @route   POST /api/products
  * @access  Private (Vendor/Admin)
  */
+
 export const createProduct = async (req, res) => {
-  // Validate request
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
       success: false,
       message: 'Validation failed',
-      errors: errors.array().map(err => err.msg)
+      errors: errors.array(),
     });
   }
 
@@ -79,67 +79,37 @@ export const createProduct = async (req, res) => {
   } = req.body;
 
   try {
-    // Basic validation
-    if (!name || !slug || !description || originalPrice === undefined || !category) {
+    // Validate required fields
+    const requiredFields = { name, slug, description, originalPrice, category };
+    const missingFields = Object.entries(requiredFields)
+      .filter(([_, value]) => value === undefined || value === '')
+      .map(([key]) => key);
+
+    if (missingFields.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Name, slug, description, original price, and category are required'
+        message: 'Missing required fields',
+        missingFields
       });
     }
 
-    // Check if slug exists
-    const existingProduct = await Product.findOne({ slug });
-    if (existingProduct) {
+    // Validate originalPrice
+    if (isNaN(originalPrice) || originalPrice <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'Product with this slug already exists'
+        message: 'Original price must be a positive number'
       });
     }
 
-    // Handle image uploads
-    let images = [];
-    if (req.files && req.files.length > 0) {
-      try {
-        // Upload images sequentially to avoid overloading Cloudinary
-        for (const file of req.files) {
-          if (!file.path) {
-            console.error('File path missing:', file);
-            continue;
-          }
-
-          const result = await uploadToCloudinary(file.path, 'products');
-          images.push(result.secure_url);
-
-          // Clean up temp file
-          try {
-            await fsp.unlink(file.path);
-          } catch (unlinkError) {
-            console.error('Error deleting temp file:', unlinkError);
-          }
-        }
-
-        if (images.length === 0) {
-          return res.status(400).json({
-            success: false,
-            message: 'No valid images were uploaded'
-          });
-        }
-      } catch (uploadError) {
-        console.error('Image upload error:', uploadError);
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to upload product images',
-          error: process.env.NODE_ENV === 'development' ? uploadError.message : undefined
-        });
-      }
-    } else {
+    // Validate discountPercent
+    if (isNaN(discountPercent) || discountPercent < 0 || discountPercent > 100) {
       return res.status(400).json({
         success: false,
-        message: 'At least one product image is required'
+        message: 'Discount percent must be between 0 and 100'
       });
     }
 
-    // Validate category exists
+    // Validate category ID
     if (!mongoose.Types.ObjectId.isValid(category)) {
       return res.status(400).json({
         success: false,
@@ -147,90 +117,135 @@ export const createProduct = async (req, res) => {
       });
     }
 
-    const categoryExists = await mongoose.model('Category').exists({ _id: category });
-    if (!categoryExists) {
+    // Validate slug format (lowercase, numbers, hyphens only)
+    const slugRegex = /^[a-z0-9-]+$/;
+    const cleanSlug = slug.trim().toLowerCase();
+    if (!slugRegex.test(cleanSlug)) {
       return res.status(400).json({
         success: false,
-        message: 'Specified category does not exist'
+        message: 'Slug can only contain lowercase letters, numbers, and hyphens'
       });
     }
 
-    // Parse tags if they're sent as JSON string
+    // Check for existing product with same slug
+    const existing = await Product.findOne({ slug: cleanSlug });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: 'Product with this slug already exists'
+      });
+    }
+
+    // Validate images
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one product image is required'
+      });
+    }
+
+    // Upload images to cloudinary
+    const imageUrls = [];
+    const uploadErrors = [];
+
+    for (const file of req.files) {
+      if (!file.buffer) {
+        uploadErrors.push(`Missing buffer for ${file.originalname}`);
+        continue;
+      }
+
+      try {
+        const result = await uploadToCloudinary(file.buffer, 'products');
+        imageUrls.push(result.secure_url);
+      } catch (err) {
+        uploadErrors.push(`Failed to upload ${file.originalname}`);
+        console.error(`Upload error for ${file.originalname}:`, err);
+      }
+    }
+
+    if (imageUrls.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid images uploaded',
+        errors: uploadErrors
+      });
+    }
+
+    // Process tags
     let parsedTags = [];
     try {
       parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
-      if (!Array.isArray(parsedTags)) {
-        parsedTags = [];
-      }
+      if (!Array.isArray(parsedTags)) parsedTags = [];
     } catch (e) {
       parsedTags = [];
     }
 
+    const validTags = parsedTags
+      .filter(tag => typeof tag === 'string' && tag.trim().length > 0 && tag.length <= 30)
+      .map(tag => tag.trim())
+      .slice(0, 10);
+
     // Create product
-    const productData = {
+    const product = new Product({
       UserId: req.user._id,
-      name,
-      slug,
-      description,
-      shortDescription,
-      originalPrice: parseFloat(originalPrice),
+      name: name.trim(),
+      slug: cleanSlug, // Use the cleaned slug
+      description: description.trim(),
+      shortDescription: shortDescription.trim(),
+      originalPrice: parseFloat(originalPrice), // Ensure this is set
+      price: parseFloat(originalPrice), // Initial price before discount applied
       discountPercent: parseFloat(discountPercent),
       category: new mongoose.Types.ObjectId(category),
-      tags: parsedTags.filter(tag => typeof tag === 'string' && tag.length <= 30),
+      tags: validTags,
       trackQuantity,
-      quantity: trackQuantity ? parseInt(quantity) : 0,
-      images,
-      status: ['draft', 'active', 'archived', 'out_of_stock'].includes(status)
-        ? status
-        : 'draft'
-    };
+      quantity: trackQuantity ? Math.max(0, parseInt(quantity)) : 0,
+      images: imageUrls,
+      status: ['draft', 'active', 'archived', 'out_of_stock'].includes(status) ? status : 'draft'
+    });
 
-    const product = await Product.create(productData);
-
-    // Format response
-    const response = {
-      id: product._id,
-      name: product.name,
-      slug: product.slug,
-      description: product.description,
-      shortDescription: product.shortDescription,
-      price: product.price,
-      originalPrice: product.originalPrice,
-      discountPercent: product.discountPercent,
-      category: product.category,
-      tags: product.tags,
-      images: product.images,
-      quantity: product.quantity,
-      trackQuantity: product.trackQuantity,
-      status: product.status,
-      rating: product.rating,
-      createdAt: product.createdAt,
-      updatedAt: product.updatedAt
-    };
+    await product.save();
 
     return res.status(201).json({
       success: true,
       message: 'Product created successfully',
-      data: response
+      data: {
+        id: product._id,
+        name: product.name,
+        slug: product.slug,
+        price: product.price,
+        originalPrice: product.originalPrice,
+        discountPercent: product.discountPercent,
+        images: product.images,
+        description: product.description,
+        shortDescription: product.shortDescription,
+        category: product.category,
+        tags: product.tags,
+        quantity: product.quantity,
+        trackQuantity: product.trackQuantity,
+        status: product.status,
+        rating: product.rating,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt
+      },
+      warnings: uploadErrors.length ? uploadErrors : undefined
     });
 
   } catch (error) {
-    console.error('Product creation error:', error);
+    console.error('Error creating product:', error);
 
-    // Handle specific errors
     if (error.name === 'ValidationError') {
       return res.status(400).json({
         success: false,
-        message: 'Validation failed',
-        errors: Object.values(error.errors).map(err => err.message)
+        message: 'Schema validation failed',
+        errors: Object.values(error.errors).map(e => e.message)
       });
     }
 
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
-      return res.status(400).json({
+      return res.status(409).json({
         success: false,
-        message: `Product with this ${field} already exists`
+        message: `Duplicate entry for ${field}`
       });
     }
 
@@ -241,30 +256,7 @@ export const createProduct = async (req, res) => {
     });
   }
 };
-// Helper function to calculate discounted price
-const calculateDiscountedPrice = (originalPrice, discountPercent) => {
-  const discount = parseFloat(discountPercent) || 0;
-  const price = parseFloat(originalPrice) * (1 - discount / 100);
-  return Math.round(price * 100) / 100; // Round to 2 decimal places
-};
 
-// Helper function to format product response
-const formatProductResponse = (product) => {
-  return {
-    id: product._id,
-    name: product.name,
-    description: product.description,
-    price: product.price,
-    originalPrice: product.originalPrice,
-    discountPercent: product.discountPercent,
-    category: product.category,
-    images: product.images.map(img => img.url),
-    specifications: product.specifications,
-    status: product.status,
-    createdAt: product.createdAt,
-    updatedAt: product.updatedAt
-  };
-};
 
 
 

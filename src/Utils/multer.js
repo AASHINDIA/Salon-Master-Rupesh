@@ -1,4 +1,3 @@
-// utils/multer.js
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -29,4 +28,5 @@ const upload = multer({
     limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
 });
 
-export default upload;
+// Export the configured multer for handling multiple images
+export const uploadProductImages = upload.array('images', 5);
