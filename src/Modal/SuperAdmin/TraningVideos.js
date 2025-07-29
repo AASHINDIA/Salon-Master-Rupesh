@@ -19,13 +19,7 @@ const TrendingVideoSchema = new Schema({
     link: {
         type: String,
         required: [true, 'Video link is required'],
-        validate: {
-            validator: function(v) {
-                // Improved URL validation regex
-                return /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(v);
-            },
-            message: props => `${props.value} is not a valid URL!`
-        }
+      
     },
     duration: {
         type: Number, // in seconds

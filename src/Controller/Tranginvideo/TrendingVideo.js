@@ -1,6 +1,13 @@
 import mongoose from 'mongoose';
 import TrendingVideo from '../../Modal/SuperAdmin/TraningVideos.js';
 
+// Helper function to format duration (seconds to MM:SS)
+function formatDuration(duration) {
+    const minutes = Math.floor(duration / 60);
+    const seconds = duration % 60;
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
+
 /**
  * @desc    Create a new trending video
  * @route   POST /api/trending-videos
@@ -9,17 +16,20 @@ import TrendingVideo from '../../Modal/SuperAdmin/TraningVideos.js';
 const createTrendingVideo = async (req, res) => {
     try {
         const { title, description, link, duration, categories } = req.body;
+        const validCategories = ['general', 'technology', 'business', 'health'];
+
+        const filteredCategories = categories
+            ? categories.filter(cat => validCategories.includes(cat))
+            : ['general'];
 
         const video = new TrendingVideo({
             title,
             description,
-            link, // Use the link directly without any validation
+            link,
             duration,
-            categories: categories || ['general']
+            categories: filteredCategories.length ? filteredCategories : ['general']
         });
 
-
-        
         const createdVideo = await video.save();
 
         res.status(201).json({
@@ -28,7 +38,7 @@ const createTrendingVideo = async (req, res) => {
             description: createdVideo.description,
             link: createdVideo.link,
             duration: createdVideo.duration,
-            formattedDuration: createdVideo.formattedDuration,
+            formattedDuration: formatDuration(createdVideo.duration),
             categories: createdVideo.categories,
             isActive: createdVideo.isActive,
             createdAt: createdVideo.createdAt
@@ -59,7 +69,6 @@ const getTrendingVideos = async (req, res) => {
             active
         } = req.query;
 
-        // Build the query
         let query = {};
 
         // Search filter
@@ -87,7 +96,6 @@ const getTrendingVideos = async (req, res) => {
             query.isActive = active === 'true';
         }
 
-        // Execute query with pagination
         const videos = await TrendingVideo.find(query)
             .sort(sort)
             .limit(Number(limit))
@@ -102,7 +110,7 @@ const getTrendingVideos = async (req, res) => {
                 formattedDuration: formatDuration(video.duration)
             })),
             page: Number(page),
-            pages: Math.ceil(total / Number(limit)),
+            totalPages: Math.ceil(total / Number(limit)),
             total
         });
     } catch (error) {
@@ -140,16 +148,7 @@ const getTrendingVideoById = async (req, res) => {
 const updateTrendingVideo = async (req, res) => {
     try {
         const { title, description, link, duration, categories } = req.body;
-
-        let videoLink = link;
-        // Handle YouTube URL if provided
-        if (link && (link.includes('youtube.com') || link.includes('youtu.be'))) {
-            const youtubeId = extractYouTubeId(link);
-            if (!youtubeId) {
-                return res.status(400).json({ message: 'Invalid YouTube URL' });
-            }
-            videoLink = `https://www.youtube.com/watch?v=${youtubeId}`;
-        }
+        const validCategories = ['general', 'technology', 'business', 'health'];
 
         const video = await TrendingVideo.findById(req.params.id);
 
@@ -157,11 +156,15 @@ const updateTrendingVideo = async (req, res) => {
             return res.status(404).json({ message: 'Video not found' });
         }
 
+        const filteredCategories = categories
+            ? categories.filter(cat => validCategories.includes(cat))
+            : video.categories;
+
         video.title = title || video.title;
         video.description = description || video.description;
-        video.link = videoLink || video.link;
+        video.link = link || video.link;
         video.duration = duration || video.duration;
-        video.categories = categories || video.categories;
+        video.categories = filteredCategories.length ? filteredCategories : ['general'];
 
         const updatedVideo = await video.save();
 
@@ -171,7 +174,7 @@ const updateTrendingVideo = async (req, res) => {
             description: updatedVideo.description,
             link: updatedVideo.link,
             duration: updatedVideo.duration,
-            formattedDuration: updatedVideo.formattedDuration,
+            formattedDuration: formatDuration(updatedVideo.duration),
             categories: updatedVideo.categories,
             isActive: updatedVideo.isActive,
             updatedAt: updatedVideo.updatedAt
@@ -246,20 +249,6 @@ const permanentDeleteTrendingVideo = async (req, res) => {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };
-
-// Helper function to extract YouTube ID from URL
-function extractYouTubeId(url) {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
-}
-
-// Helper function to format duration (seconds to MM:SS)
-function formatDuration(duration) {
-    const minutes = Math.floor(duration / 60);
-    const seconds = duration % 60;
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-}
 
 export {
     createTrendingVideo,
