@@ -18,6 +18,8 @@ const createTrendingVideo = async (req, res) => {
             categories: categories || ['general']
         });
 
+
+        
         const createdVideo = await video.save();
 
         res.status(201).json({
