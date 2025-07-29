@@ -12,7 +12,7 @@ const storage = multer.memoryStorage(); // ✅ stores buffer in memory
 const upload = multer({ storage });
 // Protect all routes with auth middleware
 router.use(protect);
-router.use(roleCheck('worker'))
+// router.use(roleCheck('worker'))
 // Get candidate profile
 router.get('/', getCandidateProfile);
 

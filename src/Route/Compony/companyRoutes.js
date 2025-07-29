@@ -8,7 +8,7 @@ const storage = multer.memoryStorage(); // ✅ stores buffer in memory
 const upload = multer({ storage });
 // Protect all routes with auth middleware
 router.use(protect);
-router.use(roleCheck('compony'));
+// router.use(roleCheck('compony'));
 
 // Get company profile
 router.get('/', getCompanyProfile);
