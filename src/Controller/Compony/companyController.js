@@ -1,4 +1,4 @@
-import Company from '../../Modal/Compony/compony.js';
+import Company from '../../Modal/Compony/ComponyModal.js';
 import { uploadToCloudinary } from '../../Utils/imageUpload.js';
 import mongoose from 'mongoose';
 
