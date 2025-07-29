@@ -7,12 +7,12 @@ const generateUniqueSalonName = () => {
     const letters = 'abcdefghijklmnopqrstuvwxyz';
     const numbers = '0123456789';
     let result = 'sl'; // Prefix for salon
-    
+
     // Add 3 random numbers
     for (let i = 0; i < 3; i++) {
         result += numbers.charAt(Math.floor(Math.random() * numbers.length));
     }
-    
+
     return result;
 };
 
@@ -96,10 +96,14 @@ export const saveSalonProfile = async (req, res) => {
         }
 
         // Handle image upload if present
-        if (req.file) {
-            const uploadResult = await uploadToCloudinary(req.file);
-            salon.image_path = uploadResult.secure_url;
+        if (req.file?.buffer) {
+            const result = await uploadToCloudinary(req.file.buffer, 'salon-profile');
+            console.log('✅ Cloudinary Upload Result:', result);
+            salon.image_path = result.secure_url;
         }
+
+
+
 
         // Update fields from request body
         if (identification_number !== undefined) salon.identification_number = identification_number;

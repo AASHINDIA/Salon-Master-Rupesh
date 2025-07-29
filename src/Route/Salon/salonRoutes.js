@@ -7,9 +7,13 @@ import multer from 'multer';
 const router = express.Router();
 
 const storage = multer.memoryStorage(); // ✅ stores buffer in memory
-const upload = multer({ storage });// Protect all routes with auth middleware
-router.use(protect);
-router.use(roleCheck('salon'));
+const upload = multer({
+    storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    }
+}); router.use(protect);
+// router.use(roleCheck('salon'));
 
 // Get salon profile
 router.get('/', getSalonProfile);

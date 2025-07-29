@@ -76,10 +76,15 @@ export const saveCompanyProfile = async (req, res) => {
         }
 
         // Handle image upload if present
-        if (req.file) {
-            const uploadResult = await uploadToCloudinary(req.file);
+       
+
+
+        if (req.file?.buffer) {
+            const result = await uploadToCloudinary(req.file.buffer, 'worker-profile');
+            console.log('✅ Cloudinary Upload Result:', result);
             company.image = uploadResult.secure_url;
         }
+
 
         // Update fields from request body
         if (company_name !== undefined) company.company_name = company_name;
