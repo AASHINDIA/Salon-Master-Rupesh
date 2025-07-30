@@ -553,29 +553,33 @@ export const updateStatus = async (req, res) => {
  */
 export const getVendorProducts = async (req, res) => {
   try {
-    const vendorId = req.user.id;
-
-    // Build filters
-    const filters = { UserId: vendorId, ...buildProductFilters(req.query) };
+    const vendorId = req.user.id; // Get vendor ID from authenticated user
+      console.log("vendorId",vendorId)
+    // Build filters including the vendor ID
+    const filters = {
+      UserId: vendorId, // Ensure this matches your schema field name
+      ...buildProductFilters(req.query)
+    };
 
     // Sorting
     const sortBy = req.query.sortBy || '-createdAt';
     const sortOrder = {};
-    sortOrder[sortBy.replace('-', '')] = sortBy.startsWith('-') ? -1 : 1;
+    const sortField = sortBy.replace(/^-/, ''); // Remove leading '-' if present
+    sortOrder[sortField] = sortBy.startsWith('-') ? -1 : 1;
 
     // Pagination
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    // Query products
+    // Query products with proper filtering for the vendor
     const products = await Product.find(filters)
       .sort(sortOrder)
       .skip(skip)
       .limit(limit)
       .populate('category', 'name slug');
 
-    // Count total for pagination info
+    // Count total products for this vendor
     const total = await Product.countDocuments(filters);
 
     res.json({

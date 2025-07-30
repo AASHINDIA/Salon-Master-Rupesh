@@ -24,10 +24,10 @@ const upload = multer({ storage });
 // Public routes
 router.get('/', getProducts);
 router.get('/:id', getProduct);
-router.get('/vendor', protect, getVendorProducts);
 
 // Protected routes (require authentication)
 router.use(protect);
+router.post('/vendor', getVendorProducts);
 
 
 

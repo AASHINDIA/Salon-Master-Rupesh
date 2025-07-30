@@ -17,6 +17,16 @@ const generateUniqueCompanyName = () => {
 };
 
 // Get company profile
+
+
+
+
+
+
+
+
+
+
 export const getCompanyProfile = async (req, res) => {
     try {
         const userId = req.user._id;
