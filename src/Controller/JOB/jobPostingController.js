@@ -34,7 +34,16 @@ export const createJobPosting = async (req, res) => {
 // Get All Job Postings with Pagination, Search & Filters
 export const getAllJobPostings = async (req, res) => {
     try {
-        const { page = 1, limit = 10, search, job_title, location, gender_preference, salary_min, salary_max } = req.query;
+        const { 
+            page = 1, 
+            limit = 10, 
+            search, 
+            job_title, 
+            location, 
+            gender_preference, 
+            salary_min, 
+            salary_max 
+        } = req.query;
         
         const query = { is_active: true };
         
@@ -56,21 +65,27 @@ export const getAllJobPostings = async (req, res) => {
             query['salary_range.max'] = { $lte: parseInt(salary_max) || 1000000 };
         }
 
-        const options = {
-            page: parseInt(page),
-            limit: parseInt(limit),
-            populate: { path: 'salon_id', select: 'salon_name brand_name image_path' },
-            sort: { posted_date: -1 }
-        };
+        // Calculate pagination values
+        const pageNumber = parseInt(page);
+        const pageSize = parseInt(limit);
+        const skip = (pageNumber - 1) * pageSize;
 
-        const result = await JobPosting.paginate(query, options);
+        // Get total count for pagination info
+        const total = await JobPosting.countDocuments(query);
+
+        // Get paginated results
+        const jobs = await JobPosting.find(query)
+            .populate('salon_id', 'salon_name brand_name image_path')
+            .sort({ posted_date: -1 })
+            .skip(skip)
+            .limit(pageSize);
 
         res.status(200).json({ 
             success: true, 
-            data: result.docs,
-            total: result.totalDocs,
-            pages: result.totalPages,
-            currentPage: result.page
+            data: jobs,
+            total,
+            pages: Math.ceil(total / pageSize),
+            currentPage: pageNumber
         });
     } catch (error) {
         res.status(500).json({ 
@@ -204,7 +219,7 @@ export const closeJobPosting = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Job not found or not authorized' });
         }
 
-        res.status(200).json({ success: true, data: job });
+        res.status(200).json({ success: true, message:'job closed' ,data: job });
     } catch (error) {
         res.status(500).json({ 
             success: false, 

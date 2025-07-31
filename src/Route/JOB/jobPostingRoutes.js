@@ -12,8 +12,8 @@ import { protect, roleCheck } from '../../Middlewares/authMiddleware/auth.js';
 const router = express.Router();
 
 // Salon-specific routes (require salon authentication)
-router.use(protect, roleCheck('salon'));
-
+router.use(protect);
+// roleCheck('salon')
 // Create a new job posting
 router.post('/', createJobPosting);
 
