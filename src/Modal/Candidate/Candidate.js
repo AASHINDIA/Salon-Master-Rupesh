@@ -7,7 +7,7 @@ const candidateSchema = new mongoose.Schema({
         required: true
     },
     image: {
-        type: String, 
+        type: String,
     },
     uniquename: {
         type: String,
@@ -29,6 +29,11 @@ const candidateSchema = new mongoose.Schema({
     },
     date_of_birth: {
         type: Date,
+    },
+    gender: {
+        type: String,
+        enum:['male','female','other'],     
+        required: true
     },
     address: {
         type: String,
@@ -69,9 +74,13 @@ const candidateSchema = new mongoose.Schema({
         default: []
     },
     skills: {
-        type: [String],
+        type: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Skill'
+        }],
         default: []
     },
+
     services: {
         type: [String],
         default: []
@@ -83,6 +92,11 @@ const candidateSchema = new mongoose.Schema({
     joining_date: {
         type: Date,
     },
+    expected_salary: {
+        min: { type: Number, default: 0 },
+        max: { type: Number, default: 0 }
+    },
+
     portfolio_links: {
         type: [{
             platform: String,

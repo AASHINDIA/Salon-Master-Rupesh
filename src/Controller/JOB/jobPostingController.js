@@ -65,6 +65,69 @@ export const createJobPosting = async (req, res) => {
 
 
 
+
+
+export const getSuggestedCandidates = async (req, res) => {
+    try {
+        // Find the salon for the logged-in user
+        const salon = await Salon.findOne({ user_id: req.user._id });
+
+        if (!salon) {
+            return res.status(404).json({
+                success: false,
+                message: 'Salon not found'
+            });
+        }
+
+        // Find the latest job posting from this salon
+        const latestJob = await JobPosting.findOne({ salon_id: salon._id })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        if (!latestJob) {
+            return res.status(404).json({
+                success: false,
+                message: 'No job postings found for this salon'
+            });
+        }
+
+        // Destructure relevant fields
+        const { required_skills = [], location, gender_preference, salary_range } = latestJob;
+
+        // Build query for candidate suggestions
+        const query = {
+            available_for_join: true,
+            skills: { $in: required_skills },
+            location: location,
+            'expected_salary.min': { $lte: salary_range.max },  // expected salary fits
+            'expected_salary.max': { $gte: salary_range.min }
+        };
+
+        // Optional: Apply gender preference (if not 'Any')
+        if (gender_preference && gender_preference !== 'Any') {
+            query.gender = gender_preference; // You can add gender to Candidate schema if needed
+        }
+
+        const suggestedCandidates = await Candidate.find(query)
+            .populate('skills') // Optional: show skill details
+            .sort({ createdAt: -1 });
+
+        return res.status(200).json({
+            success: true,
+            message: 'Suggested candidates fetched successfully',
+            data: suggestedCandidates,
+            job: latestJob
+        });
+
+    } catch (error) {
+        console.error('Error fetching suggested candidates:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error fetching suggested candidates',
+            error: error.message
+        });
+    }
+};
 // Get Recommended Jobs for Candidate
 export const getAllJobPostings = async (req, res) => {
     try {
