@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose, { SchemaType } from 'mongoose';
 
 const jobPostingSchema = new mongoose.Schema({
     salon_id: {
@@ -12,6 +12,11 @@ const jobPostingSchema = new mongoose.Schema({
         enum: ['Hair Stylist', 'Beautician', 'Nail Technician', 'Spa Therapist', 'Receptionist', 'Manager', 'Trainee', 'Other'],
         default: 'Hair Stylist'
     },
+    required_skills: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Skill',
+        required: true
+    }],
     custom_job_title: {
         type: String,
         trim: true

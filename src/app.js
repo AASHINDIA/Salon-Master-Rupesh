@@ -24,7 +24,7 @@ import salon from './Route/Salon/salonRoutes.js'
 import compnay from './Route/Compony/companyRoutes.js'
 import JobPost from './Route/JOB/jobPostingRoutes.js'
 import JobApp from './Route/JOB/jobApplicationRoutes.js'
-
+import addSalary from './Route/SalaryManagement/Salarymangement.js';
 const app = express();
 
 // ---------------------------
@@ -91,6 +91,7 @@ app.use('/api/v1/compnay', compnay)
 // ---------------------------
 app.use('/api/v1/jobpost', JobPost)
 app.use('/api/v1/jobapp', JobApp)
+app.use('/api/v1/addSalary', addSalary)
 // ---------------------------
 // 🧱 Error Handlers
 // ---------------------------
