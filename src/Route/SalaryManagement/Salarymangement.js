@@ -2,7 +2,7 @@ import { addSalaryDetails, getSalarySummary } from "../../Controller/Salarymanag
 import express from "express";
 const router = express.Router();
 // Route to add salary details
-router.post("/api/v1/salary", addSalaryDetails);
+router.post("/add-salary", addSalaryDetails);
 
 router.get("/salary/summary", getSalarySummary);
 
