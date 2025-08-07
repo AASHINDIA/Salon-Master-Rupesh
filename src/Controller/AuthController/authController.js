@@ -40,7 +40,7 @@ export const register = async (req, res) => {
 
         // Send OTP email first
         const otpResult = await sendOtpEmail(tempUser, {
-            length: 6,
+            length: 4,
             type: 'numeric'
         });
 
