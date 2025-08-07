@@ -23,7 +23,7 @@ const UserSchema = new mongoose.Schema({
 
     domain_type: {
         type: String,
-        enum: ['solan', 'worker', 'company','superadmin'], // Possible values
+        enum: ['salon', 'worker', 'company', 'superadmin'], // Possible values
         required: true // Optional, but recommended if the field is mandatory
     },
 
@@ -57,6 +57,11 @@ const UserSchema = new mongoose.Schema({
         type: Date,
     },
 
+    isSuspended: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
     // 🔐 Tokens
     access_token: {
         type: String,
@@ -94,13 +99,13 @@ UserSchema.methods.generateTokens = function () {
     const accessToken = jwt.sign(
         { id: this._id, email: this.email },
         process.env.JWT_SECRET,
-        
+
     );
 
     const refreshToken = jwt.sign(
         { id: this._id, email: this.email },
         process.env.JWT_REFRESH_SECRET,
-    
+
     );
 
     return { accessToken, refreshToken };

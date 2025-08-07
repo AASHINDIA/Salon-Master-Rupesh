@@ -4,6 +4,9 @@ import Salon from '../../Modal/Salon/Salon.js';
 import Candidate from '../../Modal/Candidate/Candidate.js';
 import mongoose from 'mongoose';
 import Skill from '../../Modal/skill/skill.js';
+import suggestedCandidate from '../../Modal/RequestJobSuggestedCandidate/RequestJobSuggestCandidate.js';
+import admin from '../../Utils/firebaseAdmin.js';
+import User from '../../Modal/Users/User.js'
 
 export const createJobPosting = async (req, res) => {
     try {
@@ -62,10 +65,6 @@ export const createJobPosting = async (req, res) => {
         });
     }
 };
-
-
-
-
 
 export const getSuggestedCandidates = async (req, res) => {
     try {
@@ -128,6 +127,76 @@ export const getSuggestedCandidates = async (req, res) => {
         });
     }
 };
+
+
+export const RequestForJobToSuggestedCandidates = async (req, res) => {
+
+    try {
+        const { candidateId, jobid } = req.body;
+        const salon = await Salon.findOne({ user_id: req.user._id });
+
+        if (!salon) {
+            return res.status(404).json({ success: false, message: 'Salon not found' });
+
+        }
+        const job = await JobPosting.findById(jobid)
+            .populate('salon_id', 'salon_name brand_name image_path location contact_number');
+        // Check if the job exists and belongs to the salon
+        if (!job || job.salon_id.toString() !== salon._id.toString()) {
+            return res.status(404).json({ success: false, message: 'Job not foundor not authorized' });
+        }
+        // Check if the job is active
+
+        if (!job.is_active) {
+            return res.status(400).json({ success: false, message: 'Job posting is closed' });
+        }
+        // Check if the candidate exists
+        const candidate = await Candidate.findById(candidateId);
+        if (!candidate) {
+            return res.status(404).json({ success: false, message: 'Candidate not found' });
+        }
+        // Check if the candidate has already applied for this job
+        const existingApplication = await suggestedCandidate.findOne({
+            candidate_id: candidate._id,
+            job_id: job._id
+        });
+
+        if (existingApplication) {
+            return res.status(400).json({ success: false, message: 'Candidate has already applied for this job' });
+        }
+        // Create a new job application
+        const application = new suggestedCandidate({
+            candidate_id: candidate._id,
+            job_id: job._id,
+            candidate_name: candidate.name,
+            status: 'Pending'
+
+        });
+        await application.save();
+
+        res.status(201).json({ success: true, message: 'Job application created successfully', data: application });
+        // Send notification to candidate
+        if (!candidate.devicetoken) {
+            return res.status(400).json({ success: false, message: 'Candidate does not have a device token' });
+        }
+        // Assuming you have a function to send notifications via Firebase
+
+        const title = `${job.salon_name} has a new job application request`;
+        const message = `You have a new job application request for the position: ${job.job_title}. Please check your dashboard for details.`;
+        await sendNOtification(candidateId, jobid, title, message);
+
+    }
+    catch (error) {
+        console.error('Error requesting job to candidate:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error requesting job to candidate',
+            error: error.message
+        });
+    }
+};
+
+
 // Get Recommended Jobs for Candidate
 export const getAllJobPostings = async (req, res) => {
     try {
@@ -250,7 +319,6 @@ export const getRecommendedJobs = async (req, res) => {
     }
 };
 
-
 // Get Job Posting by ID
 export const getJobPostingById = async (req, res) => {
     try {
@@ -326,3 +394,36 @@ export const closeJobPosting = async (req, res) => {
         });
     }
 };
+
+
+
+const sendNOtification = async (candidateId, jobId, title, message) => {
+    try {
+        // Assuming you have a function to send notifications via Firebase
+        const candidate = await User.findById({ _id: candidateId });
+        if (!candidate) {
+            throw new Error('Candidate not found');
+
+        }
+        // Here you would implement the logic to send a notification to the candidate
+        const notification = {
+            title: title,
+            body: message,
+            data: {
+                jobId: jobId,
+                candidateId: candidateId
+            }
+        };
+        // Example of sending a notification using Firebase Admin SDK
+        await admin.messaging().sendToDevice(candidate.devicetoken, {
+            notification: notification
+        });
+        // Log or handle the notification sending result
+        // For example, you can log the success or failure of the notification
+        // This is just a placeholder, implement your actual notification logic
+        console.log(`Notification sent to ${candidate.name}: ${message}`);
+        console.log(`Notification sent to Candidate ID: ${candidateId} for Job ID: ${jobId} - Message: ${message}`);
+    } catch (error) {
+        console.error('Error sending notification:', error);
+    }
+}       

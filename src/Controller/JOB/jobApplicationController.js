@@ -5,7 +5,7 @@ import JobApplication from '../../Modal/JOB/JobApplication.js';
 export const applyForJob = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
-    
+
     try {
         const candidate = await Candidate.findOne({ user_id: req.user._id }).session(session);
         if (!candidate) {
@@ -34,7 +34,7 @@ export const applyForJob = async (req, res) => {
         }
 
         // Calculate match score
-        const matchedSkills = job.required_skills.filter(skill => 
+        const matchedSkills = job.required_skills.filter(skill =>
             candidate.skills.includes(skill));
         const skillMatchScore = (matchedSkills.length / job.required_skills.length) * 100;
 
@@ -56,10 +56,10 @@ export const applyForJob = async (req, res) => {
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error applying for job', 
-            error: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error applying for job',
+            error: error.message
         });
     }
 };
@@ -73,12 +73,12 @@ export const getJobApplications = async (req, res) => {
         }
 
         const { page = 1, limit = 10, status, gender, min_match_score } = req.query;
-        
-        const query = { 
+
+        const query = {
             job_id: req.params.jobId,
-            'job_id.salon_id': salon._id 
+            'job_id.salon_id': salon._id
         };
-        
+
         if (status) query.status = status;
         if (gender) query['candidate_id.gender'] = gender;
         if (min_match_score) query.skill_match_score = { $gte: parseInt(min_match_score) };
@@ -95,21 +95,23 @@ export const getJobApplications = async (req, res) => {
 
         const result = await JobApplication.paginate(query, options);
 
-        res.status(200).json({ 
-            success: true, 
+        res.status(200).json({
+            success: true,
             data: result.docs,
             total: result.totalDocs,
             pages: result.totalPages,
             currentPage: result.page
         });
     } catch (error) {
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error fetching applications', 
-            error: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching applications',
+            error: error.message
         });
     }
 };
+
+
 
 // Get My Applications (Candidate View)
 export const getMyApplications = async (req, res) => {
@@ -120,7 +122,7 @@ export const getMyApplications = async (req, res) => {
         }
 
         const { page = 1, limit = 10, status } = req.query;
-        
+
         const query = { candidate_id: candidate._id };
         if (status) query.status = status;
 
@@ -128,27 +130,29 @@ export const getMyApplications = async (req, res) => {
             page: parseInt(page),
             limit: parseInt(limit),
             populate: [
-                { path: 'job_id', select: 'job_title location salary_range', populate: { 
-                    path: 'salon_id', select: 'salon_name brand_name image_path' 
-                } }
+                {
+                    path: 'job_id', select: 'job_title location salary_range', populate: {
+                        path: 'salon_id', select: 'salon_name brand_name image_path'
+                    }
+                }
             ],
             sort: { application_date: -1 }
         };
 
         const result = await JobApplication.paginate(query, options);
 
-        res.status(200).json({ 
-            success: true, 
+        res.status(200).json({
+            success: true,
             data: result.docs,
             total: result.totalDocs,
             pages: result.totalPages,
             currentPage: result.page
         });
     } catch (error) {
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error fetching applications', 
-            error: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching applications',
+            error: error.message
         });
     }
 };
@@ -162,15 +166,15 @@ export const updateApplicationStatus = async (req, res) => {
         }
 
         const application = await JobApplication.findOneAndUpdate(
-            { 
+            {
                 _id: req.params.applicationId,
-                job_id: { salon_id: salon._id } 
+                job_id: { salon_id: salon._id }
             },
             { status: req.body.status },
             { new: true }
         )
-        .populate('candidate_id', 'name contact_no')
-        .populate('job_id', 'job_title');
+            .populate('candidate_id', 'name contact_no')
+            .populate('job_id', 'job_title');
 
         if (!application) {
             return res.status(404).json({ success: false, message: 'Application not found or not authorized' });
@@ -178,10 +182,10 @@ export const updateApplicationStatus = async (req, res) => {
 
         res.status(200).json({ success: true, data: application });
     } catch (error) {
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error updating application', 
-            error: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error updating application',
+            error: error.message
         });
     }
 };
@@ -195,13 +199,13 @@ export const scheduleInterview = async (req, res) => {
         }
 
         const application = await JobApplication.findOneAndUpdate(
-            { 
+            {
                 _id: req.params.applicationId,
-                job_id: { salon_id: salon._id } 
+                job_id: { salon_id: salon._id }
             },
-            { 
+            {
                 status: 'Interview Scheduled',
-                $push: { 
+                $push: {
                     interview_details: {
                         date: req.body.date,
                         time: req.body.time,
@@ -209,12 +213,12 @@ export const scheduleInterview = async (req, res) => {
                         notes: req.body.notes,
                         status: 'Scheduled'
                     }
-                } 
+                }
             },
             { new: true }
         )
-        .populate('candidate_id', 'name contact_no')
-        .populate('job_id', 'job_title');
+            .populate('candidate_id', 'name contact_no')
+            .populate('job_id', 'job_title');
 
         if (!application) {
             return res.status(404).json({ success: false, message: 'Application not found or not authorized' });
@@ -222,10 +226,10 @@ export const scheduleInterview = async (req, res) => {
 
         res.status(200).json({ success: true, data: application });
     } catch (error) {
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error scheduling interview', 
-            error: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error scheduling interview',
+            error: error.message
         });
     }
 };

@@ -16,11 +16,7 @@ const skillSchema = new mongoose.Schema({
         enum: ['Beginner', 'Intermediate', 'Advanced'],
         default: 'Beginner'
     },
-    skill_category: {
-        type: String,
-        enum: ['Hair', 'Beauty', 'Nail', 'Spa', 'Management', 'Reception'],
-        required: true
-    }
+    
 }, {
     timestamps: true
 });

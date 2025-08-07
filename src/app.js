@@ -26,6 +26,8 @@ import JobPost from './Route/JOB/jobPostingRoutes.js'
 import JobApp from './Route/JOB/jobApplicationRoutes.js'
 import OrderRecived from './Route/OrderRecived/OrderRecived.js';
 import addSalary from './Route/SalaryManagement/Salarymangement.js';
+import UserManagement from './Route/UserManagement/UserMangement.js'
+import DashboardApi from './Route/DashboardApi/DashboardApi.js';
 const app = express();
 
 // ---------------------------
@@ -42,7 +44,7 @@ app.use(xss()); // XSS protection
 app.use(cors({
   origin: true,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+  methods: ['GET', 'POST', 'PUT','PATCH', 'DELETE', 'OPTIONS']
 }));
 app.use(express.json({ limit: '10kb' })); // Body parser
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
@@ -103,6 +105,14 @@ app.use('/api/v1/addSalary', addSalary)
 // ---------------------------
 // Order Recived Routes
 app.use('/api/v1/OrderRecived', OrderRecived)
+
+// ---------------------------
+// User Management Routes
+app.use('/api/v1/userManagement', UserManagement)
+
+// ---------------------------
+// Dashboard API Routes
+app.use('/api/v1/DashboardApi', DashboardApi)
 // ---------------------------
 // 🧱 Error Handlers
 // ---------------------------
