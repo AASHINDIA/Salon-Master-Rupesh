@@ -105,6 +105,7 @@ const candidateSchema = new mongoose.Schema({
     timestamps: true
 });
 
+
 // Virtual for age calculation
 candidateSchema.virtual('age').get(function () {
     if (!this.date_of_birth) return null;
@@ -112,6 +113,10 @@ candidateSchema.virtual('age').get(function () {
     return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
 });
 
+candidateSchema.pre(/^find/, function (next) {
+    this.populate('skills');  // Populates the full Skill documents
+    next();
+});
 // Indexes for better query performance
 candidateSchema.index({ name: 1 });
 candidateSchema.index({ location: 1 });

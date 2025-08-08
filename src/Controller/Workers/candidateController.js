@@ -29,6 +29,7 @@ export const getCandidateProfile = async (req, res) => {
         const userId = req.user._id;
 
         const candidate = await Candidate.findOne({ user_id: userId })
+            .populate('skills')  // Populate full skill details
             .populate('user_id', 'email role');
 
         if (!candidate) {
