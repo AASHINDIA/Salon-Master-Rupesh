@@ -154,11 +154,9 @@ export const saveCandidateProfile = async (req, res) => {
 
                 // Convert all elements to ObjectId
                 candidate.skills = skillsArray.map(id => {
-                    // Remove any empty or invalid values
                     if (!id) return null;
-                    // Convert to ObjectId whether it's already one or a string
-                    return mongoose.Types.ObjectId(id);
-                }).filter(id => id !== null); // Remove any null values
+                    return new mongoose.Types.ObjectId(id); // Add 'new' keyword here
+                }).filter(id => id !== null);
             } catch (e) {
                 console.error('Error processing skills:', e);
                 candidate.skills = [];
