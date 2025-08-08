@@ -3,26 +3,47 @@ import Skill from "../../Modal/skill/skill.js";
 // Add Skill
 export const addSkill = async (req, res) => {
     try {
-        const { skill_name, skill_description, skill_level, skill_category } = req.body;
+        const { skill_name } = req.body;
 
+        // 1️⃣ Validate input
+        if (!skill_name || typeof skill_name !== 'string' || !skill_name.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Skill name is required and must be a valid string.'
+            });
+        }
+
+        // 2️⃣ Check if skill already exists (case-insensitive)
+        const existingSkill = await Skill.findOne({
+            skill_name: { $regex: `^${skill_name}$`, $options: 'i' }
+        });
+
+        if (existingSkill) {
+            return res.status(409).json({
+                success: false,
+                message: 'This skill already exists.'
+            });
+        }
+
+        // 3️⃣ Create new skill
         const skillData = new Skill({
-            skill_name,
-            skill_description,
-            skill_level,
-            skill_category
+            skill_name: skill_name.trim()
         });
 
         await skillData.save();
 
-        res.status(200).json({
+        // 4️⃣ Success response
+        return res.status(201).json({
             success: true,
-            message: 'Skill saved successfully',
+            message: 'Skill saved successfully.',
             data: skillData
         });
+
     } catch (error) {
-        res.status(500).json({
+        console.error('Error adding skill:', error);
+        return res.status(500).json({
             success: false,
-            message: 'Error in creating skill',
+            message: 'Internal server error while creating skill.',
             error: error.message
         });
     }

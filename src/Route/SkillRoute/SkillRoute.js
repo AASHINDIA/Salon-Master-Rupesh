@@ -8,7 +8,7 @@ const router = express.Router();
 router.get('/', getAllSkills);
 
 // Add a new skill  
-router.post('/', addSkill);
+router.post('/addSkill', addSkill);
 
 // Update an existing skill
 router.put('/:id', updateSkill);

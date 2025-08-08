@@ -6,16 +6,6 @@ const skillSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    skill_description: {
-        type: String,
-        required: true,
-        maxlength: 500
-    },
-    skill_level: {
-        type: String,
-        enum: ['Beginner', 'Intermediate', 'Advanced'],
-        default: 'Beginner'
-    },
     
 }, {
     timestamps: true

@@ -12,7 +12,6 @@ const candidateSchema = new mongoose.Schema({
     uniquename: {
         type: String,
         required: true
-
     },
     id_no: {
         type: String,
@@ -32,7 +31,7 @@ const candidateSchema = new mongoose.Schema({
     },
     gender: {
         type: String,
-        enum:['male','female','other'],     
+        enum: ['male', 'female', 'other'],
         required: true
     },
     address: {
@@ -80,7 +79,6 @@ const candidateSchema = new mongoose.Schema({
         }],
         default: []
     },
-
     services: {
         type: [String],
         default: []
@@ -96,7 +94,6 @@ const candidateSchema = new mongoose.Schema({
         min: { type: Number, default: 0 },
         max: { type: Number, default: 0 }
     },
-
     portfolio_links: {
         type: [{
             platform: String,
@@ -105,10 +102,10 @@ const candidateSchema = new mongoose.Schema({
         default: []
     }
 }, {
-    timestamps: true // Adds createdAt and updatedAt fields
+    timestamps: true
 });
 
-// Virtual for age calculation (optional)
+// Virtual for age calculation
 candidateSchema.virtual('age').get(function () {
     if (!this.date_of_birth) return null;
     const diff = Date.now() - this.date_of_birth.getTime();

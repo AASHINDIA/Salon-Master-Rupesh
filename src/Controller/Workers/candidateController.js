@@ -80,7 +80,9 @@ export const saveCandidateProfile = async (req, res) => {
             services,
             available_for_join,
             joining_date,
-            portfolio_links
+            portfolio_links,
+            gender,
+            expected_salary
         } = req.body;
 
         // Check if candidate profile already exists
@@ -91,10 +93,10 @@ export const saveCandidateProfile = async (req, res) => {
             candidate = new Candidate({
                 user_id: userId,
                 uniquename: generateUniqueName(),
-                name: name || 'New Candidate' // Default name if not provided
+                name: name || 'New Candidate',
+                gender: gender || 'other'
             });
         }
-
 
         // Handle image upload if present
         if (req.file?.buffer) {
@@ -111,8 +113,17 @@ export const saveCandidateProfile = async (req, res) => {
         if (address !== undefined) candidate.address = address;
         if (pan_no !== undefined) candidate.pan_no = pan_no;
         if (contact_no !== undefined) candidate.contact_no = contact_no;
-        if (id_type !== undefined) candidate.id_type = id_type;
+        if (id_type !== undefined) candidate.id_type = id_type.charAt(0).toUpperCase() + id_type.slice(1); // Normalize id_type
         if (id_detail !== undefined) candidate.id_detail = id_detail;
+        if (gender !== undefined) candidate.gender = gender;
+        if (expected_salary !== undefined) {
+            try {
+                candidate.expected_salary = typeof expected_salary === 'string' ?
+                    JSON.parse(expected_salary) : expected_salary;
+            } catch (e) {
+                candidate.expected_salary = expected_salary;
+            }
+        }
 
         // Handle array/object fields that might be stringified
         if (education !== undefined) {
@@ -135,26 +146,28 @@ export const saveCandidateProfile = async (req, res) => {
 
         if (skills !== undefined) {
             try {
-                // Convert string to array if needed
                 const skillsArray = typeof skills === 'string' ?
                     JSON.parse(skills) : skills;
 
-                // Ensure we have an array of ObjectIds
                 candidate.skills = Array.isArray(skillsArray) ?
                     skillsArray.map(id => mongoose.Types.ObjectId(id)) :
                     [mongoose.Types.ObjectId(skillsArray)];
             } catch (e) {
-                // Handle error appropriately
                 candidate.skills = [];
             }
         }
 
         if (services !== undefined) {
             try {
-                candidate.services = typeof services === 'string' ?
+                let servicesArray = typeof services === 'string' ?
                     JSON.parse(services) : services;
+
+                // Convert array of objects to array of strings
+                candidate.services = Array.isArray(servicesArray) ?
+                    servicesArray.map(service => typeof service === 'object' ? service.name : service) :
+                    [];
             } catch (e) {
-                candidate.services = services;
+                candidate.services = [];
             }
         }
 
