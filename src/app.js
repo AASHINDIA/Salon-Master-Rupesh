@@ -28,6 +28,7 @@ import OrderRecived from './Route/OrderRecived/OrderRecived.js';
 import addSalary from './Route/SalaryManagement/Salarymangement.js';
 import UserManagement from './Route/UserManagement/UserMangement.js'
 import DashboardApi from './Route/DashboardApi/DashboardApi.js';
+import SkillRoute from './Route/SkillRoute/SkillRoute.js'
 const app = express();
 
 // ---------------------------
@@ -90,6 +91,7 @@ app.use('/api/v1/candidate', candidate)
 app.use('/api/v1/salon', salon)
 app.use('/api/v1/compnay', compnay)
 // ---------------------------
+
 //-------------JOB----------------
 // ---------------------------
 // Job Posting Routes
@@ -101,7 +103,7 @@ app.use('/api/v1/jobapp', JobApp)
 app.use('/api/v1/addSalary', addSalary)
 // Salary Management Routes
 // ---------------------------
-
+app.use('/api/v1/skill', SkillRoute)
 // ---------------------------
 // Order Recived Routes
 app.use('/api/v1/OrderRecived', OrderRecived)

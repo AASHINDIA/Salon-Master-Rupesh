@@ -135,10 +135,17 @@ export const saveCandidateProfile = async (req, res) => {
 
         if (skills !== undefined) {
             try {
-                candidate.skills = typeof skills === 'string' ?
+                // Convert string to array if needed
+                const skillsArray = typeof skills === 'string' ?
                     JSON.parse(skills) : skills;
+
+                // Ensure we have an array of ObjectIds
+                candidate.skills = Array.isArray(skillsArray) ?
+                    skillsArray.map(id => mongoose.Types.ObjectId(id)) :
+                    [mongoose.Types.ObjectId(skillsArray)];
             } catch (e) {
-                candidate.skills = skills;
+                // Handle error appropriately
+                candidate.skills = [];
             }
         }
 
