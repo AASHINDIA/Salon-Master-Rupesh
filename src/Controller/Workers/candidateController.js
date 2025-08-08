@@ -66,7 +66,6 @@ export const saveCandidateProfile = async (req, res) => {
         // Destructure all possible fields from request body
         const {
             name,
-            id_no,
             location,
             date_of_birth,
             address,
@@ -107,7 +106,6 @@ export const saveCandidateProfile = async (req, res) => {
 
         // Update fields from request body
         if (name !== undefined) candidate.name = name;
-        if (id_no !== undefined) candidate.id_no = id_no;
         if (location !== undefined) candidate.location = location;
         if (date_of_birth !== undefined) candidate.date_of_birth = new Date(date_of_birth);
         if (address !== undefined) candidate.address = address;
@@ -146,13 +144,23 @@ export const saveCandidateProfile = async (req, res) => {
 
         if (skills !== undefined) {
             try {
-                const skillsArray = typeof skills === 'string' ?
+                let skillsArray = typeof skills === 'string' ?
                     JSON.parse(skills) : skills;
 
-                candidate.skills = Array.isArray(skillsArray) ?
-                    skillsArray.map(id => mongoose.Types.ObjectId(id)) :
-                    [mongoose.Types.ObjectId(skillsArray)];
+                // Ensure we always have an array
+                if (!Array.isArray(skillsArray)) {
+                    skillsArray = [skillsArray];
+                }
+
+                // Convert all elements to ObjectId
+                candidate.skills = skillsArray.map(id => {
+                    // Remove any empty or invalid values
+                    if (!id) return null;
+                    // Convert to ObjectId whether it's already one or a string
+                    return mongoose.Types.ObjectId(id);
+                }).filter(id => id !== null); // Remove any null values
             } catch (e) {
+                console.error('Error processing skills:', e);
                 candidate.skills = [];
             }
         }

@@ -1,5 +1,6 @@
 import Skill from "../../Modal/skill/skill.js";
 
+
 // Add Skill
 export const addSkill = async (req, res) => {
     try {
