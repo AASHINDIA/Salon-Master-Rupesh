@@ -12,12 +12,12 @@ import {
 const router = express.Router();
 
 // Public routes
-router.post('/register', register);
-router.post('/verify-otp', verifyOtp);
-router.post('/login', login);
+router.post('/register-salonmaster', register);
+router.post('/verify-otp-salonmaster', verifyOtp);
+router.post('/reset-password-salonmaster', resetPassword);
+router.post('/resend-otp-salonmaster', resendOtp);
+router.post('/login-salonmaster', login);
 router.post('/request-password-reset', requestPasswordReset);
-router.post('/reset-password', resetPassword);
 router.post('/refresh-token', refreshToken);
-router.post('/resend-otp', resendOtp);
 
 export default router;
