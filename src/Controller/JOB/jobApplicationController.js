@@ -118,7 +118,7 @@ export const getMyApplications = async (req, res) => {
     try {
         const candidate = await Candidate.findOne({ user_id: req.user._id });
         if (!candidate) {
-            return res.status(404).json({ success: false, message: 'Candidate profile not found' });
+            return res.status(404).json({  message: 'Please complete your profile to continue.' });
         }
 
         const { page = 1, limit = 10, status } = req.query;

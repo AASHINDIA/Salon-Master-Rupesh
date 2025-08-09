@@ -27,7 +27,7 @@ export const getSalonProfile = async (req, res) => {
         if (!salon) {
             return res.status(404).json({
                 success: false,
-                message: 'Salon profile not found'
+                message: 'Please complete your profile to continue.'
             });
         }
 

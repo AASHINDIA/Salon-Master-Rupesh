@@ -37,7 +37,7 @@ export const getCompanyProfile = async (req, res) => {
         if (!company) {
             return res.status(404).json({
                 success: false,
-                message: 'Company profile not found'
+                message: 'Please complete  profile to continue.'
             });
         }
 
@@ -86,7 +86,7 @@ export const saveCompanyProfile = async (req, res) => {
         }
 
         // Handle image upload if present
-       
+
 
 
         if (req.file?.buffer) {
