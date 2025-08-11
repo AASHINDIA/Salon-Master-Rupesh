@@ -67,7 +67,7 @@ export const saveCandidateProfile = async (req, res) => {
             name,
             location,
             date_of_birth,
-            address,
+            address, // { country, state, city, pincode, countryIsoCode, stateIsoCode }
             pan_no,
             contact_no,
             id_type,
@@ -103,23 +103,25 @@ export const saveCandidateProfile = async (req, res) => {
         if (location !== undefined) candidate.location = location;
         if (date_of_birth !== undefined) candidate.date_of_birth = new Date(date_of_birth);
 
-        // ✅ Handle address as object or string
+        // Address
         if (address !== undefined) {
-            let addressObj = address;
-            if (typeof address === 'string') {
-                try {
-                    addressObj = JSON.parse(address);
-                } catch {
-                    // If not valid JSON, store it in city field
-                    addressObj = { city: address };
+            let addressObj = typeof address === 'string' ? JSON.parse(address) : address;
+
+            // Validate required fields
+            const requiredFields = ['country', 'state', 'city', 'pincode'];
+            for (const field of requiredFields) {
+                if (!addressObj[field]) {
+                    throw new Error(`Address field "${field}" is required`);
                 }
             }
 
             candidate.address = {
-                country: addressObj.country || candidate.address?.country || '',
-                state: addressObj.state || candidate.address?.state || '',
-                city: addressObj.city || candidate.address?.city || '',
-                pincode: addressObj.pincode || candidate.address?.pincode || ''
+                country: addressObj.country,
+                state: addressObj.state,
+                city: addressObj.city,
+                pincode: addressObj.pincode,
+                countryIsoCode: addressObj.countryIsoCode || candidate.address?.countryIsoCode || '',
+                stateIsoCode: addressObj.stateIsoCode || candidate.address?.stateIsoCode || ''
             };
         }
 
@@ -130,63 +132,40 @@ export const saveCandidateProfile = async (req, res) => {
         if (gender !== undefined) candidate.gender = gender;
 
         if (expected_salary !== undefined) {
-            try {
-                candidate.expected_salary = typeof expected_salary === 'string'
-                    ? JSON.parse(expected_salary)
-                    : expected_salary;
-            } catch {
-                candidate.expected_salary = expected_salary;
-            }
+            candidate.expected_salary = typeof expected_salary === 'string'
+                ? JSON.parse(expected_salary)
+                : expected_salary;
         }
 
         if (education !== undefined) {
-            try {
-                candidate.education = typeof education === 'string'
-                    ? JSON.parse(education)
-                    : education;
-            } catch {
-                candidate.education = education;
-            }
+            candidate.education = typeof education === 'string'
+                ? JSON.parse(education)
+                : education;
         }
 
         if (certificates !== undefined) {
-            try {
-                candidate.certificates = typeof certificates === 'string'
-                    ? JSON.parse(certificates)
-                    : certificates;
-            } catch {
-                candidate.certificates = certificates;
-            }
+            candidate.certificates = typeof certificates === 'string'
+                ? JSON.parse(certificates)
+                : certificates;
         }
 
         if (skills !== undefined) {
-            try {
-                let skillsArray = typeof skills === 'string'
-                    ? JSON.parse(skills)
-                    : skills;
-
-                if (!Array.isArray(skillsArray)) skillsArray = [skillsArray];
-
-                candidate.skills = skillsArray
-                    .map(id => id ? new mongoose.Types.ObjectId(id) : null)
-                    .filter(Boolean);
-            } catch {
-                candidate.skills = [];
-            }
+            let skillsArray = typeof skills === 'string'
+                ? JSON.parse(skills)
+                : skills;
+            if (!Array.isArray(skillsArray)) skillsArray = [skillsArray];
+            candidate.skills = skillsArray
+                .map(id => id ? new mongoose.Types.ObjectId(id) : null)
+                .filter(Boolean);
         }
 
         if (services !== undefined) {
-            try {
-                let servicesArray = typeof services === 'string'
-                    ? JSON.parse(services)
-                    : services;
-
-                candidate.services = Array.isArray(servicesArray)
-                    ? servicesArray.map(service => typeof service === 'object' ? service.name : service)
-                    : [];
-            } catch {
-                candidate.services = [];
-            }
+            let servicesArray = typeof services === 'string'
+                ? JSON.parse(services)
+                : services;
+            candidate.services = Array.isArray(servicesArray)
+                ? servicesArray.map(s => typeof s === 'object' ? s.name : s)
+                : [];
         }
 
         if (available_for_join !== undefined) {
@@ -196,32 +175,23 @@ export const saveCandidateProfile = async (req, res) => {
         if (joining_date !== undefined) candidate.joining_date = new Date(joining_date);
 
         if (portfolio_links !== undefined) {
-            try {
-                candidate.portfolio_links = typeof portfolio_links === 'string'
-                    ? JSON.parse(portfolio_links)
-                    : portfolio_links;
-            } catch {
-                candidate.portfolio_links = portfolio_links;
-            }
+            candidate.portfolio_links = typeof portfolio_links === 'string'
+                ? JSON.parse(portfolio_links)
+                : portfolio_links;
         }
 
         await candidate.save({ session });
-
         await session.commitTransaction();
         session.endSession();
-
-        const candidateData = candidate.toObject();
-        candidateData.age = candidate.age;
 
         res.status(200).json({
             success: true,
             message: 'Candidate profile saved successfully',
-            data: candidateData
+            data: candidate.toObject()
         });
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-
         res.status(500).json({
             success: false,
             message: 'Error saving candidate profile',
@@ -229,4 +199,5 @@ export const saveCandidateProfile = async (req, res) => {
         });
     }
 };
+
 

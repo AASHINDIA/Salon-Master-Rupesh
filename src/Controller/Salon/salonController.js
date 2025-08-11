@@ -55,13 +55,12 @@ export const saveSalonProfile = async (req, res) => {
 
     try {
         const userId = req.user._id;
-
         const {
             identification_number,
             brand_name,
             salon_name,
             year_of_start,
-            address, // Now expected to be { country, state, city, pincode }
+            address, // { country, state, city, pincode, countryIsoCode, stateIsoCode }
             contact_number,
             whatsapp_number,
             company_name,
@@ -92,27 +91,41 @@ export const saveSalonProfile = async (req, res) => {
             });
         }
 
+        // Profile image
         if (req.file?.buffer) {
             const result = await uploadToCloudinary(req.file.buffer, 'salon-profile');
-            console.log('✅ Cloudinary Upload Result:', result);
             salon.image_path = result.secure_url;
         }
 
+        // Basic details
         if (identification_number !== undefined) salon.identification_number = identification_number;
         if (brand_name !== undefined) salon.brand_name = brand_name;
         if (salon_name !== undefined) salon.salon_name = salon_name;
         if (year_of_start !== undefined) salon.year_of_start = year_of_start;
 
-        // ✅ New address handling
+        // Address
         if (address !== undefined) {
+            let addressObj = typeof address === 'string' ? JSON.parse(address) : address;
+
+            // Validate required fields
+            const requiredFields = ['country', 'state', 'city', 'pincode'];
+            for (const field of requiredFields) {
+                if (!addressObj[field]) {
+                    throw new Error(`Address field "${field}" is required`);
+                }
+            }
+
             salon.address = {
-                country: address.country || salon.address?.country || '',
-                state: address.state || salon.address?.state || '',
-                city: address.city || salon.address?.city || '',
-                pincode: address.pincode || salon.address?.pincode || ''
+                country: addressObj.country,
+                state: addressObj.state,
+                city: addressObj.city,
+                pincode: addressObj.pincode,
+                countryIsoCode: addressObj.countryIsoCode || salon.address?.countryIsoCode || '',
+                stateIsoCode: addressObj.stateIsoCode || salon.address?.stateIsoCode || ''
             };
         }
 
+        // Other details
         if (contact_number !== undefined) salon.contact_number = contact_number;
         if (whatsapp_number !== undefined) salon.whatsapp_number = whatsapp_number;
         if (company_name !== undefined) salon.company_name = company_name;
@@ -140,22 +153,17 @@ export const saveSalonProfile = async (req, res) => {
         }
 
         await salon.save({ session });
-
         await session.commitTransaction();
         session.endSession();
-
-        const salonData = salon.toObject();
-        salonData.total_employees_count = salon.total_employees_count;
 
         res.status(200).json({
             success: true,
             message: 'Salon profile saved successfully',
-            data: salonData
+            data: salon.toObject()
         });
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-
         res.status(500).json({
             success: false,
             message: 'Error saving salon profile',
@@ -163,3 +171,4 @@ export const saveSalonProfile = async (req, res) => {
         });
     }
 };
+

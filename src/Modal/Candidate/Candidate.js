@@ -87,19 +87,31 @@ const candidateSchema = new mongoose.Schema({
     address: {
         country: {
             type: String,
-            trim: true
+            trim: true,
+            required: true
         },
         state: {
             type: String,
-            trim: true
+            trim: true,
+            required: true
         },
         city: {
             type: String,
-            trim: true
+            trim: true,
+            required: true
         },
         pincode: {
             type: String,
-            trim: true
+            trim: true,
+            required: true
+        },
+        countryIsoCode: {
+            type: String,
+            trim: true // Store ISO code for country lookup
+        },
+        stateIsoCode: {
+            type: String,
+            trim: true // Store ISO code for state lookup
         }
     },
     joining_date: {
