@@ -34,10 +34,7 @@ const candidateSchema = new mongoose.Schema({
         enum: ['male', 'female', 'other'],
         required: true
     },
-    address: {
-        type: String,
-        trim: true
-    },
+
     pan_no: {
         type: String,
         trim: true
@@ -86,6 +83,24 @@ const candidateSchema = new mongoose.Schema({
     available_for_join: {
         type: Boolean,
         default: false
+    },
+    address: {
+        country: {
+            type: String,
+            trim: true
+        },
+        state: {
+            type: String,
+            trim: true
+        },
+        city: {
+            type: String,
+            trim: true
+        },
+        pincode: {
+            type: String,
+            trim: true
+        }
     },
     joining_date: {
         type: Date,

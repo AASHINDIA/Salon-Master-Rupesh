@@ -56,13 +56,12 @@ export const saveSalonProfile = async (req, res) => {
     try {
         const userId = req.user._id;
 
-        // Destructure all possible fields from request body
         const {
             identification_number,
             brand_name,
             salon_name,
             year_of_start,
-            address,
+            address, // Now expected to be { country, state, city, pincode }
             contact_number,
             whatsapp_number,
             company_name,
@@ -83,34 +82,37 @@ export const saveSalonProfile = async (req, res) => {
             requires_product_order
         } = req.body;
 
-        // Check if salon profile already exists
         let salon = await Salon.findOne({ user_id: userId }).session(session);
 
-        // If profile doesn't exist, create a new one
         if (!salon) {
             salon = new Salon({
                 user_id: userId,
-                salon_name: salon_name || 'My Salon', // Default name if not provided
-                unique_name: generateUniqueSalonName() // Generate unique name
+                salon_name: salon_name || 'My Salon',
+                unique_name: generateUniqueSalonName()
             });
         }
 
-        // Handle image upload if present
         if (req.file?.buffer) {
             const result = await uploadToCloudinary(req.file.buffer, 'salon-profile');
             console.log('✅ Cloudinary Upload Result:', result);
             salon.image_path = result.secure_url;
         }
 
-
-
-
-        // Update fields from request body
         if (identification_number !== undefined) salon.identification_number = identification_number;
         if (brand_name !== undefined) salon.brand_name = brand_name;
         if (salon_name !== undefined) salon.salon_name = salon_name;
         if (year_of_start !== undefined) salon.year_of_start = year_of_start;
-        if (address !== undefined) salon.address = address;
+
+        // ✅ New address handling
+        if (address !== undefined) {
+            salon.address = {
+                country: address.country || salon.address?.country || '',
+                state: address.state || salon.address?.state || '',
+                city: address.city || salon.address?.city || '',
+                pincode: address.pincode || salon.address?.pincode || ''
+            };
+        }
+
         if (contact_number !== undefined) salon.contact_number = contact_number;
         if (whatsapp_number !== undefined) salon.whatsapp_number = whatsapp_number;
         if (company_name !== undefined) salon.company_name = company_name;
@@ -127,7 +129,6 @@ export const saveSalonProfile = async (req, res) => {
         if (payment_credit !== undefined) salon.payment_credit = parseFloat(payment_credit) || 0;
         if (location !== undefined) salon.location = location;
 
-        // Boolean fields
         if (requires_employee_recruitment !== undefined) {
             salon.requires_employee_recruitment = requires_employee_recruitment === 'true' || requires_employee_recruitment === true;
         }
@@ -138,13 +139,11 @@ export const saveSalonProfile = async (req, res) => {
             salon.requires_product_order = requires_product_order === 'true' || requires_product_order === true;
         }
 
-        // Save the salon profile
         await salon.save({ session });
 
         await session.commitTransaction();
         session.endSession();
 
-        // Include virtual field in response
         const salonData = salon.toObject();
         salonData.total_employees_count = salon.total_employees_count;
 

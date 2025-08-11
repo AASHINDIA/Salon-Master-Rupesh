@@ -9,7 +9,9 @@ const UserRegistrationSchema = new mongoose.Schema({
     image: {
         type: String
     },
-    domain_type: { type: String },
+    domain_type: { 
+        type: String 
+    },
     uniq_id: { type: String },
     location: { type: String },
     brand_name: { type: String },

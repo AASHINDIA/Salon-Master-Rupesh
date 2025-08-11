@@ -64,12 +64,11 @@ export const saveCandidateProfile = async (req, res) => {
     try {
         const userId = req.user._id;
 
-        // Destructure all possible fields from request body
         const {
             name,
             location,
             date_of_birth,
-            address,
+            address, // Now expecting { country, state, city, pincode }
             pan_no,
             contact_no,
             id_type,
@@ -85,10 +84,8 @@ export const saveCandidateProfile = async (req, res) => {
             expected_salary
         } = req.body;
 
-        // Check if candidate profile already exists
         let candidate = await Candidate.findOne({ user_id: userId }).session(session);
 
-        // If profile doesn't exist, create a new one
         if (!candidate) {
             candidate = new Candidate({
                 user_id: userId,
@@ -98,38 +95,46 @@ export const saveCandidateProfile = async (req, res) => {
             });
         }
 
-        // Handle image upload if present
         if (req.file?.buffer) {
             const result = await uploadToCloudinary(req.file.buffer, 'worker-profile');
             console.log('✅ Cloudinary Upload Result:', result);
             candidate.image = result.secure_url;
         }
 
-        // Update fields from request body
         if (name !== undefined) candidate.name = name;
         if (location !== undefined) candidate.location = location;
         if (date_of_birth !== undefined) candidate.date_of_birth = new Date(date_of_birth);
-        if (address !== undefined) candidate.address = address;
+
+        // ✅ New address handling
+        if (address !== undefined) {
+            candidate.address = {
+                country: address.country || candidate.address?.country || '',
+                state: address.state || candidate.address?.state || '',
+                city: address.city || candidate.address?.city || '',
+                pincode: address.pincode || candidate.address?.pincode || ''
+            };
+        }
+
         if (pan_no !== undefined) candidate.pan_no = pan_no;
         if (contact_no !== undefined) candidate.contact_no = contact_no;
-        if (id_type !== undefined) candidate.id_type = id_type.charAt(0).toUpperCase() + id_type.slice(1); // Normalize id_type
+        if (id_type !== undefined) candidate.id_type = id_type.charAt(0).toUpperCase() + id_type.slice(1);
         if (id_detail !== undefined) candidate.id_detail = id_detail;
         if (gender !== undefined) candidate.gender = gender;
+
         if (expected_salary !== undefined) {
             try {
                 candidate.expected_salary = typeof expected_salary === 'string' ?
                     JSON.parse(expected_salary) : expected_salary;
-            } catch (e) {
+            } catch {
                 candidate.expected_salary = expected_salary;
             }
         }
 
-        // Handle array/object fields that might be stringified
         if (education !== undefined) {
             try {
                 candidate.education = typeof education === 'string' ?
                     JSON.parse(education) : education;
-            } catch (e) {
+            } catch {
                 candidate.education = education;
             }
         }
@@ -138,7 +143,7 @@ export const saveCandidateProfile = async (req, res) => {
             try {
                 candidate.certificates = typeof certificates === 'string' ?
                     JSON.parse(certificates) : certificates;
-            } catch (e) {
+            } catch {
                 candidate.certificates = certificates;
             }
         }
@@ -148,16 +153,12 @@ export const saveCandidateProfile = async (req, res) => {
                 let skillsArray = typeof skills === 'string' ?
                     JSON.parse(skills) : skills;
 
-                // Ensure we always have an array
-                if (!Array.isArray(skillsArray)) {
-                    skillsArray = [skillsArray];
-                }
+                if (!Array.isArray(skillsArray)) skillsArray = [skillsArray];
 
-                // Convert all elements to ObjectId
                 candidate.skills = skillsArray.map(id => {
                     if (!id) return null;
-                    return new mongoose.Types.ObjectId(id); // Add 'new' keyword here
-                }).filter(id => id !== null);
+                    return new mongoose.Types.ObjectId(id);
+                }).filter(Boolean);
             } catch (e) {
                 console.error('Error processing skills:', e);
                 candidate.skills = [];
@@ -169,11 +170,10 @@ export const saveCandidateProfile = async (req, res) => {
                 let servicesArray = typeof services === 'string' ?
                     JSON.parse(services) : services;
 
-                // Convert array of objects to array of strings
                 candidate.services = Array.isArray(servicesArray) ?
                     servicesArray.map(service => typeof service === 'object' ? service.name : service) :
                     [];
-            } catch (e) {
+            } catch {
                 candidate.services = [];
             }
         }
@@ -188,18 +188,16 @@ export const saveCandidateProfile = async (req, res) => {
             try {
                 candidate.portfolio_links = typeof portfolio_links === 'string' ?
                     JSON.parse(portfolio_links) : portfolio_links;
-            } catch (e) {
+            } catch {
                 candidate.portfolio_links = portfolio_links;
             }
         }
 
-        // Save the candidate profile
         await candidate.save({ session });
 
         await session.commitTransaction();
         session.endSession();
 
-        // Include virtual age field in response
         const candidateData = candidate.toObject();
         candidateData.age = candidate.age;
 
