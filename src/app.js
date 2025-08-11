@@ -29,6 +29,7 @@ import addSalary from './Route/SalaryManagement/Salarymangement.js';
 import UserManagement from './Route/UserManagement/UserMangement.js'
 import DashboardApi from './Route/DashboardApi/DashboardApi.js';
 import SkillRoute from './Route/SkillRoute/SkillRoute.js'
+import RouteData from './Route/State/State.js';
 const app = express();
 
 // ---------------------------
@@ -115,6 +116,7 @@ app.use('/api/v1/userManagement', UserManagement)
 // ---------------------------
 // Dashboard API Routes
 app.use('/api/v1/DashboardApi', DashboardApi)
+app.use('/api/v1/dataget', RouteData)
 // ---------------------------
 // 🧱 Error Handlers
 // ---------------------------
