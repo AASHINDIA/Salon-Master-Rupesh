@@ -63,12 +63,11 @@ export const saveCandidateProfile = async (req, res) => {
 
     try {
         const userId = req.user._id;
-
         const {
             name,
             location,
             date_of_birth,
-            address, // Now expecting { country, state, city, pincode }
+            address,
             pan_no,
             contact_no,
             id_type,
@@ -97,7 +96,6 @@ export const saveCandidateProfile = async (req, res) => {
 
         if (req.file?.buffer) {
             const result = await uploadToCloudinary(req.file.buffer, 'worker-profile');
-            console.log('✅ Cloudinary Upload Result:', result);
             candidate.image = result.secure_url;
         }
 
@@ -105,13 +103,23 @@ export const saveCandidateProfile = async (req, res) => {
         if (location !== undefined) candidate.location = location;
         if (date_of_birth !== undefined) candidate.date_of_birth = new Date(date_of_birth);
 
-        // ✅ New address handling
+        // ✅ Handle address as object or string
         if (address !== undefined) {
+            let addressObj = address;
+            if (typeof address === 'string') {
+                try {
+                    addressObj = JSON.parse(address);
+                } catch {
+                    // If not valid JSON, store it in city field
+                    addressObj = { city: address };
+                }
+            }
+
             candidate.address = {
-                country: address.country || candidate.address?.country || '',
-                state: address.state || candidate.address?.state || '',
-                city: address.city || candidate.address?.city || '',
-                pincode: address.pincode || candidate.address?.pincode || ''
+                country: addressObj.country || candidate.address?.country || '',
+                state: addressObj.state || candidate.address?.state || '',
+                city: addressObj.city || candidate.address?.city || '',
+                pincode: addressObj.pincode || candidate.address?.pincode || ''
             };
         }
 
@@ -123,8 +131,9 @@ export const saveCandidateProfile = async (req, res) => {
 
         if (expected_salary !== undefined) {
             try {
-                candidate.expected_salary = typeof expected_salary === 'string' ?
-                    JSON.parse(expected_salary) : expected_salary;
+                candidate.expected_salary = typeof expected_salary === 'string'
+                    ? JSON.parse(expected_salary)
+                    : expected_salary;
             } catch {
                 candidate.expected_salary = expected_salary;
             }
@@ -132,8 +141,9 @@ export const saveCandidateProfile = async (req, res) => {
 
         if (education !== undefined) {
             try {
-                candidate.education = typeof education === 'string' ?
-                    JSON.parse(education) : education;
+                candidate.education = typeof education === 'string'
+                    ? JSON.parse(education)
+                    : education;
             } catch {
                 candidate.education = education;
             }
@@ -141,8 +151,9 @@ export const saveCandidateProfile = async (req, res) => {
 
         if (certificates !== undefined) {
             try {
-                candidate.certificates = typeof certificates === 'string' ?
-                    JSON.parse(certificates) : certificates;
+                candidate.certificates = typeof certificates === 'string'
+                    ? JSON.parse(certificates)
+                    : certificates;
             } catch {
                 candidate.certificates = certificates;
             }
@@ -150,29 +161,29 @@ export const saveCandidateProfile = async (req, res) => {
 
         if (skills !== undefined) {
             try {
-                let skillsArray = typeof skills === 'string' ?
-                    JSON.parse(skills) : skills;
+                let skillsArray = typeof skills === 'string'
+                    ? JSON.parse(skills)
+                    : skills;
 
                 if (!Array.isArray(skillsArray)) skillsArray = [skillsArray];
 
-                candidate.skills = skillsArray.map(id => {
-                    if (!id) return null;
-                    return new mongoose.Types.ObjectId(id);
-                }).filter(Boolean);
-            } catch (e) {
-                console.error('Error processing skills:', e);
+                candidate.skills = skillsArray
+                    .map(id => id ? new mongoose.Types.ObjectId(id) : null)
+                    .filter(Boolean);
+            } catch {
                 candidate.skills = [];
             }
         }
 
         if (services !== undefined) {
             try {
-                let servicesArray = typeof services === 'string' ?
-                    JSON.parse(services) : services;
+                let servicesArray = typeof services === 'string'
+                    ? JSON.parse(services)
+                    : services;
 
-                candidate.services = Array.isArray(servicesArray) ?
-                    servicesArray.map(service => typeof service === 'object' ? service.name : service) :
-                    [];
+                candidate.services = Array.isArray(servicesArray)
+                    ? servicesArray.map(service => typeof service === 'object' ? service.name : service)
+                    : [];
             } catch {
                 candidate.services = [];
             }
@@ -186,8 +197,9 @@ export const saveCandidateProfile = async (req, res) => {
 
         if (portfolio_links !== undefined) {
             try {
-                candidate.portfolio_links = typeof portfolio_links === 'string' ?
-                    JSON.parse(portfolio_links) : portfolio_links;
+                candidate.portfolio_links = typeof portfolio_links === 'string'
+                    ? JSON.parse(portfolio_links)
+                    : portfolio_links;
             } catch {
                 candidate.portfolio_links = portfolio_links;
             }
@@ -217,3 +229,4 @@ export const saveCandidateProfile = async (req, res) => {
         });
     }
 };
+
