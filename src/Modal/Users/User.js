@@ -23,7 +23,7 @@ const UserSchema = new mongoose.Schema({
 
     domain_type: {
         type: String,
-        enum: ['salon', 'worker', 'company', 'superadmin'], // Possible values
+        enum: ['salon', 'worker', 'company', 'superadmin',"Sale/Lease", "Training", "Franchise"], // Possible values
         required: true // Optional, but recommended if the field is mandatory
     },
 
