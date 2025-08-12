@@ -19,6 +19,10 @@ const companySchema = new mongoose.Schema({
         type: String,
         trim: true
     },
+    whatsapp_number: {
+        type: String,
+        trim: true
+    },
     gst_number: {
         type: String,
         trim: true
@@ -30,6 +34,36 @@ const companySchema = new mongoose.Schema({
     cin: {
         type: String,
         trim: true
+    },
+    address: {
+        country: {
+            type: String,
+            trim: true,
+            required: true
+        },
+        state: {
+            type: String,
+            trim: true,
+            required: true
+        },
+        city: {
+            type: String,
+            trim: true,
+            required: true
+        },
+        pincode: {
+            type: String,
+            trim: true,
+            required: true
+        },
+        countryIsoCode: {
+            type: String,
+            trim: true // Store ISO code for country lookup
+        },
+        stateIsoCode: {
+            type: String,
+            trim: true // Store ISO code for state lookup
+        }
     },
     image: {
         type: String, // Stores the path/URL of the image

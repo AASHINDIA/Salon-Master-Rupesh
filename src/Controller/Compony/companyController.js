@@ -62,10 +62,11 @@ export const saveCompanyProfile = async (req, res) => {
     try {
         const userId = req.user._id;
 
-        // Destructure all possible fields from request body
         const {
             company_name,
             brand,
+            whatsapp_number,
+            address, // { country, state, city, pincode, countryIsoCode, stateIsoCode }
             gst_number,
             pan_number,
             cin,
@@ -74,10 +75,8 @@ export const saveCompanyProfile = async (req, res) => {
             products
         } = req.body;
 
-        // Check if company profile already exists
         let company = await Company.findOne({ user_id: userId }).session(session);
 
-        // If profile doesn't exist, create a new one
         if (!company) {
             company = new Company({
                 user_id: userId,
@@ -85,53 +84,60 @@ export const saveCompanyProfile = async (req, res) => {
             });
         }
 
-        // Handle image upload if present
-
-
-
+        // Handle image upload
         if (req.file?.buffer) {
-            const result = await uploadToCloudinary(req.file.buffer, 'worker-profile');
-            console.log('✅ Cloudinary Upload Result:', result);
+            const uploadResult = await uploadToCloudinary(req.file.buffer, 'company-profile');
+            console.log('✅ Cloudinary Upload Result:', uploadResult);
             company.image = uploadResult.secure_url;
         }
 
-
-        // Update fields from request body
+        // Basic fields
         if (company_name !== undefined) company.company_name = company_name;
         if (brand !== undefined) company.brand = brand;
+        if (whatsapp_number !== undefined) company.whatsapp_number = whatsapp_number;
         if (gst_number !== undefined) company.gst_number = gst_number;
         if (pan_number !== undefined) company.pan_number = pan_number;
         if (cin !== undefined) company.cin = cin;
 
-        // Handle special fields that might be stringified JSON
+        // Address handling (merge existing + new)
+        if (address && typeof address === 'object') {
+            company.address = {
+                ...company.address?.toObject?.() || {},
+                ...address
+            };
+        }
+
+        // Handle JSON-parsable fields
         if (social_media_links !== undefined) {
             try {
-                company.social_media_links = typeof social_media_links === 'string' ?
-                    JSON.parse(social_media_links) : social_media_links;
-            } catch (e) {
+                company.social_media_links = typeof social_media_links === 'string'
+                    ? JSON.parse(social_media_links)
+                    : social_media_links;
+            } catch {
                 company.social_media_links = social_media_links;
             }
         }
 
         if (product_shop_options !== undefined) {
             try {
-                company.product_shop_options = typeof product_shop_options === 'string' ?
-                    JSON.parse(product_shop_options) : product_shop_options;
-            } catch (e) {
+                company.product_shop_options = typeof product_shop_options === 'string'
+                    ? JSON.parse(product_shop_options)
+                    : product_shop_options;
+            } catch {
                 company.product_shop_options = product_shop_options;
             }
         }
 
         if (products !== undefined) {
             try {
-                company.products = typeof products === 'string' ?
-                    JSON.parse(products) : products;
-            } catch (e) {
+                company.products = typeof products === 'string'
+                    ? JSON.parse(products)
+                    : products;
+            } catch {
                 company.products = products;
             }
         }
 
-        // Save the company profile
         await company.save({ session });
 
         await session.commitTransaction();
@@ -142,6 +148,7 @@ export const saveCompanyProfile = async (req, res) => {
             message: 'Company profile saved successfully',
             data: company
         });
+
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
