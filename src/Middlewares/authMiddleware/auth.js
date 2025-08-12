@@ -30,7 +30,7 @@ export const protect = async (req, res, next) => {
             });
         }
 
-        if (isSuspended) {
+        if (user.isSuspended) {
             return res.status(401).json({
                 success: false,
                 message: 'your account is suspended, please contact support'
