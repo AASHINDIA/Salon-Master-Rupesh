@@ -8,7 +8,6 @@ const UserSchema = new mongoose.Schema({
         required: true,
         trim: true,
     },
-
     email: {
         type: String,
         required: true,
@@ -23,7 +22,7 @@ const UserSchema = new mongoose.Schema({
 
     domain_type: {
         type: String,
-        enum: ['salon', 'worker', 'company', 'superadmin',"Sale/Lease", "Training", "Franchise"], // Possible values
+        enum: ['salon', 'worker', 'company', 'superadmin',"Sale_Lease", "Training", "Franchise"], // Possible values
         required: true // Optional, but recommended if the field is mandatory
     },
 
@@ -62,7 +61,7 @@ const UserSchema = new mongoose.Schema({
         default: false,
         index: true
     },
-    // 🔐 Tokens
+    // Tokens
     access_token: {
         type: String,
     },

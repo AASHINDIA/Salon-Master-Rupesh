@@ -21,7 +21,7 @@ export const createJobPosting = async (req, res) => {
         }
 
         // Extract skills and other job data from the request body
-        const { skills = [], ...otherData } = req.body;
+        const { skills = [], address, ...otherData } = req.body;
 
         // Validate skill IDs - check which ones exist in the database
         const validSkills = await Skill.find({ _id: { $in: skills } });
@@ -37,12 +37,32 @@ export const createJobPosting = async (req, res) => {
         // Extract only valid skill IDs
         const validSkillIds = validSkills.map(skill => skill._id);
 
+        // Prepare address data (use provided address or fallback to salon's address)
+        const jobAddress = address || salon.address;
+
+        // Validate required address fields
+        if (!jobAddress?.country || !jobAddress?.state || !jobAddress?.city) {
+            return res.status(400).json({
+                success: false,
+                message: 'Address must include country, state, and city'
+            });
+        }
+
         // Prepare job posting data
         const jobData = {
             salon_id: salon._id,
             ...otherData,
-            skills: validSkillIds,
-            location: otherData.location || salon.location
+            required_skills: validSkillIds,
+            address: {
+                country: jobAddress.country,
+                state: jobAddress.state,
+                city: jobAddress.city,
+                pincode: jobAddress.pincode || '',
+                countryIsoCode: jobAddress.countryIsoCode || '',
+                stateIsoCode: jobAddress.stateIsoCode || ''
+            },
+            // Keep old location field for backward compatibility (can be removed later)
+            location: `${jobAddress.city}, ${jobAddress.state}, ${jobAddress.country}`
         };
 
         // Create and save job posting
@@ -70,51 +90,94 @@ export const getSuggestedCandidates = async (req, res) => {
     try {
         // Find the salon for the logged-in user
         const salon = await Salon.findOne({ user_id: req.user._id });
-
         if (!salon) {
-            return res.status(404).json({
-                success: false,
-                message: 'Salon not found'
-            });
+            return res.status(404).json({ success: false, message: 'Salon not found' });
         }
 
-        // Find the latest job posting from this salon
-        const latestJob = await JobPosting.findOne({ salon_id: salon._id })
-            .sort({ createdAt: -1 })
-            .lean();
+        // Find the latest active job posting from this salon
+        const latestJob = await JobPosting.findOne({
+            salon_id: salon._id,
+            is_active: true
+        }).sort({ createdAt: -1 }).lean();
 
         if (!latestJob) {
             return res.status(404).json({
                 success: false,
-                message: 'No job postings found for this salon'
+                message: 'No active job postings found for this salon'
             });
         }
 
-        // Destructure relevant fields
-        const { required_skills = [], location, gender_preference, salary_range } = latestJob;
+        // Destructure relevant fields with defaults
+        const {
+            required_skills = [],
+            address: jobAddress,
+            gender_preference = 'Any',
+            salary_range = { min: 0, max: 0 },
+            job_type,
+            required_experience
+        } = latestJob;
 
-        // Build query for candidate suggestions
-        const query = {
-            available_for_join: true,
-            skills: { $in: required_skills },
-            location: location,
-            'expected_salary.min': { $lte: salary_range.max },  // expected salary fits
-            'expected_salary.max': { $gte: salary_range.min }
-        };
-
-        // Optional: Apply gender preference (if not 'Any')
-        if (gender_preference && gender_preference !== 'Any') {
-            query.gender = gender_preference; // You can add gender to Candidate schema if needed
+        // Validate job has required address information
+        if (!jobAddress?.country || !jobAddress?.state) {
+            return res.status(400).json({
+                success: false,
+                message: 'Job posting is missing required location information'
+            });
         }
 
-        const suggestedCandidates = await Candidate.find(query)
-            .populate('skills') // Optional: show skill details
-            .sort({ createdAt: -1 });
+        // Build base query with address matching
+        const query = {
+            available_for_join: true,
+            'address.country': jobAddress.country,
+            'address.state': jobAddress.state,
+            'expected_salary.min': { $lte: salary_range.max * 1.1 }, // 10% buffer
+            'expected_salary.max': { $gte: salary_range.min * 0.9 }  // 10% buffer
+        };
+
+        // Optional: Add city matching if needed
+        if (jobAddress.city) {
+            query['address.city'] = jobAddress.city;
+        }
+
+        // Skill matching - candidates must have ALL required skills
+        if (required_skills.length > 0) {
+            query.skills = { $all: required_skills }; // Changed from $in to $all
+        }
+
+        // Gender filter
+        if (gender_preference !== 'Any') {
+            query.gender = gender_preference.toLowerCase();
+        }
+
+        // Job type filter (if candidate schema has job_preference field)
+        if (job_type) {
+            query.job_preference = job_type;
+        }
+
+        // Experience filter (if implemented in candidate schema)
+        if (required_experience) {
+            // This would need to match your experience representation in candidates
+            query.experience_level = { $gte: experienceToLevel(required_experience) };
+        }
+
+        // Find candidates matching the base criteria
+        const candidates = await Candidate.find(query)
+            .populate('skills')
+            .lean();
+
+        // Calculate matching score for each candidate
+        const scoredCandidates = candidates.map(candidate => {
+            const score = calculateMatchScore(candidate, latestJob);
+            return { ...candidate, matchScore: score };
+        });
+
+        // Sort by match score (highest first)
+        scoredCandidates.sort((a, b) => b.matchScore - a.matchScore);
 
         return res.status(200).json({
             success: true,
             message: 'Suggested candidates fetched successfully',
-            data: suggestedCandidates,
+            data: scoredCandidates,
             job: latestJob
         });
 
@@ -127,6 +190,58 @@ export const getSuggestedCandidates = async (req, res) => {
         });
     }
 };
+
+// Helper function to calculate comprehensive match score (0-100)
+function calculateMatchScore(candidate, job) {
+    let score = 0;
+
+    // 1. Skill Matching (40% weight)
+    if (job.required_skills?.length > 0) {
+        const matchedSkills = candidate.skills.filter(skill =>
+            job.required_skills.includes(skill._id.toString())
+        ).length;
+        score += (matchedSkills / job.required_skills.length) * 40;
+    }
+
+    // 2. Location Matching (30% weight)
+    // Exact country/state already filtered in query
+    score += 20; // base score for country/state match
+
+    // Bonus for city match if available
+    if (job.address?.city && candidate.address?.city === job.address.city) {
+        score += 10;
+    }
+
+    // 3. Salary Compatibility (20% weight)
+    const candidateMidSalary = (candidate.expected_salary.min + candidate.expected_salary.max) / 2;
+    const jobMidSalary = (job.salary_range.min + job.salary_range.max) / 2;
+
+    if (jobMidSalary > 0) { // only calculate if salary is specified
+        const salaryRatio = Math.min(candidateMidSalary, jobMidSalary) / Math.max(candidateMidSalary, jobMidSalary);
+        score += salaryRatio * 20;
+    } else {
+        score += 20; // full points if no salary specified in job
+    }
+
+    // 4. Experience Matching (10% weight)
+    if (job.required_experience && candidate.experience) {
+        // This would need to be customized based on your experience representation
+        score += calculateExperienceMatch(candidate.experience, job.required_experience) * 10;
+    }
+
+    return Math.min(Math.round(score), 100); // Cap at 100
+}
+
+// Example experience matching helper (customize based on your schema)
+function calculateExperienceMatch(candidateExp, requiredExp) {
+    // Implement your logic to compare experience levels
+    // This is just a placeholder example
+    if (requiredExp === 'Fresher') return 1;
+    if (requiredExp === '6 months' && candidateExp >= 0.5) return 1;
+    if (requiredExp === '1 year' && candidateExp >= 1) return 1;
+    // ... other levels
+    return 0.5; // partial match
+}
 
 
 export const RequestForJobToSuggestedCandidates = async (req, res) => {
@@ -196,8 +311,7 @@ export const RequestForJobToSuggestedCandidates = async (req, res) => {
     }
 };
 
-
-// Get Recommended Jobs for Candidate
+// Get all job postings with advanced filtering
 export const getAllJobPostings = async (req, res) => {
     try {
         const {
@@ -205,10 +319,14 @@ export const getAllJobPostings = async (req, res) => {
             limit = 10,
             search,
             job_title,
-            location,
+            country,
+            state,
+            city,
             gender_preference,
             salary_min,
-            salary_max
+            salary_max,
+            job_type,
+            required_experience
         } = req.query;
 
         const query = { is_active: true };
@@ -218,17 +336,29 @@ export const getAllJobPostings = async (req, res) => {
             query.$or = [
                 { job_title: { $regex: search, $options: 'i' } },
                 { job_description: { $regex: search, $options: 'i' } },
-                { 'custom_job_title': { $regex: search, $options: 'i' } }
+                { 'custom_job_title': { $regex: search, $options: 'i' } },
+                { 'address.city': { $regex: search, $options: 'i' } }
             ];
         }
 
-        // Other filters
+        // Job title filter
         if (job_title) query.job_title = job_title;
-        if (location) query.location = { $regex: location, $options: 'i' };
+
+        // Location filters
+        if (country) query['address.country'] = country;
+        if (state) query['address.state'] = state;
+        if (city) query['address.city'] = city;
+
+        // Other filters
         if (gender_preference) query.gender_preference = gender_preference;
+        if (job_type) query.job_type = job_type;
+        if (required_experience) query.required_experience = required_experience;
+
+        // Salary range filter
         if (salary_min || salary_max) {
-            query['salary_range.min'] = { $gte: parseInt(salary_min) || 0 };
-            query['salary_range.max'] = { $lte: parseInt(salary_max) || 1000000 };
+            query.$and = [];
+            if (salary_min) query.$and.push({ 'salary_range.max': { $gte: parseInt(salary_min) } });
+            if (salary_max) query.$and.push({ 'salary_range.min': { $lte: parseInt(salary_max) } });
         }
 
         // Calculate pagination values
@@ -239,9 +369,10 @@ export const getAllJobPostings = async (req, res) => {
         // Get total count for pagination info
         const total = await JobPosting.countDocuments(query);
 
-        // Get paginated results
+        // Get paginated results with salon details
         const jobs = await JobPosting.find(query)
-            .populate('salon_id', 'salon_name brand_name image_path')
+            .populate('salon_id', 'salon_name brand_name image_path address')
+            .populate('required_skills')
             .sort({ posted_date: -1 })
             .skip(skip)
             .limit(pageSize);
@@ -262,54 +393,67 @@ export const getAllJobPostings = async (req, res) => {
     }
 };
 
-// Get Recommended Jobs for Candidate
+// Get personalized recommended jobs for candidate
 export const getRecommendedJobs = async (req, res) => {
     try {
-        const candidate = await Candidate.findOne({ user_id: req.user._id });
+        const { page = 1, limit = 10 } = req.query;
+        const pageNumber = parseInt(page);
+        const pageSize = parseInt(limit);
+        const skip = (pageNumber - 1) * pageSize;
+
+        // Get candidate profile with populated skills
+        const candidate = await Candidate.findOne({ user_id: req.user._id })
+            .populate('skills')
+            .lean();
+
         if (!candidate) {
             return res.status(404).json({ success: false, message: 'Candidate profile not found' });
         }
 
-        const { page = 1, limit = 10 } = req.query;
-
+        // Base query filters
         const baseQuery = {
             is_active: true,
-            gender_preference: { $in: [candidate.gender, 'Any'] },
-            location: { $regex: candidate.location, $options: 'i' }
+            $or: [
+                { gender_preference: 'Any' },
+                { gender_preference: candidate.gender.charAt(0).toUpperCase() + candidate.gender.slice(1) }
+            ],
+            'address.country': candidate.address.country,
+            'address.state': candidate.address.state,
+            'expected_salary.min': { $lte: candidate.expected_salary.max * 1.2 }, // 20% buffer
+            'expected_salary.max': { $gte: candidate.expected_salary.min * 0.8 }   // 20% buffer
         };
 
-        // First get exact matches
-        const exactMatchJobs = await JobPosting.find({
-            ...baseQuery,
-            required_skills: { $in: candidate.skills }
-        })
-            .populate('salon_id', 'salon_name brand_name image_path')
-            .sort({ posted_date: -1 });
-
-        // Then get partial matches if needed
-        if (exactMatchJobs.length < limit) {
-            const partialMatchJobs = await JobPosting.find({
-                ...baseQuery,
-                required_skills: { $not: { $in: candidate.skills } }
-            })
-                .populate('salon_id', 'salon_name brand_name image_path')
-                .sort({ posted_date: -1 })
-                .limit(limit - exactMatchJobs.length);
-
-            const allJobs = [...exactMatchJobs, ...partialMatchJobs].slice(0, limit);
-
-            return res.status(200).json({
-                success: true,
-                data: allJobs,
-                total: allJobs.length
-            });
+        // Optional city filter
+        if (candidate.address.city) {
+            baseQuery['address.city'] = candidate.address.city;
         }
+
+        // Get all potential jobs that match base criteria
+        const potentialJobs = await JobPosting.find(baseQuery)
+            .populate('salon_id', 'salon_name brand_name image_path address')
+            .populate('required_skills')
+            .lean();
+
+        // Calculate match score for each job
+        const scoredJobs = potentialJobs.map(job => {
+            const score = calculateJobMatchScore(candidate, job);
+            return { ...job, matchScore: score };
+        });
+
+        // Sort by match score (highest first)
+        scoredJobs.sort((a, b) => b.matchScore - a.matchScore);
+
+        // Paginate results
+        const paginatedJobs = scoredJobs.slice(skip, skip + pageSize);
 
         res.status(200).json({
             success: true,
-            data: exactMatchJobs,
-            total: exactMatchJobs.length
+            data: paginatedJobs,
+            total: scoredJobs.length,
+            pages: Math.ceil(scoredJobs.length / pageSize),
+            currentPage: pageNumber
         });
+
     } catch (error) {
         res.status(500).json({
             success: false,
@@ -318,6 +462,47 @@ export const getRecommendedJobs = async (req, res) => {
         });
     }
 };
+
+// Calculate job match score (0-100)
+function calculateJobMatchScore(candidate, job) {
+    let score = 0;
+
+    // 1. Skill Matching (40% weight)
+    if (job.required_skills?.length > 0 && candidate.skills?.length > 0) {
+        const candidateSkillIds = candidate.skills.map(s => s._id.toString());
+        const matchedSkills = job.required_skills.filter(skill =>
+            candidateSkillIds.includes(skill._id.toString())
+        ).length;
+        score += (matchedSkills / job.required_skills.length) * 40;
+    }
+
+    // 2. Location Matching (30% weight)
+    // Country and state already filtered in query
+    score += 20; // base score
+
+    // Bonus for city match
+    if (job.address?.city && candidate.address?.city === job.address.city) {
+        score += 10;
+    }
+
+    // 3. Salary Compatibility (20% weight)
+    const candidateMidSalary = (candidate.expected_salary.min + candidate.expected_salary.max) / 2;
+    const jobMidSalary = (job.salary_range.min + job.salary_range.max) / 2;
+
+    if (jobMidSalary > 0 && candidateMidSalary > 0) {
+        const salaryRatio = Math.min(candidateMidSalary, jobMidSalary) / Math.max(candidateMidSalary, jobMidSalary);
+        score += salaryRatio * 20;
+    } else {
+        score += 20; // full points if salary not specified
+    }
+
+    // 4. Job Type Preference (10% weight)
+    if (job.job_type && candidate.job_preference === job.job_type) {
+        score += 10;
+    }
+
+    return Math.min(Math.round(score), 100); // Cap at 100
+}
 
 // Get Job Posting by ID
 export const getJobPostingById = async (req, res) => {

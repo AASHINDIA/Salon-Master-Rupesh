@@ -79,6 +79,35 @@ const jobPostingSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     },
+    address: {
+        country: {
+            type: String,
+            trim: true,
+            required: true
+        },
+        state: {
+            type: String,
+            trim: true,
+            required: true
+        },
+        city: {
+            type: String,
+            trim: true,
+            required: true
+        },
+        pincode: {
+            type: String,
+            trim: true
+        },
+        countryIsoCode: {
+            type: String,
+            trim: true // Store ISO code for country lookup
+        },
+        stateIsoCode: {
+            type: String,
+            trim: true // Store ISO code for state lookup
+        }
+    },
     location: {
         type: String,
         required: true
