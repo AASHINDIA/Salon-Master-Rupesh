@@ -108,12 +108,7 @@ export const saveCandidateProfile = async (req, res) => {
             let addressObj = typeof address === 'string' ? JSON.parse(address) : address;
 
             // Validate required fields
-            const requiredFields = ['country', 'state', 'city', 'pincode'];
-            for (const field of requiredFields) {
-                if (!addressObj[field]) {
-                    throw new Error(`Address field "${field}" is required`);
-                }
-            }
+          
 
             candidate.address = {
                 country: addressObj.country,
