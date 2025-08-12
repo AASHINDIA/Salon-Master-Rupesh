@@ -62,11 +62,11 @@ export const saveCompanyProfile = async (req, res) => {
     try {
         const userId = req.user._id;
 
-        const {
+        let {
             company_name,
             brand,
             whatsapp_number,
-            address, // { country, state, city, pincode, countryIsoCode, stateIsoCode }
+            address,
             gst_number,
             pan_number,
             cin,
@@ -80,14 +80,14 @@ export const saveCompanyProfile = async (req, res) => {
         if (!company) {
             company = new Company({
                 user_id: userId,
-                unique_name: generateUniqueCompanyName()
+                unique_name: generateUniqueCompanyName(),
+                company_name: company_name || 'New Company'
             });
         }
 
         // Handle image upload
         if (req.file?.buffer) {
             const uploadResult = await uploadToCloudinary(req.file.buffer, 'company-profile');
-            console.log('✅ Cloudinary Upload Result:', uploadResult);
             company.image = uploadResult.secure_url;
         }
 
@@ -99,43 +99,37 @@ export const saveCompanyProfile = async (req, res) => {
         if (pan_number !== undefined) company.pan_number = pan_number;
         if (cin !== undefined) company.cin = cin;
 
-        // Address handling (merge existing + new)
-        if (address && typeof address === 'object') {
+        // Address (like in Candidate function)
+        if (address !== undefined) {
+            let addressObj = typeof address === 'string' ? JSON.parse(address) : address;
+
             company.address = {
-                ...company.address?.toObject?.() || {},
-                ...address
+                country: addressObj.country || company.address?.country || '',
+                state: addressObj.state || company.address?.state || '',
+                city: addressObj.city || company.address?.city || '',
+                pincode: addressObj.pincode || company.address?.pincode || '',
+                countryIsoCode: addressObj.countryIsoCode || company.address?.countryIsoCode || '',
+                stateIsoCode: addressObj.stateIsoCode || company.address?.stateIsoCode || ''
             };
         }
 
-        // Handle JSON-parsable fields
+        // Optional fields
         if (social_media_links !== undefined) {
-            try {
-                company.social_media_links = typeof social_media_links === 'string'
-                    ? JSON.parse(social_media_links)
-                    : social_media_links;
-            } catch {
-                company.social_media_links = social_media_links;
-            }
+            company.social_media_links = typeof social_media_links === 'string'
+                ? JSON.parse(social_media_links)
+                : social_media_links;
         }
 
         if (product_shop_options !== undefined) {
-            try {
-                company.product_shop_options = typeof product_shop_options === 'string'
-                    ? JSON.parse(product_shop_options)
-                    : product_shop_options;
-            } catch {
-                company.product_shop_options = product_shop_options;
-            }
+            company.product_shop_options = typeof product_shop_options === 'string'
+                ? JSON.parse(product_shop_options)
+                : product_shop_options;
         }
 
         if (products !== undefined) {
-            try {
-                company.products = typeof products === 'string'
-                    ? JSON.parse(products)
-                    : products;
-            } catch {
-                company.products = products;
-            }
+            company.products = typeof products === 'string'
+                ? JSON.parse(products)
+                : products;
         }
 
         await company.save({ session });
@@ -160,3 +154,5 @@ export const saveCompanyProfile = async (req, res) => {
         });
     }
 };
+
+
