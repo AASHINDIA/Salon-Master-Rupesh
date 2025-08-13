@@ -19,9 +19,97 @@ const generateUniqueCompanyName = () => {
 // Get company profile
 
 
+export const getAllCompanies = async (req, res) => {
+    try {
+        let {
+            page = 1,
+            limit = 10,
+            search = "",
+            sortBy = "createdAt",
+            sortOrder = "desc",
+            country,
+            state,
+            city
+        } = req.query;
+
+        page = parseInt(page);
+        limit = parseInt(limit);
+
+        // Build query object
+        let query = {};
+
+        // Search by company_name or brand (case-insensitive)
+        if (search) {
+            query.$or = [
+                { company_name: { $regex: search, $options: "i" } },
+                { brand: { $regex: search, $options: "i" } }
+            ];
+        }
+
+        // Filters
+        if (country) query["address.country"] = country;
+        if (state) query["address.state"] = state;
+        if (city) query["address.city"] = city;
+
+        // Sort object
+        let sortOptions = {};
+        sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
+
+        // Fetch data
+        const companies = await Company.find(query)
+            .select("company_name brand createdAt") // only required fields
+            .sort(sortOptions)
+            .skip((page - 1) * limit)
+            .limit(limit);
+
+        // Total count for pagination
+        const totalCompanies = await Company.countDocuments(query);
+
+        res.status(200).json({
+            success: true,
+            page,
+            totalPages: Math.ceil(totalCompanies / limit),
+            totalCompanies,
+            data: companies
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Server error",
+            error: error.message
+        });
+    }
+};
 
 
+export const getcompanylist = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const company = await Company.findOne({ user_id: userId })
+            .populate('user_id', 'email role');
+        if (!company) {
+            return res.status(404).json({
+                success: false,
+                message: 'Company not found'
 
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+
+            data: company
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
 
 
 

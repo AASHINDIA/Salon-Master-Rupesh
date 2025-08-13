@@ -108,7 +108,7 @@ export const saveCandidateProfile = async (req, res) => {
             let addressObj = typeof address === 'string' ? JSON.parse(address) : address;
 
             // Validate required fields
-          
+
 
             candidate.address = {
                 country: addressObj.country,
@@ -195,4 +195,74 @@ export const saveCandidateProfile = async (req, res) => {
     }
 };
 
+
+export const getAllCandidates = async (req, res) => {
+    try {
+        let {
+            page = 1,
+            limit = 10,
+            search = "",
+            sortBy = "createdAt",
+            sortOrder = "desc",
+            country,
+            state,
+            city,
+            skill
+        } = req.query;
+
+        page = parseInt(page);
+        limit = parseInt(limit);
+
+        // Build query object
+        let query = {};
+
+        // Search by candidate name or location
+        if (search) {
+            query.$or = [
+                { name: { $regex: search, $options: "i" } },
+                { location: { $regex: search, $options: "i" } }
+            ];
+        }
+
+        // Filters
+        if (country) query["address.country"] = country;
+        if (state) query["address.state"] = state;
+        if (city) query["address.city"] = city;
+
+        // Filter by skill
+        if (skill) {
+            query.skills = skill; // skill should be ObjectId from Skill model
+        }
+
+        // Sorting
+        let sortOptions = {};
+        sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
+
+        // Fetch candidates
+        const candidates = await Candidate.find(query)
+            .select("name location address skills expected_salary") // only required fields
+            .populate("skills", "name") // populate skills with only name
+            .sort(sortOptions)
+            .skip((page - 1) * limit)
+            .limit(limit);
+
+        // Count total
+        const totalCandidates = await Candidate.countDocuments(query);
+
+        res.status(200).json({
+            success: true,
+            page,
+            totalPages: Math.ceil(totalCandidates / limit),
+            totalCandidates,
+            data: candidates
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Server error",
+            error: error.message
+        });
+    }
+};
 

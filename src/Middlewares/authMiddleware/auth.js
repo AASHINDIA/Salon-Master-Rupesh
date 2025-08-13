@@ -69,13 +69,11 @@ export const protect = async (req, res, next) => {
     }
 };
 
-
-
-
 /**
  * Role-based authorization middleware
  * @param {string[]} allowedRoles - Array of permitted roles
  */
+
 
 export const roleCheck = (allowedRoles) => {
     return (req, res, next) => {

@@ -19,10 +19,13 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-
+    permissions: {
+        type: [String], // array of permission strings
+        default: [],
+    },
     domain_type: {
         type: String,
-        enum: ['salon', 'worker', 'company', 'superadmin',"Sale_Lease", "Training", "Franchise"], // Possible values
+        enum: ['salon', 'worker', 'company', 'admin', 'superadmin', "Sale_Lease", "Training", "Franchise"], // Possible values
         required: true // Optional, but recommended if the field is mandatory
     },
 

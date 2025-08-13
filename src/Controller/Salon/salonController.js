@@ -172,3 +172,69 @@ export const saveSalonProfile = async (req, res) => {
     }
 };
 
+
+export const getAllSalon = async (req, res) => {
+    try {
+        let {
+            page = 1,
+            limit = 10,
+            search = "",
+            sortBy = "createdAt",
+            sortOrder = "desc",
+            country,
+            state,
+            city,
+            year_of_start
+        } = req.query;
+
+        page = parseInt(page);
+        limit = parseInt(limit);
+
+        // Build query object
+        let query = {};
+
+        // Search by salon_name or brand_name (case-insensitive)
+        if (search) {
+            query.$or = [
+                { salon_name: { $regex: search, $options: "i" } },
+                { brand_name: { $regex: search, $options: "i" } }
+            ];
+        }
+
+        // Filters
+        if (country) query["address.country"] = country;
+        if (state) query["address.state"] = state;
+        if (city) query["address.city"] = city;
+        if (year_of_start) query.year_of_start = parseInt(year_of_start);
+
+        // Sort options
+        let sortOptions = {};
+        sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
+
+        // Fetch paginated salons
+        const salons = await Salon.find(query)
+            .select("salon_name brand_name year_of_start")
+            .sort(sortOptions)
+            .skip((page - 1) * limit)
+            .limit(limit);
+
+        // Total count for pagination
+        const totalSalons = await Salon.countDocuments(query);
+
+        res.status(200).json({
+            success: true,
+            page,
+            totalPages: Math.ceil(totalSalons / limit),
+            totalSalons,
+            data: salons
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Server error",
+            error: error.message
+        });
+    }
+};
+
