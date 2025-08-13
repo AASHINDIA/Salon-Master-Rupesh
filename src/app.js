@@ -31,6 +31,7 @@ import DashboardApi from './Route/DashboardApi/DashboardApi.js';
 import SkillRoute from './Route/SkillRoute/SkillRoute.js'
 import RouteData from './Route/State/State.js';
 import ItemsRoute from './Route/storeRoute/storeRoute.js'
+import PremissionRoute from './Route/authRoute/permissionRoutes.js'
 const app = express();
 
 // ---------------------------
@@ -81,6 +82,7 @@ app.get('/', (req, res) => {
 // authRoutes
 // --------------------------------
 app.use('/api/v1/auth', authRout);
+app.use('/api/v1/permission', PremissionRoute);
 // ----------------------------------------
 // Product Routes
 // ---------------------------

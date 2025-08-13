@@ -19,10 +19,10 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    permissions: {
-        type: [String], // array of permission strings
-        default: [],
-    },
+    permissions: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Permission"
+    }],
     domain_type: {
         type: String,
         enum: ['salon', 'worker', 'company', 'admin', 'superadmin', "Sale_Lease", "Training", "Franchise"], // Possible values
