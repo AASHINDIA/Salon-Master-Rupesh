@@ -5,7 +5,8 @@ import {
     getRecommendedJobs,
     getJobPostingById,
     updateJobPosting,
-    closeJobPosting
+    closeJobPosting,
+    getSuggestedCandidates
 } from '../../Controller/JOB/jobPostingController.js';
 import { protect, roleCheck } from '../../Middlewares/authMiddleware/auth.js';
 
@@ -16,6 +17,7 @@ router.use(protect);
 // roleCheck('salon')
 // Create a new job posting
 router.post('/', createJobPosting);
+router.post('/suggestcandidate', getSuggestedCandidates);
 
 // Update a job posting
 router.put('/:id', updateJobPosting);
