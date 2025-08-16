@@ -130,8 +130,8 @@ export const getSuggestedCandidates = async (req, res) => {
             available_for_join: true,
             'address.country': jobAddress.country,
             'address.state': jobAddress.state,
-            'expected_salary.min': { $lte: salary_range.max * 1.1 }, // 10% buffer
-            'expected_salary.max': { $gte: salary_range.min * 0.9 }  // 10% buffer
+            // 'expected_salary.min': { $lte: salary_range.max * 1.1 }, // 10% buffer
+            // 'expected_salary.max': { $gte: salary_range.min * 0.9 }  // 10% buffer
         };
 
         // Optional: Add city matching if needed
@@ -419,8 +419,8 @@ export const getRecommendedJobs = async (req, res) => {
             ],
             'address.country': candidate.address.country,
             'address.state': candidate.address.state,
-            'expected_salary.min': { $lte: candidate.expected_salary.max * 1.2 }, // 20% buffer
-            'expected_salary.max': { $gte: candidate.expected_salary.min * 0.8 }   // 20% buffer
+            // 'expected_salary.min': { $lte: candidate.expected_salary.max * 1.2 }, // 20% buffer
+            // 'expected_salary.max': { $gte: candidate.expected_salary.min * 0.8 }   // 20% buffer
         };
 
         // Optional city filter

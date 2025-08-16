@@ -71,7 +71,7 @@ export const saveCandidateProfile = async (req, res) => {
             pan_no,
             contact_no,
             id_type,
-            id_detail,
+            id_detail, // { number, front_image, back_image }
             education,
             certificates,
             skills,
@@ -94,6 +94,7 @@ export const saveCandidateProfile = async (req, res) => {
             });
         }
 
+        // ✅ Profile Image Upload
         if (req.file?.buffer) {
             const result = await uploadToCloudinary(req.file.buffer, 'worker-profile');
             candidate.image = result.secure_url;
@@ -103,12 +104,9 @@ export const saveCandidateProfile = async (req, res) => {
         if (location !== undefined) candidate.location = location;
         if (date_of_birth !== undefined) candidate.date_of_birth = new Date(date_of_birth);
 
-        // Address
+        // ✅ Address
         if (address !== undefined) {
             let addressObj = typeof address === 'string' ? JSON.parse(address) : address;
-
-            // Validate required fields
-
 
             candidate.address = {
                 country: addressObj.country,
@@ -122,8 +120,32 @@ export const saveCandidateProfile = async (req, res) => {
 
         if (pan_no !== undefined) candidate.pan_no = pan_no;
         if (contact_no !== undefined) candidate.contact_no = contact_no;
-        if (id_type !== undefined) candidate.id_type = id_type.charAt(0).toUpperCase() + id_type.slice(1);
-        if (id_detail !== undefined) candidate.id_detail = id_detail;
+
+        // ✅ ID type + ID details
+        if (id_type !== undefined) {
+            candidate.id_type = id_type.charAt(0).toUpperCase() + id_type.slice(1);
+        }
+
+        if (id_detail !== undefined) {
+            let idDetailObj = typeof id_detail === 'string' ? JSON.parse(id_detail) : id_detail;
+
+            // If files are being uploaded separately (like front & back images)
+            if (req.files?.id_front) {
+                const frontUpload = await uploadToCloudinary(req.files.id_front[0].buffer, 'id-cards');
+                idDetailObj.front_image = frontUpload.secure_url;
+            }
+            if (req.files?.id_back) {
+                const backUpload = await uploadToCloudinary(req.files.id_back[0].buffer, 'id-cards');
+                idDetailObj.back_image = backUpload.secure_url;
+            }
+
+            candidate.id_detail = {
+                number: idDetailObj.number || candidate.id_detail?.number || '',
+                front_image: idDetailObj.front_image || candidate.id_detail?.front_image || '',
+                back_image: idDetailObj.back_image || candidate.id_detail?.back_image || ''
+            };
+        }
+
         if (gender !== undefined) candidate.gender = gender;
 
         if (expected_salary !== undefined) {
@@ -194,6 +216,7 @@ export const saveCandidateProfile = async (req, res) => {
         });
     }
 };
+
 
 
 export const getAllCandidates = async (req, res) => {

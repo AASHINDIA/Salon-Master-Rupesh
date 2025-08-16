@@ -28,3 +28,7 @@ export const generateOTP = (length = 6, type = 'numeric') => {
 
     return otp;
 };
+
+export const setOtpExpiry = (minutes = 10) => {
+    return new Date(Date.now() + minutes * 60 * 1000);
+};

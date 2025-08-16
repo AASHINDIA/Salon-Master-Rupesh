@@ -30,12 +30,13 @@ export const protect = async (req, res, next) => {
             });
         }
 
-        if (user.isSuspended) {
+        if (user && user.isSuspended) {
             return res.status(401).json({
                 success: false,
-                message: 'your account is suspended, please contact support'
+                message: 'Your account is suspended, please contact support'
             });
         }
+
 
         // Check if token matches the one stored in user document
         if (user.access_token !== token) {

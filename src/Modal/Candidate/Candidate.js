@@ -49,9 +49,11 @@ const candidateSchema = new mongoose.Schema({
         trim: true
     },
     id_detail: {
-        type: String,
-        trim: true
+        number: { type: String, trim: true }, // e.g., Aadhaar/PAN number
+        front_image: { type: String, trim: true }, // URL or file path for front
+        back_image: { type: String, trim: true }   // URL or file path for back
     },
+
     education: {
         type: [{
             degree: String,
