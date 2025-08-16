@@ -67,7 +67,7 @@ export const register = async (req, res) => {
 
 
 
-        
+
 
         if (otpResponse.data) {
             user.whatsapp_uid = otpResponse.data;
@@ -222,9 +222,31 @@ export const verifyOtp = async (req, res) => {
         user.otp_attempts = 0;
         await user.save();
 
-        return res.status(200).json({
+
+
+
+        const { accessToken, refreshToken } = user.generateTokens();
+
+        // Update user with tokens
+        user.access_token = accessToken;
+        user.refresh_token = refreshToken;
+        await user.save();
+
+        res.status(200).json({
             success: true,
             message: "WhatsApp number verified successfully",
+            data: {
+                accessToken,
+                refreshToken,
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    domain_type: user.domain_type,
+                    email_verified_at: user.email_verified_at
+                }
+            }
+
         });
 
     } catch (error) {
@@ -314,6 +336,7 @@ export const register1 = async (req, res) => {
     }
 };
 
+
 // Verify OTP
 export const verifyOtp1 = async (req, res) => {
     try {
@@ -379,10 +402,10 @@ export const verifyOtp1 = async (req, res) => {
 // Login user
 export const login = async (req, res) => {
     try {
-        const { whatsapp_number, password, deviceToken } = req.body; // Add deviceToken from request body
+        const { whatsapp_number, password, deviceToken } = req.body;
 
-        // Find user by email
-        const user = await User.findOne({ whatsapp_number });
+        // Find user and include password
+        const user = await User.findOne({ whatsapp_number }).select("+password");
         if (!user) {
             return res.status(401).json({
                 success: false,
@@ -399,24 +422,29 @@ export const login = async (req, res) => {
             });
         }
 
-        // Check if email is verified
+        // Check if OTP verified
         if (!user.otp_verified) {
-            // Resend OTP if not verified
-            const otpResult = await sendOtpEmail(user);
-            if (!otpResult.success) {
+            const otp = generateOTP(4, "numeric");
+            const otpResponse = await sendWhatsAppMessage(
+                user.whatsapp_number,
+                process.env.WHATSAPP_TEMPLATE_NAME || "otp_verification_template",
+                [user.name, otp, "valid for 10 minutes", ""]
+            );
+
+            if (!otpResponse?.success) {
                 return res.status(500).json({
                     success: false,
                     message: 'Account not verified. Failed to resend OTP.'
                 });
             }
 
-            // Set OTP expiry
+            user.otp_code = otp;
             user.otp_expires_at = setOtpExpiry();
             await user.save();
 
             return res.status(403).json({
                 success: false,
-                message: 'Account not verified. New OTP sent to your email.',
+                message: 'Account not verified. New OTP sent to your WhatsApp.',
                 data: {
                     requiresOtpVerification: true,
                     userId: user._id,
@@ -425,15 +453,14 @@ export const login = async (req, res) => {
             });
         }
 
-        // Store device token if provided
+        // Store device token
         if (deviceToken) {
-            user.device_token = deviceToken;
+            user.devicetoken = deviceToken; // ⚠️ in schema it’s "devicetoken", not "device_token"
         }
 
         // Generate tokens
         const { accessToken, refreshToken } = user.generateTokens();
 
-        // Update user with tokens
         user.access_token = accessToken;
         user.refresh_token = refreshToken;
         await user.save();
@@ -461,6 +488,7 @@ export const login = async (req, res) => {
         });
     }
 };
+
 
 // Request password reset
 export const requestPasswordReset = async (req, res) => {
