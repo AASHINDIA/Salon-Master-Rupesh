@@ -68,11 +68,11 @@ export const saveCandidateProfile = async (req, res) => {
             location,
             preferred_locations,
             date_of_birth,
-            address, // { country, state, city, pincode, countryIsoCode, stateIsoCode }
+            address,
             pan_no,
             contact_no,
             id_type,
-            id_detail, // { number, front_image, back_image }
+            id_detail,
             education,
             certificates,
             skills,
@@ -92,7 +92,7 @@ export const saveCandidateProfile = async (req, res) => {
                 user_id: userId,
                 uniquename: generateUniqueName(),
                 name: name || 'New Candidate',
-                gender: gender || 'other', // required
+                gender: gender || 'other',
                 address: {
                     country: "",
                     state: "",
@@ -104,7 +104,9 @@ export const saveCandidateProfile = async (req, res) => {
             });
         }
 
-        // Validate job location
+        /** ---------------------------
+         * Job Location Validation
+         ---------------------------- */
         if (looking_job_location && !['india', 'outside_india', 'both', ''].includes(looking_job_location)) {
             throw new Error('Invalid looking_job_location value. Must be "india", "outside_india", "both", or "".');
         }
@@ -113,15 +115,21 @@ export const saveCandidateProfile = async (req, res) => {
             throw new Error('At least one preferred location is required for India or Both job locations.');
         }
 
-        // Profile image
+        /** ---------------------------
+         * Profile Image Upload
+         ---------------------------- */
         if (req.file?.buffer) {
             const result = await uploadToCloudinary(req.file.buffer, 'worker-profile');
             candidate.image = result.secure_url;
         }
 
+        /** ---------------------------
+         * Basic Details
+         ---------------------------- */
         if (name !== undefined) candidate.name = name;
         if (location !== undefined) candidate.location = location;
 
+        /** Preferred Locations */
         if (preferred_locations !== undefined) {
             let locationsArray = typeof preferred_locations === 'string'
                 ? JSON.parse(preferred_locations)
@@ -129,9 +137,15 @@ export const saveCandidateProfile = async (req, res) => {
             candidate.preferred_locations = Array.isArray(locationsArray) ? locationsArray : [];
         }
 
-        if (date_of_birth !== undefined) candidate.date_of_birth = new Date(date_of_birth);
+        /** Date of Birth */
+        if (date_of_birth !== undefined) {
+            const parsedDOB = new Date(date_of_birth);
+            if (!isNaN(parsedDOB.getTime())) {
+                candidate.date_of_birth = parsedDOB;
+            }
+        }
 
-        // Address (must match schema required fields)
+        /** Address */
         if (address !== undefined) {
             let addressObj = typeof address === 'string' ? JSON.parse(address) : address;
             candidate.address = {
@@ -147,7 +161,10 @@ export const saveCandidateProfile = async (req, res) => {
         if (pan_no !== undefined) candidate.pan_no = pan_no;
         if (contact_no !== undefined) candidate.contact_no = contact_no;
 
-        if (id_type !== undefined) {
+        /** ---------------------------
+         * ID Type + ID Details
+         ---------------------------- */
+        if (id_type !== undefined && id_type.trim() !== "") {
             candidate.id_type = id_type;
         }
 
@@ -170,8 +187,10 @@ export const saveCandidateProfile = async (req, res) => {
             };
         }
 
+        /** Gender */
         if (gender !== undefined) candidate.gender = gender;
 
+        /** Expected Salary */
         if (expected_salary !== undefined) {
             let salaryObj = typeof expected_salary === 'string'
                 ? JSON.parse(expected_salary)
@@ -182,18 +201,21 @@ export const saveCandidateProfile = async (req, res) => {
             };
         }
 
+        /** Education */
         if (education !== undefined) {
             candidate.education = typeof education === 'string'
                 ? JSON.parse(education)
                 : education;
         }
 
+        /** Certificates */
         if (certificates !== undefined) {
             candidate.certificates = typeof certificates === 'string'
                 ? JSON.parse(certificates)
                 : certificates;
         }
 
+        /** Skills */
         if (skills !== undefined) {
             let skillsArray = typeof skills === 'string'
                 ? JSON.parse(skills)
@@ -204,6 +226,7 @@ export const saveCandidateProfile = async (req, res) => {
                 .filter(Boolean);
         }
 
+        /** Services */
         if (services !== undefined) {
             let servicesArray = typeof services === 'string'
                 ? JSON.parse(services)
@@ -213,15 +236,30 @@ export const saveCandidateProfile = async (req, res) => {
                 : [];
         }
 
+        /** Looking Job Location */
         if (looking_job_location !== undefined) candidate.looking_job_location = looking_job_location;
-        if (joining_date !== undefined) candidate.joining_date = new Date(joining_date);
+
+        /** Joining Date (Safe parse) */
+        if (joining_date !== undefined) {
+            const parsedDate = new Date(joining_date);
+            if (!isNaN(parsedDate.getTime())) {
+                candidate.joining_date = parsedDate;
+            }
+        }
+
+        /** Portfolio Links */
         if (portfolio_links !== undefined) {
             candidate.portfolio_links = typeof portfolio_links === 'string'
                 ? JSON.parse(portfolio_links)
                 : portfolio_links;
         }
+
+        /** Available for Join */
         if (available_for_join !== undefined) candidate.available_for_join = available_for_join;
 
+        /** ---------------------------
+         * Save & Commit
+         ---------------------------- */
         await candidate.save({ session });
         await session.commitTransaction();
         session.endSession();
