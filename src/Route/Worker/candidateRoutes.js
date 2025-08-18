@@ -20,6 +20,16 @@ router.use(protect);
 router.get('/', getCandidateProfile);
 
 // Create or update candidate profile
-router.post('/', upload.single('image'), saveCandidateProfile);
+const upload = multer({ storage }); // assuming you defined storage earlier
+
+router.post(
+  '/',
+  upload.fields([
+    { name: 'image', maxCount: 1 },     // Profile image
+    { name: 'id_front', maxCount: 1 },  // Front side of ID
+    { name: 'id_back', maxCount: 1 }    // Back side of ID
+  ]),
+  saveCandidateProfile
+);
 
 export default router;
