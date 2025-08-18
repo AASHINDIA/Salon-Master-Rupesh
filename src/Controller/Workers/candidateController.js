@@ -107,13 +107,13 @@ export const saveCandidateProfile = async (req, res) => {
         /** ---------------------------
          * Job Location Validation
          ---------------------------- */
-        if (looking_job_location && !['india', 'outside_india', 'both', ''].includes(looking_job_location)) {
-            throw new Error('Invalid looking_job_location value. Must be "india", "outside_india", "both", or "".');
-        }
-        if ((looking_job_location === 'india' || looking_job_location === 'both') &&
-            (!preferred_locations || (Array.isArray(preferred_locations) && preferred_locations.length === 0))) {
-            throw new Error('At least one preferred location is required for India or Both job locations.');
-        }
+        // if (looking_job_location && !['india', 'outside_india', 'both', ''].includes(looking_job_location)) {
+        //     throw new Error('Invalid looking_job_location value. Must be "india", "outside_india", "both", or "".');
+        // }
+        // if ((looking_job_location === 'india' || looking_job_location === 'both') &&
+        //     (!preferred_locations || (Array.isArray(preferred_locations) && preferred_locations.length === 0))) {
+        //     throw new Error('At least one preferred location is required for India or Both job locations.');
+        // }
 
         /** ---------------------------
          * Profile Image Upload
