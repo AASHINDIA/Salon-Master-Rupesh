@@ -66,6 +66,7 @@ export const saveCandidateProfile = async (req, res) => {
         const {
             name,
             location,
+            preferred_locations,
             date_of_birth,
             address, // { country, state, city, pincode, countryIsoCode, stateIsoCode }
             pan_no,
@@ -76,11 +77,12 @@ export const saveCandidateProfile = async (req, res) => {
             certificates,
             skills,
             services,
-            available_for_join,
+            looking_job_location,
             joining_date,
             portfolio_links,
             gender,
-            expected_salary
+            expected_salary,
+            available_for_join
         } = req.body;
 
         let candidate = await Candidate.findOne({ user_id: userId }).session(session);
@@ -90,11 +92,28 @@ export const saveCandidateProfile = async (req, res) => {
                 user_id: userId,
                 uniquename: generateUniqueName(),
                 name: name || 'New Candidate',
-                gender: gender || 'other'
+                gender: gender || 'other', // required
+                address: {
+                    country: "",
+                    state: "",
+                    city: "",
+                    pincode: "",
+                    countryIsoCode: "",
+                    stateIsoCode: ""
+                }
             });
         }
 
-        // ✅ Profile Image Upload
+        // Validate job location
+        if (looking_job_location && !['india', 'outside_india', 'both', ''].includes(looking_job_location)) {
+            throw new Error('Invalid looking_job_location value. Must be "india", "outside_india", "both", or "".');
+        }
+        if ((looking_job_location === 'india' || looking_job_location === 'both') &&
+            (!preferred_locations || (Array.isArray(preferred_locations) && preferred_locations.length === 0))) {
+            throw new Error('At least one preferred location is required for India or Both job locations.');
+        }
+
+        // Profile image
         if (req.file?.buffer) {
             const result = await uploadToCloudinary(req.file.buffer, 'worker-profile');
             candidate.image = result.secure_url;
@@ -102,17 +121,24 @@ export const saveCandidateProfile = async (req, res) => {
 
         if (name !== undefined) candidate.name = name;
         if (location !== undefined) candidate.location = location;
+
+        if (preferred_locations !== undefined) {
+            let locationsArray = typeof preferred_locations === 'string'
+                ? JSON.parse(preferred_locations)
+                : preferred_locations;
+            candidate.preferred_locations = Array.isArray(locationsArray) ? locationsArray : [];
+        }
+
         if (date_of_birth !== undefined) candidate.date_of_birth = new Date(date_of_birth);
 
-        // ✅ Address
+        // Address (must match schema required fields)
         if (address !== undefined) {
             let addressObj = typeof address === 'string' ? JSON.parse(address) : address;
-
             candidate.address = {
-                country: addressObj.country,
-                state: addressObj.state,
-                city: addressObj.city,
-                pincode: addressObj.pincode,
+                country: addressObj.country || candidate.address?.country || '',
+                state: addressObj.state || candidate.address?.state || '',
+                city: addressObj.city || candidate.address?.city || '',
+                pincode: addressObj.pincode || candidate.address?.pincode || '',
                 countryIsoCode: addressObj.countryIsoCode || candidate.address?.countryIsoCode || '',
                 stateIsoCode: addressObj.stateIsoCode || candidate.address?.stateIsoCode || ''
             };
@@ -121,15 +147,13 @@ export const saveCandidateProfile = async (req, res) => {
         if (pan_no !== undefined) candidate.pan_no = pan_no;
         if (contact_no !== undefined) candidate.contact_no = contact_no;
 
-        // ✅ ID type + ID details
         if (id_type !== undefined) {
-            candidate.id_type = id_type.charAt(0).toUpperCase() + id_type.slice(1);
+            candidate.id_type = id_type;
         }
 
         if (id_detail !== undefined) {
             let idDetailObj = typeof id_detail === 'string' ? JSON.parse(id_detail) : id_detail;
 
-            // If files are being uploaded separately (like front & back images)
             if (req.files?.id_front) {
                 const frontUpload = await uploadToCloudinary(req.files.id_front[0].buffer, 'id-cards');
                 idDetailObj.front_image = frontUpload.secure_url;
@@ -149,9 +173,13 @@ export const saveCandidateProfile = async (req, res) => {
         if (gender !== undefined) candidate.gender = gender;
 
         if (expected_salary !== undefined) {
-            candidate.expected_salary = typeof expected_salary === 'string'
+            let salaryObj = typeof expected_salary === 'string'
                 ? JSON.parse(expected_salary)
                 : expected_salary;
+            candidate.expected_salary = {
+                min: salaryObj.min || 0,
+                max: salaryObj.max || 0
+            };
         }
 
         if (education !== undefined) {
@@ -185,17 +213,14 @@ export const saveCandidateProfile = async (req, res) => {
                 : [];
         }
 
-        if (available_for_join !== undefined) {
-            candidate.available_for_join = available_for_join === 'true' || available_for_join === true;
-        }
-
+        if (looking_job_location !== undefined) candidate.looking_job_location = looking_job_location;
         if (joining_date !== undefined) candidate.joining_date = new Date(joining_date);
-
         if (portfolio_links !== undefined) {
             candidate.portfolio_links = typeof portfolio_links === 'string'
                 ? JSON.parse(portfolio_links)
                 : portfolio_links;
         }
+        if (available_for_join !== undefined) candidate.available_for_join = available_for_join;
 
         await candidate.save({ session });
         await session.commitTransaction();
@@ -216,6 +241,7 @@ export const saveCandidateProfile = async (req, res) => {
         });
     }
 };
+
 
 
 

@@ -128,7 +128,16 @@ const candidateSchema = new mongoose.Schema({
             url: String
         }],
         default: []
-    }
+    },
+    looking_job_location: {
+        type: String,
+        enum: ['india', 'outside_india', 'both', ''],
+        default: ''
+    },
+    preferred_locations: {
+        type: [String],
+        default: [],
+    },
 }, {
     timestamps: true
 });

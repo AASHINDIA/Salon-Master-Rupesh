@@ -20,9 +20,9 @@ const maskPhoneNumber = (phone) =>
 
 
 // 📌 Register Controller
-    export const register = async (req, res) => {
-        try {
-            const { name, email, password, domain_type, whatsapp_number } = req.body;
+export const register = async (req, res) => {
+    try {
+        const { name, email, password, domain_type, whatsapp_number } = req.body;
 
         // ✅ Check if user exists
         const existingUser = await User.findOne({
@@ -205,7 +205,7 @@ export const verifyOtp = async (req, res) => {
 
         // ✅ Manual verification
         if (user.otp_code !== otp) {
-            user.otp_attempts += 1;
+            user.otp_attempts = (user.otp_attempts || 0) + 1; // ✅ always a number
             await user.save();
 
             return res.status(400).json({
