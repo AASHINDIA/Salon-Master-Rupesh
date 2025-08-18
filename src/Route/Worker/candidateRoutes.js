@@ -20,7 +20,6 @@ router.use(protect);
 router.get('/', getCandidateProfile);
 
 // Create or update candidate profile
-const upload = multer({ storage }); // assuming you defined storage earlier
 
 router.post(
   '/',
