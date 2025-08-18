@@ -324,6 +324,7 @@ export const register1 = async (req, res) => {
 };
 
 
+
 // Verify OTP
 export const verifyOtp1 = async (req, res) => {
     try {
@@ -386,13 +387,23 @@ export const verifyOtp1 = async (req, res) => {
     }
 };
 
+
 // Login user
 export const login = async (req, res) => {
     try {
         const { whatsapp_number, password, deviceToken } = req.body;
 
-        // Find user and include password
-        const user = await User.findOne({ whatsapp_number }).select("+password");
+        // Validate required fields
+        if (!whatsapp_number || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'WhatsApp number and password are required'
+            });
+        }
+
+        // Find user with password
+        const user = await User.findOne({ whatsapp_number }).select('+password');
+        
         if (!user) {
             return res.status(401).json({
                 success: false,
@@ -409,66 +420,81 @@ export const login = async (req, res) => {
             });
         }
 
-        // Check if OTP verified
+        // Handle OTP verification if not verified
         if (!user.otp_verified) {
-            const otp = generateOTP(4, "numeric");
-            const otpResponse = await sendWhatsAppMessage(
-                user.whatsapp_number,
-                process.env.WHATSAPP_TEMPLATE_NAME || "otp_verification_template",
-                [user.name, otp, "valid for 10 minutes", ""]
-            );
+            try {
+                const otp = generateOTP(4, "numeric");
+                const otpResponse = await sendWhatsAppMessage(
+                    user.whatsapp_number,
+                    process.env.WHATSAPP_TEMPLATE_NAME || "otp_verification_template",
+                    [user.name, otp, "valid for 10 minutes", ""]
+                );
 
-            if (!otpResponse?.success) {
+                if (!otpResponse?.success) {
+                    return res.status(500).json({
+                        success: false,
+                        message: 'Account not verified. Failed to resend OTP.'
+                    });
+                }
+
+                user.otp_code = otp;
+                user.otp_expires_at = setOtpExpiry();
+                await user.save();
+
+                return res.status(403).json({
+                    success: false,
+                    message: 'Account not verified. New OTP sent to your WhatsApp.',
+                    data: {
+                        requiresOtpVerification: true,
+                        userId: user._id,
+                        whatsapp_number: user.whatsapp_number
+                    }
+                });
+            } catch (otpError) {
+                console.error('OTP sending error:', otpError);
                 return res.status(500).json({
                     success: false,
-                    message: 'Account not verified. Failed to resend OTP.'
+                    message: 'Error during OTP verification process'
                 });
             }
-
-            user.otp_code = otp;
-            user.otp_expires_at = setOtpExpiry();
-            await user.save();
-
-            return res.status(403).json({
-                success: false,
-                message: 'Account not verified. New OTP sent to your WhatsApp.',
-                data: {
-                    requiresOtpVerification: true,
-                    userId: user._id,
-                    email: user.email
-                }
-            });
         }
 
-        // Store device token
+        // Update device token if provided
         if (deviceToken) {
-            user.devicetoken = deviceToken; // ⚠️ in schema it’s "devicetoken", not "device_token"
+            user.devicetoken = deviceToken; // Ensure this matches your schema
+            await user.save();
         }
 
         // Generate tokens
         const { accessToken, refreshToken } = user.generateTokens();
 
+        // Update tokens in user document
         user.access_token = accessToken;
         user.refresh_token = refreshToken;
         await user.save();
 
-        res.status(200).json({
+        // Prepare response
+        const userData = {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            whatsapp_number: user.whatsapp_number,
+            domain_type: user.domain_type,
+        };
+
+        return res.status(200).json({
             success: true,
             message: 'Login successful',
             data: {
                 accessToken,
                 refreshToken,
-                user: {
-                    id: user._id,
-                    name: user.name,
-                    email: user.email,
-                    domain_type: user.domain_type,
-                }
+                user: userData
             }
         });
+
     } catch (error) {
         console.error('Login error:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: 'Internal server error',
             error: error.message

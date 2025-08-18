@@ -86,7 +86,7 @@ const candidateSchema = new mongoose.Schema({
         default: false
     },
     address: {
-        country: {
+        country: {  
             type: String,
             trim: true,
             required: true

@@ -61,11 +61,11 @@ export const saveCandidateProfile = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
 
+    
     try {
         const userId = req.user._id;
         const {
             name,
-            location,
             preferred_locations,
             date_of_birth,
             address,
