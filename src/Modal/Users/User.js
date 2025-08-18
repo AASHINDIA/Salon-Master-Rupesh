@@ -49,6 +49,10 @@ const UserSchema = new mongoose.Schema({
     otp_sent_at: {
         type: Date,
     },
+    otp_attempts: {
+        type: Number,
+        default: 0,
+    },
 
     // Add OTP expiry field (10 minutes from when OTP was sent)
     otp_expires_at: {

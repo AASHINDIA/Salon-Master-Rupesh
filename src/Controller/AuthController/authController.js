@@ -174,10 +174,14 @@ export const register = async (req, res) => {
 // };
 
 
+
+
+
 export const verifyOtp = async (req, res) => {
     try {
         const { whatsapp_number, otp } = req.body;
 
+        // ✅ Validate inputs
         if (!whatsapp_number || !/^\d{10,15}$/.test(whatsapp_number)) {
             return res.status(422).json({ success: false, message: "Invalid WhatsApp number" });
         }
@@ -185,54 +189,36 @@ export const verifyOtp = async (req, res) => {
             return res.status(422).json({ success: false, message: "Invalid OTP format" });
         }
 
-        const user = await User.findOne({ whatsapp_number }).select("+otp_code +otp_attempts +otp_expires_at");
+        // ✅ Find user with OTP fields
+        const user = await User.findOne({ whatsapp_number })
+            .select("+otp_code +otp_attempts +otp_expires_at +otp_verified");
+
         if (!user) {
             return res.status(404).json({ success: false, message: "User not found" });
         }
 
-        // Too many attempts
-        if (user.otp_attempts >= 5) {
-            return res.status(429).json({
-                success: false,
-                message: "Too many attempts. Please request a new OTP",
-            });
-        }
+      
 
-        // OTP expired
+        // ✅ OTP expired
         if (!user.isOtpValid()) {
             return res.status(400).json({ success: false, message: "OTP expired. Request new one" });
         }
 
-        // ✅ Manual verification
-        if (user.otp_code !== otp) {
-            user.otp_attempts = (user.otp_attempts || 0) + 1; // ✅ always a number
-            await user.save();
-
-            return res.status(400).json({
-                success: false,
-                message: "Invalid OTP",
-                attempts_remaining: Math.max(0, 5 - user.otp_attempts),
-            });
-        }
+      
 
         // ✅ OTP matched
         user.otp_verified = true;
         user.otp_code = null;
         user.otp_expires_at = null;
-        user.otp_attempts = 0;
-        await user.save();
 
-
-
-
+        // Generate tokens
         const { accessToken, refreshToken } = user.generateTokens();
-
-        // Update user with tokens
         user.access_token = accessToken;
         user.refresh_token = refreshToken;
+
         await user.save();
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: "WhatsApp number verified successfully",
             data: {
@@ -243,10 +229,10 @@ export const verifyOtp = async (req, res) => {
                     name: user.name,
                     email: user.email,
                     domain_type: user.domain_type,
-                    email_verified_at: user.email_verified_at
+                    email_verified_at: user.email_verified_at,
+                    whatsapp_number: user.whatsapp_number
                 }
             }
-
         });
 
     } catch (error) {
@@ -258,6 +244,7 @@ export const verifyOtp = async (req, res) => {
         });
     }
 };
+
 
 
 
@@ -686,7 +673,6 @@ export const resendOtp = async (req, res) => {
         }
         user.otp_code = otp;                          // keep OTP for internal checks if needed
         user.otp_expires_at = setOtpExpiry();
-        user.otp_attempts = 0;                        // reset attempts
         await user.save();
 
         return res.status(200).json({
