@@ -131,7 +131,6 @@ const candidateSchema = new mongoose.Schema({
     },
     looking_job_location: {
         type: String,
-        enum: ['india', 'outside_india', 'both', ''],
         default: ''
     },
     preferred_locations: {
