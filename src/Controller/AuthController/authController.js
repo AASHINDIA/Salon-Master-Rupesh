@@ -20,9 +20,9 @@ const maskPhoneNumber = (phone) =>
 
 
 // 📌 Register Controller
-export const register = async (req, res) => {
-    try {
-        const { name, email, password, domain_type, whatsapp_number } = req.body;
+    export const register = async (req, res) => {
+        try {
+            const { name, email, password, domain_type, whatsapp_number } = req.body;
 
         // ✅ Check if user exists
         const existingUser = await User.findOne({
@@ -490,92 +490,106 @@ export const login = async (req, res) => {
 };
 
 
-// Request password reset
+
+
+
+
+
+
+
+// ✅ Step 1: Request Password Reset (send OTP on WhatsApp)
 export const requestPasswordReset = async (req, res) => {
     try {
-        const { email } = req.body;
+        const { whatsapp_number } = req.body;
 
-        // Find user by email
-        const user = await User.findOne({ email });
+        // Find user by WhatsApp number
+        const user = await User.findOne({ whatsapp_number });
         if (!user) {
             return res.status(404).json({
                 success: false,
-                message: 'User not found'
+                message: "User not found",
             });
         }
 
-        // Send OTP for password reset
-        const otpResult = await sendOtpEmail(user);
-        if (!otpResult.success) {
+        // Generate OTP
+        const otp = generateOTP(4, "numeric");
+
+        // Send OTP via WhatsApp
+        const otpResponse = await sendWhatsAppMessage(
+            whatsapp_number,
+            process.env.WHATSAPP_TEMPLATE_NAME || "otp_verification_template",
+            [user.name || "User", otp, "valid for 10 minutes", ""]
+        );
+
+        if (!otpResponse || otpResponse.success === false) {
             return res.status(500).json({
                 success: false,
-                message: 'Failed to send OTP email'
+                message: "Failed to send OTP via WhatsApp",
             });
         }
 
-        // Set OTP expiry
+        // Save OTP + expiry
+        user.otp_code = otp;
         user.otp_expires_at = setOtpExpiry();
+        user.otp_sent_at = new Date();
         await user.save();
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
-            message: 'OTP sent for password reset',
-            data: {
-                email: user.email,
-                otpSent: true
-            }
+            message: "OTP sent for password reset via WhatsApp",
+            data: { whatsapp_number, otpSent: true },
         });
     } catch (error) {
-        console.error('Password reset request error:', error);
-        res.status(500).json({
+        console.error("Password reset request error:", error);
+        return res.status(500).json({
             success: false,
-            message: 'Internal server error',
-            error: error.message
+            message: "Internal server error",
         });
     }
 };
 
-// Reset password
+// ✅ Step 2: Reset Password (verify OTP + update password)
 export const resetPassword = async (req, res) => {
     try {
-        const { email, otp, newPassword } = req.body;
+        const { whatsapp_number, otp, newPassword } = req.body;
 
-        // Find user by email
-        const user = await User.findOne({ email });
+        // Find user by WhatsApp number
+        const user = await User.findOne({ whatsapp_number });
         if (!user) {
             return res.status(404).json({
                 success: false,
-                message: 'User not found'
+                message: "User not found",
             });
         }
 
-        // Check if OTP is valid and not expired
+        // Validate OTP
         if (!user.isOtpValid() || user.otp_code !== otp) {
             return res.status(400).json({
                 success: false,
-                message: 'Invalid or expired OTP'
+                message: "Invalid or expired OTP",
             });
         }
 
-        // Update password
+        // Update password (will hash via pre-save hook)
         user.password = newPassword;
         user.otp_code = undefined;
         user.otp_expires_at = undefined;
+        user.otp_verified = true; // ✅ mark OTP verified after successful use
         await user.save();
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
-            message: 'Password reset successfully'
+            message: "Password reset successfully",
         });
     } catch (error) {
-        console.error('Password reset error:', error);
-        res.status(500).json({
+        console.error("Password reset error:", error);
+        return res.status(500).json({
             success: false,
-            message: 'Internal server error',
-            error: error.message
+            message: "Internal server error",
         });
     }
 };
+
 
 // Refresh access token
 export const refreshToken = async (req, res) => {
