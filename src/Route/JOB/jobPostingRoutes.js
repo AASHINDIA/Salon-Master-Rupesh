@@ -12,6 +12,8 @@ import { protect, roleCheck } from '../../Middlewares/authMiddleware/auth.js';
 
 const router = express.Router();
 
+// Get all job postings (with pagination, search, and filters)
+router.get('/', getAllJobPostings);
 // Salon-specific routes (require salon authentication)
 router.use(protect);
 // roleCheck('salon')
@@ -28,8 +30,7 @@ router.patch('/:id/close', closeJobPosting);
 // Public routes (no role restriction)
 router.use(protect);
 
-// Get all job postings (with pagination, search, and filters)
-router.get('/', getAllJobPostings);
+
 
 // Get recommended jobs for candidate
 router.get('/recommended', getRecommendedJobs);

@@ -9,82 +9,82 @@ import admin from '../../Utils/firebaseAdmin.js';
 import User from '../../Modal/Users/User.js'
 
 export const createJobPosting = async (req, res) => {
-    try {
-        // Find the salon associated with the current user
-        const salon = await Salon.findOne({ user_id: req.user._id });
+        try {
+            // Find the salon associated with the current user
+            const salon = await Salon.findOne({ user_id: req.user._id });
 
-        if (!salon) {
-            return res.status(404).json({
+            if (!salon) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Salon not found'
+                });
+            }
+
+            // Extract skills and other job data from the request body
+            const { skills = [], address, ...otherData } = req.body;
+
+            // Validate skill IDs - check which ones exist in the database
+            const validSkills = await Skill.find({ _id: { $in: skills } });
+
+            // If no valid skills found and skills were provided, warn the user
+            if (skills.length > 0 && validSkills.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No valid skill IDs provided'
+                });
+            }
+
+            // Extract only valid skill IDs
+            const validSkillIds = validSkills.map(skill => skill._id);
+
+            // Prepare address data (use provided address or fallback to salon's address)
+            const jobAddress = address || salon.address;
+
+            // Validate required address fields
+            if (!jobAddress?.country || !jobAddress?.state || !jobAddress?.city) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Address must include country, state, and city'
+                });
+            }
+
+            // Prepare job posting data
+            const jobData = {
+                salon_id: salon._id,
+                ...otherData,
+                required_skills: validSkillIds,
+                address: {
+                    country: jobAddress.country,
+                    state: jobAddress.state,
+                    city: jobAddress.city,
+                    pincode: jobAddress.pincode || '',
+                    countryIsoCode: jobAddress.countryIsoCode || '',
+                    stateIsoCode: jobAddress.stateIsoCode || ''
+                },
+                // Keep old location field for backward compatibility (can be removed later)
+                location: `${jobAddress.city}, ${jobAddress.state}, ${jobAddress.country}`
+            };
+
+            // Create and save job posting
+            const jobPosting = new JobPosting(jobData);
+            await jobPosting.save();
+
+            // Send response
+            res.status(201).json({
+                success: true,
+                message: 'Job posting created successfully',
+                data: jobPosting
+            });
+
+        } catch (error) {
+            console.error('Error creating job posting:', error);
+            res.status(500).json({
                 success: false,
-                message: 'Salon not found'
+                message: 'Error creating job posting',
+                error: error.message
             });
         }
-
-        // Extract skills and other job data from the request body
-        const { skills = [], address, ...otherData } = req.body;
-
-        // Validate skill IDs - check which ones exist in the database
-        const validSkills = await Skill.find({ _id: { $in: skills } });
-
-        // If no valid skills found and skills were provided, warn the user
-        if (skills.length > 0 && validSkills.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'No valid skill IDs provided'
-            });
-        }
-
-        // Extract only valid skill IDs
-        const validSkillIds = validSkills.map(skill => skill._id);
-
-        // Prepare address data (use provided address or fallback to salon's address)
-        const jobAddress = address || salon.address;
-
-        // Validate required address fields
-        if (!jobAddress?.country || !jobAddress?.state || !jobAddress?.city) {
-            return res.status(400).json({
-                success: false,
-                message: 'Address must include country, state, and city'
-            });
-        }
-
-        // Prepare job posting data
-        const jobData = {
-            salon_id: salon._id,
-            ...otherData,
-            required_skills: validSkillIds,
-            address: {
-                country: jobAddress.country,
-                state: jobAddress.state,
-                city: jobAddress.city,
-                pincode: jobAddress.pincode || '',
-                countryIsoCode: jobAddress.countryIsoCode || '',
-                stateIsoCode: jobAddress.stateIsoCode || ''
-            },
-            // Keep old location field for backward compatibility (can be removed later)
-            location: `${jobAddress.city}, ${jobAddress.state}, ${jobAddress.country}`
-        };
-
-        // Create and save job posting
-        const jobPosting = new JobPosting(jobData);
-        await jobPosting.save();
-
-        // Send response
-        res.status(201).json({
-            success: true,
-            message: 'Job posting created successfully',
-            data: jobPosting
-        });
-
-    } catch (error) {
-        console.error('Error creating job posting:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error creating job posting',
-            error: error.message
-        });
-    }
-};
+ };
 
 export const getSuggestedCandidates = async (req, res) => {
     try {
@@ -113,8 +113,7 @@ export const getSuggestedCandidates = async (req, res) => {
             address: jobAddress,
             gender_preference = 'Any',
             salary_range = { min: 0, max: 0 },
-            job_type,
-            required_experience
+            job_type
         } = latestJob;
 
         // Validate job has required address information
@@ -128,20 +127,38 @@ export const getSuggestedCandidates = async (req, res) => {
         // Build base query with address matching
         const query = {
             available_for_join: true,
-            'address.country': jobAddress.country,
-            'address.state': jobAddress.state,
-            // 'expected_salary.min': { $lte: salary_range.max * 1.1 }, // 10% buffer
-            // 'expected_salary.max': { $gte: salary_range.min * 0.9 }  // 10% buffer
+            'expected_salary.min': { $lte: salary_range.max * 1.1 }, // 10% buffer
+            'expected_salary.max': { $gte: salary_range.min * 0.9 }  // 10% buffer
         };
 
-        // Optional: Add city matching if needed
-        if (jobAddress.city) {
-            query['address.city'] = jobAddress.city;
+        // Handle location preferences
+        if (jobAddress.country === 'India') {
+            // For jobs in India, exclude candidates only looking outside India
+            query.looking_job_location = { $ne: 'outside_india' };
+            query.$or = [
+                { 'address.state': jobAddress.state },
+                { preferred_locations: jobAddress.state }
+            ];
+
+            // Optional: Add city matching if needed
+            if (jobAddress.city) {
+                query['address.city'] = jobAddress.city;
+            }
+        } else {
+            // For jobs outside India, only show candidates looking outside India or both
+            query.looking_job_location = { $in: ['outside_india', 'both'] };
+            // Also check preferred_locations if specified
+            if (jobAddress.country) {
+                query.$or = [
+                    { preferred_locations: jobAddress.country },
+                    { preferred_locations: { $exists: false } }
+                ];
+            }
         }
 
         // Skill matching - candidates must have ALL required skills
         if (required_skills.length > 0) {
-            query.skills = { $all: required_skills }; // Changed from $in to $all
+            query.skills = { $all: required_skills };
         }
 
         // Gender filter
@@ -154,18 +171,12 @@ export const getSuggestedCandidates = async (req, res) => {
             query.job_preference = job_type;
         }
 
-        // Experience filter (if implemented in candidate schema)
-        if (required_experience) {
-            // This would need to match your experience representation in candidates
-            query.experience_level = { $gte: experienceToLevel(required_experience) };
-        }
-
         // Find candidates matching the base criteria
         const candidates = await Candidate.find(query)
             .populate('skills')
             .lean();
 
-        // Calculate matching score for each candidate
+        // Calculate matching score for each candidate (without experience consideration)
         const scoredCandidates = candidates.map(candidate => {
             const score = calculateMatchScore(candidate, latestJob);
             return { ...candidate, matchScore: score };
@@ -190,26 +201,38 @@ export const getSuggestedCandidates = async (req, res) => {
         });
     }
 };
-
 // Helper function to calculate comprehensive match score (0-100)
 function calculateMatchScore(candidate, job) {
     let score = 0;
 
-    // 1. Skill Matching (40% weight)
+    // 1. Skill Matching (50% weight - increased from 40% since we removed experience)
     if (job.required_skills?.length > 0) {
         const matchedSkills = candidate.skills.filter(skill =>
             job.required_skills.includes(skill._id.toString())
         ).length;
-        score += (matchedSkills / job.required_skills.length) * 40;
+        score += (matchedSkills / job.required_skills.length) * 50;
     }
 
     // 2. Location Matching (30% weight)
-    // Exact country/state already filtered in query
-    score += 20; // base score for country/state match
+    if (job.address.country === 'India') {
+        // For jobs in India
+        if (candidate.address?.state === job.address.state) {
+            score += 20; // base score for state match
 
-    // Bonus for city match if available
-    if (job.address?.city && candidate.address?.city === job.address.city) {
-        score += 10;
+            // Bonus for city match if available
+            if (job.address?.city && candidate.address?.city === job.address.city) {
+                score += 10;
+            }
+        } else if (candidate.preferred_locations?.includes(job.address.state)) {
+            score += 15; // slightly less for preferred location match
+        }
+    } else {
+        // For jobs outside India
+        if (candidate.preferred_locations?.includes(job.address.country)) {
+            score += 30; // full points for matching preferred country
+        } else if (candidate.looking_job_location === 'outside_india' || candidate.looking_job_location === 'both') {
+            score += 20; // base score for being open to outside India
+        }
     }
 
     // 3. Salary Compatibility (20% weight)
@@ -223,26 +246,8 @@ function calculateMatchScore(candidate, job) {
         score += 20; // full points if no salary specified in job
     }
 
-    // 4. Experience Matching (10% weight)
-    if (job.required_experience && candidate.experience) {
-        // This would need to be customized based on your experience representation
-        score += calculateExperienceMatch(candidate.experience, job.required_experience) * 10;
-    }
-
     return Math.min(Math.round(score), 100); // Cap at 100
 }
-
-// Example experience matching helper (customize based on your schema)
-function calculateExperienceMatch(candidateExp, requiredExp) {
-    // Implement your logic to compare experience levels
-    // This is just a placeholder example
-    if (requiredExp === 'Fresher') return 1;
-    if (requiredExp === '6 months' && candidateExp >= 0.5) return 1;
-    if (requiredExp === '1 year' && candidateExp >= 1) return 1;
-    // ... other levels
-    return 0.5; // partial match
-}
-
 
 export const RequestForJobToSuggestedCandidates = async (req, res) => {
 
@@ -410,6 +415,18 @@ export const getRecommendedJobs = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Candidate profile not found' });
         }
 
+        // Check if candidate is only looking for jobs outside India
+        if (candidate.looking_job_location === 'outside_india') {
+            return res.status(200).json({
+                success: true,
+                message: 'Our team will connect with you for international opportunities',
+                data: [],
+                total: 0,
+                pages: 0,
+                currentPage: 1
+            });
+        }
+
         // Base query filters
         const baseQuery = {
             is_active: true,
@@ -417,15 +434,46 @@ export const getRecommendedJobs = async (req, res) => {
                 { gender_preference: 'Any' },
                 { gender_preference: candidate.gender.charAt(0).toUpperCase() + candidate.gender.slice(1) }
             ],
-            'address.country': candidate.address.country,
-            'address.state': candidate.address.state,
-            // 'expected_salary.min': { $lte: candidate.expected_salary.max * 1.2 }, // 20% buffer
-            // 'expected_salary.max': { $gte: candidate.expected_salary.min * 0.8 }   // 20% buffer
+            'expected_salary.min': { $lte: candidate.expected_salary.max * 1.2 }, // 20% buffer
+            'expected_salary.max': { $gte: candidate.expected_salary.min * 0.8 }   // 20% buffer
         };
 
-        // Optional city filter
-        if (candidate.address.city) {
-            baseQuery['address.city'] = candidate.address.city;
+        // Handle location preferences
+        if (candidate.looking_job_location === 'india' || candidate.looking_job_location === '') {
+            // For candidates looking in India or unspecified
+            baseQuery.$or = [
+                { 'address.country': candidate.address.country },
+                { 'address.country': { $exists: false } }
+            ];
+            
+            baseQuery.$and = [
+                {
+                    $or: [
+                        { 'address.state': candidate.address.state },
+                        { 'address.state': { $in: candidate.preferred_locations } }
+                    ]
+                }
+            ];
+
+            // Optional city filter
+            if (candidate.address.city) {
+                baseQuery['address.city'] = candidate.address.city;
+            }
+        } else if (candidate.looking_job_location === 'both') {
+            // For candidates open to both India and international
+            baseQuery.$or = [
+                { 
+                    'address.country': candidate.address.country,
+                    $or: [
+                        { 'address.state': candidate.address.state },
+                        { 'address.state': { $in: candidate.preferred_locations } }
+                    ]
+                },
+                { 
+                    'address.country': { $ne: candidate.address.country },
+                    'address.country': { $in: candidate.preferred_locations }
+                }
+            ];
         }
 
         // Get all potential jobs that match base criteria
@@ -477,12 +525,25 @@ function calculateJobMatchScore(candidate, job) {
     }
 
     // 2. Location Matching (30% weight)
-    // Country and state already filtered in query
-    score += 20; // base score
-
-    // Bonus for city match
-    if (job.address?.city && candidate.address?.city === job.address.city) {
-        score += 10;
+    if (job.address.country === candidate.address.country) {
+        // For jobs in same country
+        if (job.address.state === candidate.address.state) {
+            score += 20; // base score for state match
+            
+            // Bonus for city match
+            if (job.address.city && candidate.address.city === job.address.city) {
+                score += 10;
+            }
+        } else if (candidate.preferred_locations?.includes(job.address.state)) {
+            score += 15; // slightly less for preferred location match
+        }
+    } else {
+        // For international jobs
+        if (candidate.preferred_locations?.includes(job.address.country)) {
+            score += 30; // full points for matching preferred country
+        } else if (candidate.looking_job_location === 'both') {
+            score += 20; // base score for being open to international
+        }
     }
 
     // 3. Salary Compatibility (20% weight)
