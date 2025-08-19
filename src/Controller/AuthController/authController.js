@@ -23,11 +23,12 @@ const maskPhoneNumber = (phone) =>
 export const register = async (req, res) => {
     try {
         const { name, email, password, domain_type, whatsapp_number } = req.body;
-
+        console.log("BODY", { name, email, password, domain_type, whatsapp_number })
         // ✅ Check if user exists
         const existingUser = await User.findOne({
             $or: [{ email }, { whatsapp_number }]
         });
+        console.log("existingUser", existingUser);
         if (existingUser) {
             return res.status(400).json({
                 success: false,
@@ -37,6 +38,7 @@ export const register = async (req, res) => {
 
         // ✅ Generate OTP
         const otp = generateOTP(4, "numeric");
+        console.log("otp", otp)
 
         // ✅ Create user
         const newUser = new User({
@@ -50,7 +52,9 @@ export const register = async (req, res) => {
             otp_verified: false,
         });
 
+        console.log("new User", newUser)
         const user = await newUser.save();
+        console.log("user",user);
 
         // Create User Registration if salon
         if (domain_type === "salon") {
@@ -63,10 +67,7 @@ export const register = async (req, res) => {
             process.env.WHATSAPP_TEMPLATE_NAME || "otp_verification_template",
             [name, otp, "valid for 10 minutes", ""]
         );
-
-
-
-
+        console.log("otpResponse",otpResponse);
 
 
         if (otpResponse.data) {
@@ -197,14 +198,14 @@ export const verifyOtp = async (req, res) => {
             return res.status(404).json({ success: false, message: "User not found" });
         }
 
-      
+
 
         // ✅ OTP expired
         if (!user.isOtpValid()) {
             return res.status(400).json({ success: false, message: "OTP expired. Request new one" });
         }
 
-      
+
 
         // ✅ OTP matched
         user.otp_verified = true;
@@ -403,7 +404,7 @@ export const login = async (req, res) => {
 
         // Find user with password
         const user = await User.findOne({ whatsapp_number }).select('+password');
-        
+
         if (!user) {
             return res.status(401).json({
                 success: false,
