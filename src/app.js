@@ -33,6 +33,7 @@ import RouteData from './Route/State/State.js';
 import ItemsRoute from './Route/storeRoute/storeRoute.js'
 import PremissionRoute from './Route/authRoute/permissionRoutes.js'
 import cartRoute from './Route/Cart/CartRoute.js'
+import ShowDataRoute from './Route/ShowData/ShowDataRoute.js'
 const app = express();
 
 // ---------------------------
@@ -125,6 +126,8 @@ app.use('/api/v1/dataget', RouteData)
 // ---------------------------
 // Store Management Routes
 app.use('/api/v1/itemsroute', ItemsRoute)
+
+app.use('/api/v1/show', ShowDataRoute)
 // ---------------------------
 // 🧱 Error Handlers
 // ---------------------------
