@@ -59,10 +59,10 @@ const jobPostingSchema = new mongoose.Schema({
         enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
         default: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
     },
-    required_skills: {
-        type: [String],
-        default: []
-    },
+    // required_skills: {
+    //     type: [String],
+    //     default: []
+    // },
     benefits: {
         type: [String],
         default: []
