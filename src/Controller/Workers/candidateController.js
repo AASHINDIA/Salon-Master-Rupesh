@@ -118,11 +118,30 @@ export const saveCandidateProfile = async (req, res) => {
         /** ---------------------------
          * Profile Image Upload
          ---------------------------- */
-        if (req.file?.buffer) {
-            const result = await uploadToCloudinary(req.file.buffer, 'worker-profile');
-            candidate.image = result.secure_url;
-        }
+        // if (req.file?.buffer) {
+        //     const result = await uploadToCloudinary(req.file.buffer, 'worker-profile');
+        //     candidate.image = result.secure_url;
+        // }
 
+
+        if (req.files && req.files.image && req.files.image[0]) {
+            console.log('Processing image upload:', {
+                originalname: req.files.image[0].originalname,
+                mimetype: req.files.image[0].mimetype,
+                size: req.files.image[0].size
+            });
+            const result = await uploadToCloudinary(req.files.image[0].buffer, 'worker-profile');
+            if (!result.secure_url) {
+                throw new Error('Failed to upload image to Cloudinary');
+            }
+            candidate.image = result.secure_url;
+        } else {
+            console.log('No image file received');
+            // If image is required, uncomment the following:
+            // if (!candidate.image) {
+            //     throw new Error('Profile image is required');
+            // }
+        }
         /** ---------------------------
          * Basic Details
          ---------------------------- */
