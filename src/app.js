@@ -47,11 +47,13 @@ const app = express();
 app.use(helmet()); // Security headers first
 app.use(compression()); // Compress responses early
 app.use(xss()); // XSS protection
+
 app.use(cors({
   origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 }));
+
 app.use(express.json({ limit: '10kb' })); // Body parser
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser()); // Parse cookies

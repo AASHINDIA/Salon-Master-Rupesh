@@ -16,20 +16,6 @@ const TEMPLATE = process.env.WHATSAPP_TEMPLATE_NAME
 
 
 
-// Helper function to set OTP expiry (10 minutes)
-// const setOtpExpiry = () => {
-//     return new Date(Date.now() + 10 * 60 * 1000);
-// };
-
-// Register User
-// Helper function to safely handle UID storage
-const safeUidStorage = (uid) => {
-  if (!uid) return null;
-  // Truncate if too long (though model should handle this now)
-  return uid.length > 500 ? uid.substring(0, 500) : uid;
-};
-
-
 // Register User
 export const register = async (req, res) => {
     try {
@@ -53,58 +39,26 @@ export const register = async (req, res) => {
         console.log("Sending WhatsApp OTP...");
         const otpResponse = await sendWhatsAppOtp(whatsapp_number);
         
-        console.log("OTP Response:", otpResponse);
+        console.log("OTP Response:", otpResponse.data);
         
+
+
         if (!otpResponse.success) {
-            console.error("WhatsApp OTP failed. Response:", otpResponse);
+            // console.error("WhatsApp OTP failed. Response:", otpResponse);
             
-            // Check if the response actually contains a success message but was misclassified
-            if (otpResponse.data && 
-                (otpResponse.data.message?.includes("success") || 
-                 otpResponse.data.message?.includes("sent") ||
-                 typeof otpResponse.data === "string" && otpResponse.data.includes("success"))) {
-                
-                // It might actually be successful despite our classification
-                console.log("Reclassifying as success based on message content");
-                
-                // Create user without UID (since we can't extract it properly)
-                const newUser = new User({
-                    name,
-                    email,
-                    password,
-                    domain_type,
-                    whatsapp_number,
-                    otp_sent_at: new Date(),
-                    otp_expires_at: setOtpExpiry(),
-                    otp_verified: false,
+
+                return res.status(400).json({
+                    success: false,
+                    message: "Otp Varification Filed",
+                    
                 });
-
-                const user = await newUser.save();
-
-                if (domain_type === "salon") {
-                    await new UserRegistration({ user_id: user._id, status: "pending" }).save();
-                }
-
-                return res.status(201).json({
-                    success: true,
-                    message: "User registered successfully. OTP sent via WhatsApp.",
-                    data: { 
-                        userId: user._id, 
-                        whatsapp_number: user.whatsapp_number, 
-                        otpSent: true
-                    },
-                });
-            }
+        
             
-            return res.status(500).json({
-                success: false,
-                message: "Failed to send OTP via WhatsApp",
-                error: process.env.NODE_ENV === "development" ? otpResponse.error : undefined
-            });
+            
         }
 
         // Safely extract and handle UID
-        const whatsappUid = safeUidStorage(otpResponse.uid);
+        const whatsappUid = otpResponse.data;
 
         // Create user with WhatsApp UID
         const newUser = new User({
@@ -183,7 +137,7 @@ export const verifyOtp = async (req, res) => {
 
         // Verify OTP with WhatsApp service
         const verificationResponse = await verifyWhatsAppOtp(user.whatsapp_uid, otp);
-        console.log("",verificationResponse)
+        console.log("verificationResponse",verificationResponse)
         
         if (!verificationResponse.success) {
             // Increment OTP attempts
@@ -272,7 +226,7 @@ export const requestPasswordReset = async (req, res) => {
         }
 
         // Safely extract and handle UID
-        const whatsappUid = safeUidStorage(otpResponse.uid);
+        const whatsappUid = otpResponse.data;
 
         // Update user with new WhatsApp UID and OTP info
         user.whatsapp_uid = whatsappUid;
@@ -374,7 +328,64 @@ export const resetPassword = async (req, res) => {
 };
 
 
+// Resend OTP
+export const resendOtp = async (req, res) => {
+    try {
+        const { whatsapp_number } = req.body;
 
+        // ✅ Find user
+        const user = await User.findOne({ whatsapp_number });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        const name = user.name;
+        const otp = generateOTP(4, "numeric");
+
+        // ✅ Send OTP via WhatsApp
+        const otpResponse = await sendWhatsAppMessage(
+            whatsapp_number,
+            process.env.WHATSAPP_TEMPLATE_NAME || "otp_verification_template",
+            [name, otp, "valid for 10 minutes", ""]
+        );
+
+
+        if (!otpResponse?.data) {
+            return res.status(500).json({
+                success: false,
+                message: "Failed to send OTP via WhatsApp"
+            });
+        }
+
+
+        // ✅ Save new OTP + UID
+        if (otpResponse.data) {
+            user.whatsapp_uid = otpResponse.data;  // 🔹 store provider UID
+        }
+        user.otp_code = otp;                          // keep OTP for internal checks if needed
+        user.otp_expires_at = setOtpExpiry();
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "OTP resent successfully",
+            data: {
+                email: user.email,
+                otpSent: true
+            }
+        });
+    } catch (error) {
+        console.error("Resend OTP error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: error.message
+        });
+    }
+};
 
 
 // Login user
@@ -550,61 +561,4 @@ export const refreshToken = async (req, res) => {
     }
 };
 
-// Resend OTP
-export const resendOtp = async (req, res) => {
-    try {
-        const { whatsapp_number } = req.body;
 
-        // ✅ Find user
-        const user = await User.findOne({ whatsapp_number });
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: "User not found"
-            });
-        }
-
-        const name = user.name;
-        const otp = generateOTP(4, "numeric");
-
-        // ✅ Send OTP via WhatsApp
-        const otpResponse = await sendWhatsAppMessage(
-            whatsapp_number,
-            process.env.WHATSAPP_TEMPLATE_NAME || "otp_verification_template",
-            [name, otp, "valid for 10 minutes", ""]
-        );
-
-
-        if (!otpResponse?.data) {
-            return res.status(500).json({
-                success: false,
-                message: "Failed to send OTP via WhatsApp"
-            });
-        }
-
-
-        // ✅ Save new OTP + UID
-        if (otpResponse.data) {
-            user.whatsapp_uid = otpResponse.data;  // 🔹 store provider UID
-        }
-        user.otp_code = otp;                          // keep OTP for internal checks if needed
-        user.otp_expires_at = setOtpExpiry();
-        await user.save();
-
-        return res.status(200).json({
-            success: true,
-            message: "OTP resent successfully",
-            data: {
-                email: user.email,
-                otpSent: true
-            }
-        });
-    } catch (error) {
-        console.error("Resend OTP error:", error);
-        return res.status(500).json({
-            success: false,
-            message: "Internal server error",
-            error: error.message
-        });
-    }
-};
