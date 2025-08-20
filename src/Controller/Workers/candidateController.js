@@ -127,7 +127,6 @@ export const saveCandidateProfile = async (req, res) => {
          * Basic Details
          ---------------------------- */
         if (name !== undefined) candidate.name = name;
-        if (location !== undefined) candidate.location = location;
 
         /** Preferred Locations */
         if (preferred_locations !== undefined) {
@@ -327,7 +326,7 @@ export const getAllCandidates = async (req, res) => {
 
         // Fetch candidates
         const candidates = await Candidate.find(query)
-            .select("name location address skills expected_salary") // only required fields
+            .select("name  address skills expected_salary") // only required fields
             .populate("skills", "name") // populate skills with only name
             .sort(sortOptions)
             .skip((page - 1) * limit)
