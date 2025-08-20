@@ -173,6 +173,7 @@ export const saveSalonProfile = async (req, res) => {
 };
 
 
+// getAllSalon.js
 export const getAllSalon = async (req, res) => {
     try {
         let {
@@ -213,7 +214,7 @@ export const getAllSalon = async (req, res) => {
 
         // Fetch paginated salons
         const salons = await Salon.find(query)
-            .select("salon_name brand_name year_of_start")
+            .select("salon_name brand_name year_of_start address whatsapp_number contact_number female_employees_count male_employees_count managers_count instagram_link facebook_link youtube_link createdAt")
             .sort(sortOptions)
             .skip((page - 1) * limit)
             .limit(limit);
@@ -237,4 +238,3 @@ export const getAllSalon = async (req, res) => {
         });
     }
 };
-

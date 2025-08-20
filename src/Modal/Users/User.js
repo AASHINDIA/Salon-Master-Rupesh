@@ -14,7 +14,6 @@ const UserSchema = new mongoose.Schema({
         unique: true,
         lowercase: true,
     },
-
     password: {
         type: String,
         required: true,
@@ -25,27 +24,20 @@ const UserSchema = new mongoose.Schema({
     }],
     domain_type: {
         type: String,
-        enum: ['salon', 'worker', 'company', 'admin', 'superadmin', "Sale_Lease", "Training", "Franchise"], // Possible values
-        required: true // Optional, but recommended if the field is mandatory
+        enum: ['salon', 'worker', 'company', 'admin', 'superadmin', "Sale_Lease", "Training", "Franchise"],
+        required: true
     },
-
     whatsapp_number: {
         type: String,
     },
-
     otp_verified: {
         type: Boolean,
         default: false,
     },
-
-    otp_code: {
-        type: String,
-    },
-
     whatsapp_uid: {
         type: String,
+        maxlength: 500 // Increased length to handle long UIDs
     },
-
     otp_sent_at: {
         type: Date,
     },
@@ -53,41 +45,30 @@ const UserSchema = new mongoose.Schema({
         type: Number,
         default: 0,
     },
-
-    // Add OTP expiry field (10 minutes from when OTP was sent)
     otp_expires_at: {
         type: Date,
     },
-
     email_verified_at: {
         type: Date,
     },
-
     isSuspended: {
         type: Boolean,
         default: false,
         index: true
     },
-    // Tokens
     access_token: {
         type: String,
     },
-
     refresh_token: {
         type: String,
     },
-
-    // 📱 Device token (e.g., for push notifications)
     devicetoken: {
         type: String,
     }
-
 }, {
     timestamps: true
 });
 
-
-// 🔒 Hash password before saving
 UserSchema.pre('save', async function (next) {
     if (!this.isModified('password')) return next();
     const salt = await bcrypt.genSalt(10);
@@ -95,34 +76,28 @@ UserSchema.pre('save', async function (next) {
     next();
 });
 
-// ✅ Compare entered password with stored password
 UserSchema.methods.matchPassword = async function (enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// 🔑 Generate Access + Refresh Tokens
 UserSchema.methods.generateTokens = function () {
     const accessToken = jwt.sign(
         { id: this._id, email: this.email },
         process.env.JWT_SECRET,
-
     );
 
     const refreshToken = jwt.sign(
         { id: this._id, email: this.email },
         process.env.JWT_REFRESH_SECRET,
-
     );
 
     return { accessToken, refreshToken };
 };
 
-// ⏳ Check if OTP is still valid (not expired)
 UserSchema.methods.isOtpValid = function () {
     return this.otp_expires_at && new Date() < this.otp_expires_at;
 };
 
-// 🌐 Virtual Relationships
 UserSchema.virtual('salons', {
     ref: 'UserRegistration',
     localField: '_id',
@@ -134,6 +109,7 @@ UserSchema.virtual('favorites', {
     localField: '_id',
     foreignField: 'user_id',
 });
+
 
 UserSchema.virtual('cartItems', {
     ref: 'CartItem',
