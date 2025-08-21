@@ -38,13 +38,7 @@ export const protect = async (req, res, next) => {
         }
 
 
-        // Check if token matches the one stored in user document
-        if (user.access_token !== token) {
-            return res.status(401).json({
-                success: false,
-                message: 'Not authorized, invalid token'
-            });
-        }
+       
 
         req.user = user;
         next();
