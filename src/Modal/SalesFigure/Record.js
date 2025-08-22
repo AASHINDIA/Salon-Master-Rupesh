@@ -20,7 +20,7 @@ const recordSchema = new mongoose.Schema({
 
     productTotal: { type: Number, default: 0 },
     serviceTotal: { type: Number, default: 0 },
-    grandTotal: { type: Number, default: 0 },
+    subtotal: { type: Number, default: 0 },
 
     createdAt: { type: Date, default: Date.now }
 });
