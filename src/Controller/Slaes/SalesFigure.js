@@ -39,7 +39,10 @@ export const createRecord = async (req, res) => {
 // 📊 Get totals (daily, monthly, yearly)
 export const getSalesFigures = async (req, res) => {
     try {
-        const { period } = req.query; // daily | monthly | yearly
+        const { period } = req.query;
+        if (!period) {
+            return res.status(400).json({ success: false, message: "Period is required" });
+        }
 
         let startDate, endDate;
         const now = new Date();
@@ -57,13 +60,14 @@ export const getSalesFigures = async (req, res) => {
             return res.status(400).json({ success: false, message: "Invalid period" });
         }
 
-        // 🔎 Aggregate totals
+        // ✅ Match for only that logged-in user
+        const matchCondition = {
+            userId: new mongoose.Types.ObjectId(req.user._id),
+            createdAt: { $gte: startDate, $lte: endDate }
+        };
+
         const totals = await Record.aggregate([
-            {
-                $match: {
-                    createdAt: { $gte: startDate, $lte: endDate }
-                }
-            },
+            { $match: matchCondition },
             {
                 $group: {
                     _id: null,
@@ -76,6 +80,7 @@ export const getSalesFigures = async (req, res) => {
 
         res.status(200).json({
             success: true,
+            userId: req.user._id,
             period,
             totals: totals[0] || { totalProducts: 0, totalServices: 0, subtotal: 0 }
         });
