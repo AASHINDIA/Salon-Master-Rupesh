@@ -5,16 +5,13 @@ import mongoose from "mongoose";
 // Create new sales record
 export const createRecord = async (req, res) => {
     try {
-        const { userId, products = [], services = [] } = req.body;
+        const { userId, products = [], services = [], grandTotal } = req.body;
 
         // ✅ Calculate productTotal
         const productTotal = products.reduce((sum, p) => sum + (p.price || 0), 0);
 
-        // ✅ Calculate serviceTotal
-        const serviceTotal = services.reduce((sum, s) => sum + (s.price || 0), 0);
-
-        // ✅ Grand total
-        const grandTotal = productTotal + serviceTotal;
+        // ✅ Calculate serviceTotal from grandTotal
+        const serviceTotal = grandTotal - productTotal;
 
         const record = new Record({
             userId,
@@ -36,6 +33,7 @@ export const createRecord = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
 
 // 📊 Get totals (daily, monthly, yearly)
 export const getSalesFigures = async (req, res) => {
