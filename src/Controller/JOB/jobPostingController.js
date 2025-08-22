@@ -124,11 +124,11 @@ export const createJobPosting = async (req, res) => {
             });
         }
 
-        // Prepare job posting data
+        // Prepare job posting data - FIXED: Convert to ObjectId instances
         const jobData = {
             salon_id: salon._id,
             ...otherData,
-            required_skills: validSkillIds, // ✅ directly store validated IDs
+            required_skills: validSkillIds.map(id => new mongoose.Types.ObjectId(id)), // ✅ FIXED
             address: {
                 country: jobAddress.country,
                 state: jobAddress.state,
