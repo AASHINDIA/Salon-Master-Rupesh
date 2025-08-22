@@ -2,16 +2,17 @@ import Record from "../../Modal/SalesFigure/Record.js";
  
 import mongoose from "mongoose";
 
+
 // Create new sales record
 export const createRecord = async (req, res) => {
     try {
-        const { userId, products = [], services = [], grandTotal } = req.body;
+        const { userId, products = [], services = [], subtotal } = req.body;
 
         // ✅ Calculate productTotal
         const productTotal = products.reduce((sum, p) => sum + (p.price || 0), 0);
 
-        // ✅ Calculate serviceTotal from grandTotal
-        const serviceTotal = grandTotal - productTotal;
+        // ✅ Calculate serviceTotal from subtotal
+        const serviceTotal = subtotal - productTotal;
 
         const record = new Record({
             userId,
@@ -19,7 +20,7 @@ export const createRecord = async (req, res) => {
             services,
             productTotal,
             serviceTotal,
-            grandTotal
+            subtotal
         });
 
         await record.save();
@@ -68,7 +69,7 @@ export const getSalesFigures = async (req, res) => {
                     _id: null,
                     totalProducts: { $sum: "$productTotal" },
                     totalServices: { $sum: "$serviceTotal" },
-                    grandTotal: { $sum: "$grandTotal" }
+                    subtotal: { $sum: "$subtotal" }
                 }
             }
         ]);
@@ -76,7 +77,7 @@ export const getSalesFigures = async (req, res) => {
         res.status(200).json({
             success: true,
             period,
-            totals: totals[0] || { totalProducts: 0, totalServices: 0, grandTotal: 0 }
+            totals: totals[0] || { totalProducts: 0, totalServices: 0, subtotal: 0 }
         });
 
     } catch (error) {
