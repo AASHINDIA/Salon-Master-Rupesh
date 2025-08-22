@@ -34,6 +34,7 @@ import ItemsRoute from './Route/storeRoute/storeRoute.js'
 import PremissionRoute from './Route/authRoute/permissionRoutes.js'
 import cartRoute from './Route/Cart/CartRoute.js'
 import ShowDataRoute from './Route/ShowData/ShowDataRoute.js'
+// import salseFigureRoute from './Route/SalseFigure/SalseFigure.js';
 const app = express();
 
 // ---------------------------
@@ -132,6 +133,8 @@ app.use('/api/v1/dataget', RouteData)
 app.use('/api/v1/itemsroute', ItemsRoute)
 
 app.use('/api/v1/show', ShowDataRoute)
+
+// app.use('/api/v1/salefigure', salseFigureRoute)
 // ---------------------------
 // 🧱 Error Handlers
 // ---------------------------
