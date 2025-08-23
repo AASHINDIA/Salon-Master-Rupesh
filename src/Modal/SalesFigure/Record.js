@@ -5,8 +5,8 @@ const recordSchema = new mongoose.Schema({
 
     products: [
         {
-            name: { type: String, enum: ['product'], required: true }, // compulsory
-            price: { type: Number, required: true } // compulsory
+            name: { type: String, enum: ['product'], required: false }, // compulsory
+            price: { type: Number, required: false } // compulsory
         }
     ],
 
