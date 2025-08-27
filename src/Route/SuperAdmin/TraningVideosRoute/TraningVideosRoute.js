@@ -16,7 +16,7 @@ const router = express.Router();
 
 // Public routes
 router.route('/')
-    .get(getMyVideos);
+    .get(protect,getMyVideos);
 
 router.route('all/')
     .get(getTrendingVideos);

@@ -320,6 +320,7 @@ const permanentDeleteTrendingVideo = async (req, res) => {
 export {
     createTrendingVideo,
     getTrendingVideos,
+    getMyVideos,
     getTrendingVideoById,
     updateTrendingVideo,
     softDeleteTrendingVideo,
