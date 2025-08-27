@@ -1,5 +1,42 @@
 import User from "../../Modal/Users/User.js";
 import TrendingVideo from "../../Modal/SuperAdmin/TraningVideos.js";
+import Product from "../../Modal/Compony/Products.js";
+
+export const getDashboardStats = async (req, res) => {
+    try {
+        // Run queries in parallel for performance
+        const [totalTrendingVideos, totalProducts] = await Promise.all([
+            TrendingVideo.estimatedDocumentCount(), // faster than countDocuments if no filter
+            Product.estimatedDocumentCount(),
+        ]);
+
+        // Prepare response in a scalable format
+        const stats = {
+            totalTrendingVideos,
+            totalProducts,
+        };
+
+        res.status(200).json({
+            success: true,
+            message: "Dashboard stats fetched successfully",
+            data: stats,
+            meta: {
+                requestedAt: new Date().toISOString(),
+                path: req.originalUrl,
+                method: req.method,
+            },
+        });
+    } catch (error) {
+        console.error("Error fetching dashboard stats:", error);
+
+        res.status(500).json({
+            success: false,
+            message: "Internal server error while fetching dashboard stats",
+            error: process.env.NODE_ENV === "development" ? error.message : undefined,
+        });
+    }
+};
+
 
 export const CountsoftheUsers = async (req, res) => {
     try {

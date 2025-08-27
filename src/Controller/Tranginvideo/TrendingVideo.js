@@ -8,6 +8,8 @@ function formatDuration(duration) {
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
 }
 
+
+
 /**
  * @desc    Create a new trending video
  * @route   POST /api/trending-videos
@@ -17,7 +19,7 @@ const createTrendingVideo = async (req, res) => {
     try {
         const userId = req.user._id; // Assuming req.user is set by auth middleware
         const { title, description, link, duration, categories } = req.body;
-        const validCategories = ['general', 'technology', 'business', 'health'];
+        const validCategories = ['general','sop'];
 
         const filteredCategories = categories
             ? categories.filter(cat => validCategories.includes(cat))

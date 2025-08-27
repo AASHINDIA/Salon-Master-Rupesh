@@ -25,7 +25,8 @@ router.route('/')
 router.route('/:id')
     .get(getTrendingVideoById);
 
-// Protected admin routes
+
+    // Protected admin routes
 router.route('/')
     .post(protect, createTrendingVideo);
 

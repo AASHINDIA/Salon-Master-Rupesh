@@ -98,7 +98,7 @@ app.use('/api/v1/category', CategoryRuoute)
 app.use('/api/v1/product', ProductRuoute)
 
 // ---------------------------
-app.use('/api/v1/TraningVideos', TraningVideos)
+  app.use('/api/v1/TraningVideos', TraningVideos)
 app.use('/api/v1/candidate', candidate)
 app.use('/api/v1/salon', salon)
 app.use('/api/v1/compnay', compnay)
