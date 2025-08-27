@@ -14,11 +14,12 @@ import { protect } from '../../../Middlewares/authMiddleware/auth.js';
 
 const router = express.Router();
 
+
 // Public routes
-router.route('/')
+router.route('/userby')
     .get(protect,getMyVideos);
 
-router.route('all/')
+router.route('/')
     .get(getTrendingVideos);
 
 router.route('/:id')
