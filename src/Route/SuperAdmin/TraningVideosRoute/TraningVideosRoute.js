@@ -7,7 +7,8 @@ import {
     updateTrendingVideo,
     softDeleteTrendingVideo,
     restoreTrendingVideo,
-    permanentDeleteTrendingVideo
+    permanentDeleteTrendingVideo,
+    getMyVideos
 } from '../../../Controller/Tranginvideo/TrendingVideo.js';
 import { protect } from '../../../Middlewares/authMiddleware/auth.js';
 
@@ -15,6 +16,9 @@ const router = express.Router();
 
 // Public routes
 router.route('/')
+    .get(getMyVideos);
+
+router.route('all/')
     .get(getTrendingVideos);
 
 router.route('/:id')

@@ -24,7 +24,7 @@ const UserSchema = new mongoose.Schema({
     }],
     domain_type: {
         type: String,
-        enum: ['salon', 'worker', 'company', 'admin', 'superadmin', "Sale_Lease", "Training", "Franchise"],
+        enum: ['salon', 'worker', 'company', 'admin', 'superadmin',],
         required: true
     },
     whatsapp_number: {
@@ -123,3 +123,7 @@ UserSchema.set('toJSON', { virtuals: true });
 const User = mongoose.model('User', UserSchema);
 
 export default User;
+
+
+
+// "Sale_Lease", "Training", "Franchise"

@@ -38,7 +38,7 @@ export const protect = async (req, res, next) => {
         }
 
 
-       
+
 
         req.user = user;
         next();
@@ -62,6 +62,27 @@ export const protect = async (req, res, next) => {
             error: error.message
         });
     }
+};
+
+
+export const authorizeDomain = (...allowedDomains) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Not authorized, please log in'
+            });
+        }
+
+        if (!allowedDomains.includes(req.user.domain_type)) {
+            return res.status(403).json({
+                success: false,
+                message: `Access denied: requires one of [${allowedDomains.join(', ')}]`
+            });
+        }
+
+        next();
+    };
 };
 
 /**

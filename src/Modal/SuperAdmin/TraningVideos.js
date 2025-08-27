@@ -16,6 +16,10 @@ const TrendingVideoSchema = new Schema({
         trim: true,
         maxlength: [500, 'Description cannot exceed 500 characters']
     },
+    user_id:{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+    },
     link: {
         type: String,
         required: [true, 'Video link is required'],
