@@ -8,82 +8,6 @@ import suggestedCandidate from '../../Modal/RequestJobSuggestedCandidate/Request
 import admin from '../../Utils/firebaseAdmin.js';
 import User from '../../Modal/Users/User.js'
 
-// export const createJobPosting = async (req, res) => {
-//         try {
-//             // Find the salon associated with the current user
-//             const salon = await Salon.findOne({ user_id: req.user._id });
-
-//             if (!salon) {
-//                 return res.status(404).json({
-//                     success: false,
-//                     message: 'Salon not found'
-//                 });
-//             }
-
-//             // Extract skills and other job data from the request body
-//             const { skills = [], address, ...otherData } = req.body;
-
-//             // Validate skill IDs - check which ones exist in the database
-//             const validSkills = await Skill.find({ _id: { $in: skills } });
-
-//             // If no valid skills found and skills were provided, warn the user
-//             if (skills.length > 0 && validSkills.length === 0) {
-//                 return res.status(400).json({
-//                     success: false,
-//                     message: 'No valid skill IDs provided'
-//                 });
-//             }
-
-//             // Extract only valid skill IDs
-
-//             // Prepare address data (use provided address or fallback to salon's address)
-//             const jobAddress = address || salon.address;
-
-//             // Validate required address fields
-//             if (!jobAddress?.country || !jobAddress?.state || !jobAddress?.city) {
-//                 return res.status(400).json({
-//                     success: false,
-//                     message: 'Address must include country, state, and city'
-//                 });
-//             }
-
-//             // Prepare job posting data
-//             const jobData = {
-//                 salon_id: salon._id,
-//                 ...otherData,
-//                 required_skills: validSkillIds,
-//                 address: {
-//                     country: jobAddress.country,
-//                     state: jobAddress.state,
-//                     city: jobAddress.city,
-//                     pincode: jobAddress.pincode || '',
-//                     countryIsoCode: jobAddress.countryIsoCode || '',
-//                     stateIsoCode: jobAddress.stateIsoCode || ''
-//                 },
-//                 // Keep old location field for backward compatibility (can be removed later)
-//                 location: `${jobAddress.city}, ${jobAddress.state}, ${jobAddress.country}`
-//             };
-
-//             // Create and save job posting
-//             const jobPosting = new JobPosting(jobData);
-//             await jobPosting.save();
-
-//             // Send response
-//             res.status(201).json({
-//                 success: true,
-//                 message: 'Job posting created successfully',
-//                 data: jobPosting
-//             });
-
-//         } catch (error) {
-//             console.error('Error creating job posting:', error);
-//             res.status(500).json({
-//                 success: false,
-//                 message: 'Error creating job posting',
-//                 error: error.message
-//             });
-//         }
-//  };
 
 export const createJobPosting = async (req, res) => {
     try {
@@ -100,18 +24,23 @@ export const createJobPosting = async (req, res) => {
         // Extract skills and other job data from the request body
         const { skills = [], address, ...otherData } = req.body;
 
-        // Validate skill IDs
-        let validSkillIds = [];
-        if (skills.length > 0) {
-            const validSkills = await Skill.find({ _id: { $in: skills } });
-            validSkillIds = validSkills.map(skill => skill._id);
+        // Validate that skills array is not empty
+        if (skills.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'At least one skill is required'
+            });
+        }
 
-            if (validSkillIds.length !== skills.length) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Some skill IDs are invalid'
-                });
-            }
+        // Validate skill IDs
+        const validSkills = await Skill.find({ _id: { $in: skills } });
+        const validSkillIds = validSkills.map(skill => skill._id);
+
+        if (validSkillIds.length !== skills.length) {
+            return res.status(400).json({
+                success: false,
+                message: 'Some skill IDs are invalid'
+            });
         }
 
         // Prepare address data (use provided address or fallback to salon's address)
@@ -124,11 +53,11 @@ export const createJobPosting = async (req, res) => {
             });
         }
 
-        // Prepare job posting data - FIXED: Convert to ObjectId instances
+        // Prepare job posting data
         const jobData = {
             salon_id: salon._id,
             ...otherData,
-            required_skills: validSkillIds.map(id => new mongoose.Types.ObjectId(id)), // ✅ FIXED
+            required_skills: validSkillIds.map(id => new mongoose.Types.ObjectId(id)),
             address: {
                 country: jobAddress.country,
                 state: jobAddress.state,
@@ -142,6 +71,7 @@ export const createJobPosting = async (req, res) => {
 
         // Create and save job posting
         const jobPosting = new JobPosting(jobData);
+        await jobPosting.validate(); // Explicitly validate before saving
         await jobPosting.save();
 
         // Populate skills for frontend
@@ -163,6 +93,8 @@ export const createJobPosting = async (req, res) => {
         });
     }
 };
+
+
 
 
 export const getSuggestedCandidates = async (req, res) => {
