@@ -97,6 +97,7 @@ export const getJobPostings = async (req, res) => {
     // Fetch with populate + pagination
     const jobs = await JobPosting.find(filter)
       .populate("salon_id", "salon_name year_of_start contact_number")
+      .populate("required_skills", "skill_name") // ✅ populate skill_name
       .skip((page - 1) * limit)
       .limit(limit);
 
@@ -104,7 +105,9 @@ export const getJobPostings = async (req, res) => {
       job_title: job.job_title,
       salary_range: job.salary_range,
       address: job.address,
-      required_skills: job.required_skills, // if Skill ObjectId, populate("required_skills", "skill_name") instead
+
+      // ✅ return skill names instead of ObjectId
+      required_skills: job.required_skills?.map((skill) => skill.skill_name),
 
       // Salon details (masked)
       salon: {
@@ -130,3 +133,4 @@ export const getJobPostings = async (req, res) => {
     });
   }
 };
+
