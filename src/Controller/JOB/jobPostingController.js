@@ -212,6 +212,7 @@ export const getSuggestedCandidates = async (req, res) => {
         });
     }
 };
+
 // Helper function to calculate comprehensive match score (0-100)
 function calculateMatchScore(candidate, job) {
     let score = 0;

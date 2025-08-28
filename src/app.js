@@ -36,6 +36,7 @@ import cartRoute from './Route/Cart/CartRoute.js'
 import ShowDataRoute from './Route/ShowData/ShowDataRoute.js'
 import salseFigureRoute from './Route/SalseFigure/SalseFigure.js';
 import  importuserfromexcle from './Route/ImportdataRoute/ImportData.js'
+import sopproduct from './Route/sopandProduct/sopandProduct.js'
 const app = express();
 
 // ---------------------------
@@ -138,6 +139,8 @@ app.use('/api/v1/show', ShowDataRoute)
 app.use('/api/v1/salefigure', salseFigureRoute)
 
 app.use('/api/v1/importuserfromexcle', importuserfromexcle)
+
+app.use('/api/v1/sopproduct', sopproduct)
 // ---------------------------
 // 🧱 Error Handlers
 // ---------------------------
