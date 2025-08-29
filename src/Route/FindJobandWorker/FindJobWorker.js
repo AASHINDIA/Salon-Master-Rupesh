@@ -8,6 +8,6 @@ router.get('/job/:jobId/workers', findWorkersForJob);
 // GET /api/matching/worker/:candidateId/jobs - Find jobs for a worker
 router.get('/worker/:candidateId/jobs', findJobsForWorker);
 
-router.get('/getAllJobDetailsBySalon', getAllJobDetailsBySalon);
+router.get('/getAllJobDetailsBySalon/:salonId', getAllJobDetailsBySalon);
 
 export default router;
