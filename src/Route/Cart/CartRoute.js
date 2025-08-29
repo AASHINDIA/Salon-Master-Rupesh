@@ -4,10 +4,9 @@ import { protect } from '../../Middlewares/authMiddleware/auth.js';
 const router = exprees.Router();
 
 router.post('/createcart', protect, AddintoCart);
-router.post('/getCart', protect, GetCartItems);
-router.post('/getCart', protect, GetCartItems);
+router.get('/getCart', protect, GetCartItems);
 
-router.post('/getCart', protect, getCartDatatovendore);
+router.get('/getcartDatatovendore', protect, getCartDatatovendore);
 
 
 export default router;
