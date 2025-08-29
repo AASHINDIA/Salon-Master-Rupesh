@@ -1,8 +1,9 @@
-import CartReceived from "../../Modal/OrderMangement/Cart.js";
+// import Cart from "../../Modal/OrderMangement/Cart.js";
 import Product from "../../Modal/Compony/Products.js";
 import { Parser } from "json2csv";
 import mongoose from "mongoose";
 import User from "../../Modal/Users/User.js";
+import Cart from "../../Modal/OrderMangement/Cart.js";
 // ✅ Add to Cart (already explained before)
 export const AddintoCart = async (req, res) => {
     try {
@@ -18,7 +19,7 @@ export const AddintoCart = async (req, res) => {
             return res.status(404).json({ success: false, message: "Product not found" });
         }
 
-        let existingCartItem = await CartReceived.findOne({ user_id: userId, product_id: Pid });
+        let existingCartItem = await Cart.findOne({ user_id: userId, product_id: Pid });
         if (existingCartItem) {
             existingCartItem.quantity += quantity || 1;
             existingCartItem.price = existingCartItem.quantity * product.price; // ✅ Update total price
@@ -31,7 +32,7 @@ export const AddintoCart = async (req, res) => {
         }
 
         const finalQuantity = quantity || 1;
-        const cartItem = await CartReceived.create({
+        const cartItem = await Cart.create({
             user_id: userId,
             product_id: Pid,
             quantity: finalQuantity,
@@ -90,14 +91,14 @@ export const GetCartItems = async (req, res) => {
         }
 
         // Fetch cart data with population
-        const cartItems = await CartReceived.find(query)
+        const cartItems = await Cart.find(query)
             .populate("product_id", "name price image") // only selected fields
             .skip(skip)
             .limit(parseInt(limit))
             .sort({ datetime: -1 });
 
         // Total count for pagination
-        const total = await CartReceived.countDocuments(query);
+        const total = await Cart.countDocuments(query);
 
         return res.status(200).json({
             success: true,
@@ -116,6 +117,98 @@ export const GetCartItems = async (req, res) => {
     }
 };
 
+
+
+// Remove all items from cart for a specific user
+export const removeAllFromCart = async (req, res) => {
+    try {
+        const { user_id } = req.params;
+
+        // Validate user_id
+        if (!mongoose.Types.ObjectId.isValid(user_id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid user ID format"
+            }); 
+        }
+
+        // Remove all cart items for this user
+        const result = await Cart.deleteMany({ 
+            user_id: user_id, 
+            status: "active" 
+        });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No active cart items found for this user"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: `Successfully removed all items from cart`,
+            deletedCount: result.deletedCount
+        });
+
+    } catch (error) {
+        console.error("Error removing all items from cart:", error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: error.message
+        });
+    }
+};
+
+
+
+export const removeItemFromCart = async (req, res) => {
+    try {
+        const { user_id, product_id } = req.params;
+
+        // Validate IDs
+        if (!mongoose.Types.ObjectId.isValid(user_id) || 
+            !mongoose.Types.ObjectId.isValid(product_id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid user ID or product ID format"
+            });
+        }
+
+        // Remove the specific cart item
+        const result = await Cart.findOneAndDelete({
+            user_id: user_id,
+            product_id: product_id,
+            status: "active"
+        });
+
+        if (!result) {
+            return res.status(404).json({
+                success: false,
+                message: "Cart item not found or already removed"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Item removed from cart successfully",
+            removedItem: {
+                product_id: result.product_id,
+                quantity: result.quantity,
+                price: result.price
+            }
+        });
+
+    } catch (error) {
+        console.error("Error removing item from cart:", error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: error.message
+        });
+    }
+};
 
 
 // get catrt how manay useradd there  product in the   card   and  which product like  order
@@ -158,7 +251,7 @@ export const getCartDatatovendore = async (req, res) => {
         }
 
         // ✅ Step 3: Fetch cart items
-        let cartQuery = CartReceived.find(query)
+        let cartQuery = Cart.find(query)
             .populate("user_id", "name email")
             .populate("product_id", "name price UserId")
             .lean();
@@ -169,7 +262,7 @@ export const getCartDatatovendore = async (req, res) => {
 
         const [cartItems, totalItems] = await Promise.all([
             cartQuery,
-            exportCSV ? 0 : CartReceived.countDocuments(query)
+            exportCSV ? 0 : Cart.countDocuments(query)
         ]);
 
         if (!cartItems.length) {
@@ -234,3 +327,6 @@ export const getCartDatatovendore = async (req, res) => {
         });
     }
 };
+
+
+
