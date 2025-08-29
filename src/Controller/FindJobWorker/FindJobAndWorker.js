@@ -236,3 +236,34 @@ const calculateJobMatchScore = (candidate, jobPost) => {
 
     return Math.min(100, Math.round(score));
 };
+
+
+// -------------------------------------------------------------------------------
+
+
+export const getAllJobDetailsBySalon = async (req, res) => {
+  try {
+    const { salonId } = req.params;
+
+    if (!salonId) {
+      return res.status(400).json({ success: false, message: "Salon ID is required" });
+    }
+
+    const jobs = await JobPosting.find({ salon_id: salonId })
+      .populate("required_skills", "name description") // get full skill info
+      .populate("salon_id", "name email phone address"); // get salon info
+
+    if (!jobs.length) {
+      return res.status(404).json({ success: false, message: "No jobs found for this salon" });
+    }
+
+    res.status(200).json({
+      success: true,
+      count: jobs.length,
+      jobs, // 🔥 return full details
+    });
+  } catch (error) {
+    console.error("Error fetching job details:", error);
+    res.status(500).json({ success: false, message: "Server Error", error: error.message });
+  }
+};
