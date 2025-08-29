@@ -1,6 +1,7 @@
 import CartReceived from "../../Modal/OrderMangement/Cart.js";
 import Product from "../../Modal/Compony/Products.js";
-
+import { Parser } from "json2csv";
+import mongoose from "mongoose";
 // ✅ Add to Cart (already explained before)
 export const AddintoCart = async (req, res) => {
     try {
@@ -120,13 +121,11 @@ export const GetCartItems = async (req, res) => {
 
 
 export const getCartDatatovendore = async (req, res) => {
-
     const vendorId = req.user.id;
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, from, to, exportCSV } = req.query;
 
     try {
-        // ✅ Step 1: Directly fetch only vendor product IDs
-        // Make sure Product.UserId is indexed
+        // ✅ Step 1: Vendor products
         const productIds = await Product.find({ UserId: vendorId })
             .select("_id")
             .lean();
@@ -137,32 +136,69 @@ export const getCartDatatovendore = async (req, res) => {
 
         const productIdList = productIds.map(p => p._id);
 
-        // ✅ Step 2: Query cart items for these product IDs
-        // Ensure CartReceived.product_id is indexed
+        // ✅ Step 2: Build query
+        let query = { product_id: { $in: productIdList } };
+
+        // Filter by date range (if provided)
+        if (from || to) {
+            query.datetime = {};
+            if (from) query.datetime.$gte = new Date(from); // e.g. 2025-08-01
+            if (to) query.datetime.$lte = new Date(to);     // e.g. 2025-08-29
+        }
+
+        // ✅ Step 3: Fetch cart items
+        let cartQuery = CartReceived.find(query)
+            .populate("user_id", "name email")
+            .populate("product_id", "name price")
+            .lean();
+
+        if (!exportCSV) {
+            // Apply pagination only if not exporting CSV
+            cartQuery = cartQuery.skip((page - 1) * limit).limit(Number(limit));
+        }
+
         const [cartItems, totalItems] = await Promise.all([
-            CartReceived.find({ product_id: { $in: productIdList } })
-                .populate("user_id", "name email")   // only required fields
-                .populate("product_id", "name price")
-                .skip((page - 1) * limit)
-                .limit(Number(limit))
-                .lean(),
-            CartReceived.countDocuments({ product_id: { $in: productIdList } })
+            cartQuery,
+            exportCSV ? 0 : CartReceived.countDocuments(query)
         ]);
 
         if (!cartItems.length) {
             return res.status(404).json({ success: false, message: "No cart items found for this vendor's products" });
         }
 
-        // ✅ Step 3: Transform response
+        // ✅ Step 4: Transform response
         const cartData = cartItems.map(item => ({
-            user: item.user_id,
-            product: item.product_id,
+            userName: item.user_id?.name,
+            userEmail: item.user_id?.email,
+            productName: item.product_id?.name,
+            productPrice: item.product_id?.price,
             quantity: item.quantity,
             totalPrice: item.product_id?.price * item.quantity,
             addedAt: item.datetime,
             status: item.status,
         }));
 
+        // ✅ Step 5: CSV Export
+        if (exportCSV === "true") {
+            const fields = [
+                "userName",
+                "userEmail",
+                "productName",
+                "productPrice",
+                "quantity",
+                "totalPrice",
+                "addedAt",
+                "status"
+            ];
+            const json2csv = new Parser({ fields });
+            const csv = json2csv.parse(cartData);
+
+            res.header("Content-Type", "text/csv");
+            res.attachment("cart_data.csv");
+            return res.send(csv);
+        }
+
+        // ✅ Normal JSON response
         return res.status(200).json({
             success: true,
             message: "Cart data fetched successfully",
