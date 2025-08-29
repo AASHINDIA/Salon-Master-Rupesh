@@ -1,5 +1,5 @@
-import JobPosting from "../../Modal/JOB/JobPosting";
-import Candidate from "../../Modal/Candidate/Candidate";
+import JobPosting from "../../Modal/JOB/JobPosting.js";
+import Candidate from "../../Modal/Candidate/Candidate.js";
 
 
 

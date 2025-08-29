@@ -1,5 +1,5 @@
 import express from 'express';
-import { findJobsForWorker ,findWorkersForJob} from '../../Controller/FindJobWorker/FindJobAndWorker';
+import { findJobsForWorker ,findWorkersForJob} from '../../Controller/FindJobWorker/FindJobAndWorker.js';
 const router = express.Router();
 
 // GET /api/matching/job/:jobId/workers - Find workers for a job post
