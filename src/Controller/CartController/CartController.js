@@ -8,7 +8,8 @@ import Cart from "../../Modal/OrderMangement/Cart.js";
 export const AddintoCart = async (req, res) => {
     try {
         const userId = req.user?.id;
-        const { Pid, quantity } = req.body;
+        const { Pid, quantity, action } = req.body;
+        // ✅ action: "increase" | "decrease" | "set"
 
         if (!Pid) {
             return res.status(400).json({ success: false, message: "Product ID is required" });
@@ -20,10 +21,29 @@ export const AddintoCart = async (req, res) => {
         }
 
         let existingCartItem = await Cart.findOne({ user_id: userId, product_id: Pid });
+
         if (existingCartItem) {
-            existingCartItem.quantity += quantity || 1;
-            existingCartItem.price = existingCartItem.quantity * product.price; // ✅ Update total price
+            // ✅ Handle actions
+            if (action === "increase") {
+                existingCartItem.quantity += quantity || 1;
+            } else if (action === "decrease") {
+                existingCartItem.quantity -= quantity || 1;
+                if (existingCartItem.quantity <= 0) {
+                    await existingCartItem.deleteOne();
+                    return res.status(200).json({
+                        success: true,
+                        message: "Product removed from cart",
+                    });
+                }
+            } else if (action === "set") {
+                existingCartItem.quantity = quantity || 1;
+            } else {
+                return res.status(400).json({ success: false, message: "Invalid action type" });
+            }
+
+            existingCartItem.price = existingCartItem.quantity * product.price; // ✅ update price
             await existingCartItem.save();
+
             return res.status(200).json({
                 success: true,
                 message: "Cart updated successfully",
@@ -31,12 +51,18 @@ export const AddintoCart = async (req, res) => {
             });
         }
 
+        // ✅ If item not in cart and action is decrease, ignore
+        if (action === "decrease") {
+            return res.status(400).json({ success: false, message: "Product not in cart to decrease" });
+        }
+
+        // ✅ Create new cart item
         const finalQuantity = quantity || 1;
         const cartItem = await Cart.create({
             user_id: userId,
             product_id: Pid,
             quantity: finalQuantity,
-            price: finalQuantity * product.price, // ✅ Total price calculation
+            price: finalQuantity * product.price,
         });
 
         return res.status(201).json({
@@ -50,6 +76,7 @@ export const AddintoCart = async (req, res) => {
         return res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
     }
 };
+
 
 
 // ✅ Get Cart Items with Pagination, Search, and Date Filter
@@ -129,13 +156,13 @@ export const removeAllFromCart = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: "Invalid user ID format"
-            }); 
+            });
         }
 
         // Remove all cart items for this user
-        const result = await Cart.deleteMany({ 
-            user_id: user_id, 
-            status: "active" 
+        const result = await Cart.deleteMany({
+            user_id: user_id,
+            status: "active"
         });
 
         if (result.deletedCount === 0) {
@@ -168,7 +195,7 @@ export const removeItemFromCart = async (req, res) => {
         const { user_id, product_id } = req.params;
 
         // Validate IDs
-        if (!mongoose.Types.ObjectId.isValid(user_id) || 
+        if (!mongoose.Types.ObjectId.isValid(user_id) ||
             !mongoose.Types.ObjectId.isValid(product_id)) {
             return res.status(400).json({
                 success: false,
@@ -311,11 +338,11 @@ export const getCartDatatovendore = async (req, res) => {
             pagination: exportCSV
                 ? null
                 : {
-                      totalItems,
-                      currentPage: Number(page),
-                      totalPages: Math.ceil(totalItems / limit),
-                      pageSize: Number(limit),
-                  },
+                    totalItems,
+                    currentPage: Number(page),
+                    totalPages: Math.ceil(totalItems / limit),
+                    pageSize: Number(limit),
+                },
         });
 
     } catch (error) {
