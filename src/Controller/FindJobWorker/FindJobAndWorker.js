@@ -1,24 +1,68 @@
 import JobPosting from "../../Modal/JOB/JobPosting.js";
 import Candidate from "../../Modal/Candidate/Candidate.js";
+import Salon from "../../Modal/Salon/Salon.js";
 
-
+// Helper function to mask sensitive information
+const maskData = {
+  // Mask name: John Doe -> J*** D***
+  maskName: (name) => {
+    if (!name) return '';
+    const names = name.split(' ');
+    return names.map(n => n.length > 2 ? n.charAt(0) + '*'.repeat(n.length - 2) + n.charAt(n.length - 1) : n).join(' ');
+  },
+  
+  // Mask phone number: 1234567890 -> 123****890
+  maskPhone: (phone) => {
+    if (!phone) return '';
+    if (phone.length <= 6) return phone;
+    const visibleDigits = 3;
+    const firstPart = phone.substring(0, visibleDigits);
+    const lastPart = phone.substring(phone.length - visibleDigits);
+    return firstPart + '*'.repeat(phone.length - visibleDigits * 2) + lastPart;
+  },
+  
+  // Mask WhatsApp number
+  maskWhatsApp: (whatsapp) => {
+    if (!whatsapp) return '';
+    return maskData.maskPhone(whatsapp);
+  },
+  
+  // Partial address display
+  partialAddress: (address) => {
+    if (!address) return {};
+    return {
+      country: address.country,
+      state: address.state,
+      city: address.city,
+      // Don't show full pincode for privacy
+      pincode: address.pincode ? address.pincode.substring(0, 2) + '***' : ''
+    };
+  }
+};
 
 // Find workers matching a job post
 export const findWorkersForJob = async (req, res) => {
     try {
         const { jobId } = req.params;
 
-        // Find the job post
+        // Find the job post with populated salon details
         const jobPost = await JobPosting.findById(jobId)
             .populate('required_skills')
+            .populate('salon_id')
             .exec();
 
         if (!jobPost) {
-            return res.status(404).json({ message: 'Job post not found' });
+            return res.status(404).json({ 
+                success: false,
+                message: 'Job post not found' 
+            });
         }
 
         if (!jobPost.is_active) {
-            return res.status(400).json({ message: 'Job post is not active' });
+            return res.status(400).json({ 
+                success: false,
+                message: 'Job post is not active' 
+            });
         }
 
         // Build match criteria
@@ -38,7 +82,7 @@ export const findWorkersForJob = async (req, res) => {
         // Add salary range filter
         if (jobPost.salary_range.min > 0 || jobPost.salary_range.max > 0) {
             matchCriteria.$or = [
-                ...matchCriteria.$or,
+                ...(matchCriteria.$or || []),
                 {
                     $and: [
                         { 'expected_salary.min': { $lte: jobPost.salary_range.max || Number.MAX_SAFE_INTEGER } },
@@ -63,7 +107,20 @@ export const findWorkersForJob = async (req, res) => {
         const candidatesWithScores = matchingCandidates.map(candidate => {
             const score = calculateMatchScore(candidate, jobPost);
             return {
-                candidate: candidate,
+                candidate: {
+                    _id: candidate._id,
+                    name: maskData.maskName(candidate.name), // Masked name
+                    image: candidate.image,
+                    gender: candidate.gender,
+                    location: candidate.location,
+                    skills: candidate.skills,
+                    expected_salary: candidate.expected_salary,
+                    available_for_join: candidate.available_for_join,
+                    preferred_locations: candidate.preferred_locations,
+                    contact_no: maskData.maskPhone(candidate.contact_no), // Masked phone
+                    whatsapp_number: maskData.maskWhatsApp(candidate.whatsapp_number), // Masked WhatsApp
+                    address: maskData.partialAddress(candidate.address) // Partial address
+                },
                 matchScore: score,
                 matchingSkills: getMatchingSkills(candidate.skills, jobPost.required_skills)
             };
@@ -72,18 +129,168 @@ export const findWorkersForJob = async (req, res) => {
         // Sort by match score (descending)
         candidatesWithScores.sort((a, b) => b.matchScore - a.matchScore);
 
-        res.json({
-            jobPost: jobPost,
-            totalMatches: candidatesWithScores.length,
-            candidates: candidatesWithScores
+        res.status(200).json({
+            success: true,
+            data: {
+                jobPost: {
+                    _id: jobPost._id,
+                    job_title: jobPost.job_title,
+                    custom_job_title: jobPost.custom_job_title,
+                    salon_id: jobPost.salon_id ? {
+                        _id: jobPost.salon_id._id,
+                        salon_name: maskData.maskName(jobPost.salon_id.salon_name), // Masked salon name
+                        brand_name: maskData.maskName(jobPost.salon_id.brand_name), // Masked brand name
+                        contact_number: maskData.maskPhone(jobPost.salon_id.contact_number), // Masked contact
+                        whatsapp_number: maskData.maskWhatsApp(jobPost.salon_id.whatsapp_number), // Masked WhatsApp
+                        address: maskData.partialAddress(jobPost.salon_id.address) // Partial address
+                    } : null,
+                    required_skills: jobPost.required_skills,
+                    gender_preference: jobPost.gender_preference,
+                    salary_range: jobPost.salary_range,
+                    address: maskData.partialAddress(jobPost.address), // Partial address
+                    is_active: jobPost.is_active
+                },
+                totalMatches: candidatesWithScores.length,
+                candidates: candidatesWithScores
+            }
         });
 
     } catch (error) {
         console.error('Error finding workers for job:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        res.status(500).json({ 
+            success: false,
+            message: 'Server error', 
+            error: error.message 
+        });
     }
 };
 
+// Find jobs matching a candidate profile
+export const findJobsForWorker = async (req, res) => {
+    try {
+        const { candidateId } = req.params;
+
+        // Find the candidate
+        const candidate = await Candidate.findById(candidateId)
+            .populate('skills')
+            .exec();
+
+        if (!candidate) {
+            return res.status(404).json({ 
+                success: false,
+                message: 'Candidate not found' 
+            });
+        }
+
+        if (!candidate.available_for_join) {
+            return res.status(400).json({ 
+                success: false,
+                message: 'Candidate is not available for joining' 
+            });
+        }
+
+        // Build match criteria
+        const matchCriteria = {
+            is_active: true,
+            $or: [
+                { 'address.state': { $in: candidate.preferred_locations } },
+                { 'address.state': candidate.address.state } // Include jobs in candidate's current state
+            ]
+        };
+
+        // Add gender filter if candidate has specific gender
+        if (candidate.gender !== 'other') {
+            const capitalizedGender = candidate.gender.charAt(0).toUpperCase() + candidate.gender.slice(1);
+            matchCriteria.$or.push({
+                gender_preference: { $in: [capitalizedGender, 'Any'] }
+            });
+        } else {
+            matchCriteria.gender_preference = 'Any';
+        }
+
+        // Add salary range filter
+        if (candidate.expected_salary.min > 0 || candidate.expected_salary.max > 0) {
+            matchCriteria.$and = [
+                { 'salary_range.min': { $lte: candidate.expected_salary.max || Number.MAX_SAFE_INTEGER } },
+                { 'salary_range.max': { $gte: candidate.expected_salary.min } }
+            ];
+        }
+
+        // Find matching job posts
+        const matchingJobs = await JobPosting.find(matchCriteria)
+            .populate('required_skills')
+            .populate('salon_id')
+            .exec();
+
+        // Calculate match score for each job
+        const jobsWithScores = matchingJobs.map(jobPost => {
+            const score = calculateJobMatchScore(candidate, jobPost);
+            return {
+                jobPost: {
+                    _id: jobPost._id,
+                    job_title: jobPost.job_title,
+                    custom_job_title: jobPost.custom_job_title,
+                    salon_id: jobPost.salon_id ? {
+                        _id: jobPost.salon_id._id,
+                        salon_name: maskData.maskName(jobPost.salon_id.salon_name), // Masked salon name
+                        brand_name: maskData.maskName(jobPost.salon_id.brand_name), // Masked brand name
+                        contact_number: maskData.maskPhone(jobPost.salon_id.contact_number), // Masked contact
+                        whatsapp_number: maskData.maskWhatsApp(jobPost.salon_id.whatsapp_number), // Masked WhatsApp
+                        address: maskData.partialAddress(jobPost.salon_id.address) // Partial address
+                    } : null,
+                    required_skills: jobPost.required_skills,
+                    gender_preference: jobPost.gender_preference,
+                    salary_range: jobPost.salary_range,
+                    job_type: jobPost.job_type,
+                    work_timings: jobPost.work_timings,
+                    working_days: jobPost.working_days,
+                    address: maskData.partialAddress(jobPost.address), // Partial address
+                    location: jobPost.location,
+                    contact_person: jobPost.contact_person ? {
+                        name: maskData.maskName(jobPost.contact_person.name), // Masked name
+                        phone: maskData.maskPhone(jobPost.contact_person.phone), // Masked phone
+                        email: jobPost.contact_person.email // Email can be shown partially
+                    } : null
+                },
+                matchScore: score,
+                matchingSkills: getMatchingSkills(candidate.skills, jobPost.required_skills)
+            };
+        });
+
+        // Sort by match score (descending)
+        jobsWithScores.sort((a, b) => b.matchScore - a.matchScore);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                candidate: {
+                    _id: candidate._id,
+                    name: maskData.maskName(candidate.name), // Masked name
+                    image: candidate.image,
+                    gender: candidate.gender,
+                    skills: candidate.skills,
+                    expected_salary: candidate.expected_salary,
+                    preferred_locations: candidate.preferred_locations,
+                    contact_no: maskData.maskPhone(candidate.contact_no), // Masked phone
+                    whatsapp_number: maskData.maskWhatsApp(candidate.whatsapp_number), // Masked WhatsApp
+                    address: maskData.partialAddress(candidate.address) // Partial address
+                },
+                totalMatches: jobsWithScores.length,
+                jobs: jobsWithScores
+            }
+        });
+
+    } catch (error) {
+        console.error('Error finding jobs for worker:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Server error', 
+            error: error.message 
+        });
+    }
+};
+
+// Helper functions (calculateMatchScore, calculateJobMatchScore, getMatchingSkills) remain the same
 // Helper function to calculate match score
 const calculateMatchScore = (candidate, jobPost) => {
     let score = 0;
@@ -113,96 +320,6 @@ const calculateMatchScore = (candidate, jobPost) => {
     }
 
     return Math.min(100, Math.round(score));
-};
-
-// Helper function to get matching skills
-const getMatchingSkills = (candidateSkills, jobSkills) => {
-    const candidateSkillIds = candidateSkills.map(skill => skill._id.toString());
-    const jobSkillIds = jobSkills.map(skill => skill._id.toString());
-    
-    return candidateSkills.filter(skill => 
-        jobSkillIds.includes(skill._id.toString())
-    );
-};
-
-
-
-
-// Find jobs matching a candidate profile
-
-// Find job posts matching a worker profile
-export const findJobsForWorker = async (req, res) => {
-    try {
-        const { candidateId } = req.params;
-
-        // Find the candidate
-        const candidate = await Candidate.findById(candidateId)
-            .populate('skills')
-            .exec();
-
-        if (!candidate) {
-            return res.status(404).json({ message: 'Candidate not found' });
-        }
-
-        if (!candidate.available_for_join) {
-            return res.status(400).json({ message: 'Candidate is not available for joining' });
-        }
-
-        // Build match criteria
-        const matchCriteria = {
-            is_active: true,
-            $or: [
-                { 'address.state': { $in: candidate.preferred_locations } },
-                { 'address.state': candidate.address.state } // Include jobs in candidate's current state
-            ]
-        };
-
-        // Add gender filter if candidate has specific gender
-        if (candidate.gender !== 'other') {
-            matchCriteria.$or.push({
-                gender_preference: { $in: [candidate.gender.charAt(0).toUpperCase() + candidate.gender.slice(1), 'Any'] }
-            });
-        } else {
-            matchCriteria.gender_preference = 'Any';
-        }
-
-        // Add salary range filter
-        if (candidate.expected_salary.min > 0 || candidate.expected_salary.max > 0) {
-            matchCriteria.$and = [
-                { 'salary_range.min': { $lte: candidate.expected_salary.max || Number.MAX_SAFE_INTEGER } },
-                { 'salary_range.max': { $gte: candidate.expected_salary.min } }
-            ];
-        }
-
-        // Find matching job posts
-        const matchingJobs = await JobPosting.find(matchCriteria)
-            .populate('required_skills')
-            .populate('salon_id')
-            .exec();
-
-        // Calculate match score for each job
-        const jobsWithScores = matchingJobs.map(jobPost => {
-            const score = calculateJobMatchScore(candidate, jobPost);
-            return {
-                jobPost: jobPost,
-                matchScore: score,
-                matchingSkills: getMatchingSkills(candidate.skills, jobPost.required_skills)
-            };
-        });
-
-        // Sort by match score (descending)
-        jobsWithScores.sort((a, b) => b.matchScore - a.matchScore);
-
-        res.json({
-            candidate: candidate,
-            totalMatches: jobsWithScores.length,
-            jobs: jobsWithScores
-        });
-
-    } catch (error) {
-        console.error('Error finding jobs for worker:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
 };
 
 // Helper function to calculate job match score
@@ -235,6 +352,16 @@ const calculateJobMatchScore = (candidate, jobPost) => {
     }
 
     return Math.min(100, Math.round(score));
+};
+
+// Helper function to get matching skills
+const getMatchingSkills = (candidateSkills, jobSkills) => {
+    const candidateSkillIds = candidateSkills.map(skill => skill._id.toString());
+    const jobSkillIds = jobSkills.map(skill => skill._id.toString());
+    
+    return candidateSkills.filter(skill => 
+        jobSkillIds.includes(skill._id.toString())
+    );
 };
 
 
