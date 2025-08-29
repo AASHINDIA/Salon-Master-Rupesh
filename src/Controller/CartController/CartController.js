@@ -2,6 +2,7 @@ import CartReceived from "../../Modal/OrderMangement/Cart.js";
 import Product from "../../Modal/Compony/Products.js";
 import { Parser } from "json2csv";
 import mongoose from "mongoose";
+import User from "../../Modal/Users/User.js";
 // ✅ Add to Cart (already explained before)
 export const AddintoCart = async (req, res) => {
     try {
