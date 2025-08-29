@@ -1,6 +1,7 @@
 import Candidate from '../../Modal/Candidate/Candidate.js';
 import JobPosting from '../../Modal/JOB/JobPosting.js';
 import JobApplication from '../../Modal/JOB/JobApplication.js';
+import Salon from '../../Modal/Salon/Salon.js';
 // Apply for Job
 export const applyForJob = async (req, res) => {
     const session = await mongoose.startSession();
