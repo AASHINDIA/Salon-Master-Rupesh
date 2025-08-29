@@ -121,39 +121,48 @@ export const GetCartItems = async (req, res) => {
 
 
 export const getCartDatatovendore = async (req, res) => {
-    const vendorId = req.user.id;
+    const userId = req.user.id; // logged-in user id
     const { page = 1, limit = 10, from, to, exportCSV } = req.query;
 
     try {
-        // ✅ Step 1: Vendor products
-        const productIds = await Product.find({ UserId: vendorId })
-            .select("_id")
-            .lean();
+        // ✅ Step 0: Check user role from DB
+        const user = await User.findById(userId).select("domain_type").lean();
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        let productQuery = {};
+        if (user.domain_type !== "superadmin") {
+            // normal vendor → fetch only his products
+            productQuery.UserId = userId;
+        }
+
+        // ✅ Step 1: Fetch product IDs (vendor or all products if superadmin)
+        const productIds = await Product.find(productQuery).select("_id").lean();
 
         if (!productIds.length) {
-            return res.status(404).json({ success: false, message: "No products found for this vendor" });
+            return res.status(404).json({ success: false, message: "No products found" });
         }
 
         const productIdList = productIds.map(p => p._id);
 
-        // ✅ Step 2: Build query
+        // ✅ Step 2: Build cart query
         let query = { product_id: { $in: productIdList } };
 
-        // Filter by date range (if provided)
+        // Date filter
         if (from || to) {
             query.datetime = {};
-            if (from) query.datetime.$gte = new Date(from); // e.g. 2025-08-01
-            if (to) query.datetime.$lte = new Date(to);     // e.g. 2025-08-29
+            if (from) query.datetime.$gte = new Date(from);
+            if (to) query.datetime.$lte = new Date(to);
         }
 
         // ✅ Step 3: Fetch cart items
         let cartQuery = CartReceived.find(query)
             .populate("user_id", "name email")
-            .populate("product_id", "name price")
+            .populate("product_id", "name price UserId")
             .lean();
 
         if (!exportCSV) {
-            // Apply pagination only if not exporting CSV
             cartQuery = cartQuery.skip((page - 1) * limit).limit(Number(limit));
         }
 
@@ -163,7 +172,7 @@ export const getCartDatatovendore = async (req, res) => {
         ]);
 
         if (!cartItems.length) {
-            return res.status(404).json({ success: false, message: "No cart items found for this vendor's products" });
+            return res.status(404).json({ success: false, message: "No cart items found" });
         }
 
         // ✅ Step 4: Transform response
@@ -176,6 +185,7 @@ export const getCartDatatovendore = async (req, res) => {
             totalPrice: item.product_id?.price * item.quantity,
             addedAt: item.datetime,
             status: item.status,
+            vendorId: item.product_id?.UserId, // helpful for superadmin view
         }));
 
         // ✅ Step 5: CSV Export
@@ -188,7 +198,8 @@ export const getCartDatatovendore = async (req, res) => {
                 "quantity",
                 "totalPrice",
                 "addedAt",
-                "status"
+                "status",
+                "vendorId"
             ];
             const json2csv = new Parser({ fields });
             const csv = json2csv.parse(cartData);
@@ -203,16 +214,22 @@ export const getCartDatatovendore = async (req, res) => {
             success: true,
             message: "Cart data fetched successfully",
             data: cartData,
-            pagination: {
-                totalItems,
-                currentPage: Number(page),
-                totalPages: Math.ceil(totalItems / limit),
-                pageSize: Number(limit),
-            },
+            pagination: exportCSV
+                ? null
+                : {
+                      totalItems,
+                      currentPage: Number(page),
+                      totalPages: Math.ceil(totalItems / limit),
+                      pageSize: Number(limit),
+                  },
         });
 
     } catch (error) {
         console.error("Error fetching vendor cart items:", error);
-        return res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            error: error.message,
+        });
     }
 };
