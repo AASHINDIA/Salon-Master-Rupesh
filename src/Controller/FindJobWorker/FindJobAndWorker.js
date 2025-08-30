@@ -171,10 +171,11 @@ export const findJobsForWorker = async (req, res) => {
         const { candidateId } = req.params;
 
         // Find the candidate
-        const candidate = await Candidate.findById(candidateId)
+        const candidate = await Candidate.findOne({user_id:candidateId})
             .populate('skills')
             .exec();
 
+            
         if (!candidate) {
             return res.status(404).json({ 
                 success: false,
