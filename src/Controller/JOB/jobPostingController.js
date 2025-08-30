@@ -94,6 +94,54 @@ export const createJobPosting = async (req, res) => {
     }
 };
 
+export const getCandidateRequests = async (req, res) => {
+    try {
+        // Find candidate profile for logged-in user
+        const candidate = await Candidate.findOne({ user_id: req.user._id });
+        if (!candidate) {
+            return res.status(404).json({
+                success: false,
+                message: "Candidate profile not found."
+            });
+        }
+
+        // Fetch all requests with job details
+        const requests = await SuggestedCandidate.find({ candidate_id: candidate._id })
+            .populate({
+                path: "job_id",
+                select: "job_title location salary_range",
+                populate: {
+                    path: "salon_id",
+                    select: "salon_name brand_name image_path"
+                }
+            })
+            .sort({ createdAt: -1 });
+
+        // Count total requests
+        const totalRequests = requests.length;
+
+        // Count by status
+        const statusCounts = {
+            pending: requests.filter(r => r.status === "Pending").length,
+            accepted: requests.filter(r => r.status === "Accepted").length,
+            rejected: requests.filter(r => r.status === "Rejected").length
+        };
+
+        res.status(200).json({
+            success: true,
+            candidate_id: candidate._id,
+            totalRequests,
+            statusCounts,
+            requests // full details list
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Error fetching candidate requests",
+            error: error.message
+        });
+    }
+};
 
 
 
