@@ -2,6 +2,7 @@ import express from 'express';
 import {
     createJobPosting,
     getAllJobPostings,
+    RequestForJobToSuggestedCandidates,
     getRecommendedJobs,
     getJobPostingById,
     updateJobPosting,
@@ -20,6 +21,8 @@ router.use(protect);
 // Create a new job posting
 router.post('/', createJobPosting);
 router.post('/suggestcandidate', getSuggestedCandidates);
+
+router.post('/suggestcandidate', RequestForJobToSuggestedCandidates);
 
 // Update a job posting
 router.put('/:id', updateJobPosting);
