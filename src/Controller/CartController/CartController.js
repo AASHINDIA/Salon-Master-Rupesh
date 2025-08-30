@@ -4,7 +4,10 @@ import { Parser } from "json2csv";
 import mongoose from "mongoose";
 import User from "../../Modal/Users/User.js";
 import Cart from "../../Modal/OrderMangement/Cart.js";
+// import Company from "../../Modal/Compony/Company.js";
 // ✅ Add to Cart (already explained before)
+import Company from '../../Modal/Compony/ComponyModal.js'
+
 export const AddintoCart = async (req, res) => {
     try {
         const userId = req.user?.id;
@@ -297,16 +300,28 @@ export const getCartDatatovendore = async (req, res) => {
         }
 
         // ✅ Step 4: Transform response
-        const cartData = cartItems.map(item => ({
-            userName: item.user_id?.name,
-            userEmail: item.user_id?.email,
-            productName: item.product_id?.name,
-            productPrice: item.product_id?.price,
-            quantity: item.quantity,
-            totalPrice: item.product_id?.price * item.quantity,
-            addedAt: item.datetime,
-            status: item.status,
-            vendorId: item.product_id?.UserId, // helpful for superadmin view
+        // In your backend code (getCartDatatovendore function)
+        // ✅ Step 4: Transform response
+        const cartData = await Promise.all(cartItems.map(async (item) => {
+            // Fetch vendor details
+            let vendorName = "Unknown";
+            if (item.product_id?.UserId) {
+                const vendor = await Company.findOne({ user_id: item.product_id.UserId }).select("company_name unique_name").lean();
+                vendorName = vendor?.unique_name || "Unknown";
+            }
+
+            return {
+                userName: item.user_id?.name,
+                userEmail: item.user_id?.email,
+                productName: item.product_id?.name,
+                productPrice: item.product_id?.price,
+                quantity: item.quantity,
+                totalPrice: item.product_id?.price * item.quantity,
+                addedAt: item.datetime,
+                status: item.status,
+                vendorId: item.product_id?.UserId,
+                vendorName: vendorName // Add vendor name
+            };
         }));
 
         // ✅ Step 5: CSV Export
@@ -320,7 +335,8 @@ export const getCartDatatovendore = async (req, res) => {
                 "totalPrice",
                 "addedAt",
                 "status",
-                "vendorId"
+                "vendorId",
+                "VendorName"
             ];
             const json2csv = new Parser({ fields });
             const csv = json2csv.parse(cartData);

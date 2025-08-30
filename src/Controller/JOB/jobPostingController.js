@@ -577,6 +577,7 @@ function calculateJobMatchScore(candidate, job) {
     return Math.min(Math.round(score), 100); // Cap at 100
 }
 
+
 // Get Job Posting by ID
 export const getJobPostingById = async (req, res) => {
     try {
@@ -654,6 +655,25 @@ export const closeJobPosting = async (req, res) => {
 };
 
 
+export const getAllJobPost = async () => {
+    try {
+
+
+        const jobs = await JobPosting.find({})
+            .populate('required_skills')
+            .sort({ posted_date: -1 });
+        res.status(200).json({ success: true, data: jobs });
+    }
+    catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching job postings',
+            error: error.message
+        });
+
+    }
+}
+
 
 const sendNOtification = async (candidateId, jobId, title, message) => {
     try {
@@ -684,4 +704,4 @@ const sendNOtification = async (candidateId, jobId, title, message) => {
     } catch (error) {
         console.error('Error sending notification:', error);
     }
-}       
+}      
