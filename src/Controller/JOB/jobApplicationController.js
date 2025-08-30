@@ -38,7 +38,6 @@ export const applyForJob = async (req, res) => {
         // Calculate match score
         const matchedSkills = job.required_skills.filter(skill =>
             candidate.skills.includes(skill));
-        const skillMatchScore = (matchedSkills.length / job.required_skills.length) * 100;
 
         const application = new JobApplication({
             candidate_id: candidate._id,
@@ -47,7 +46,6 @@ export const applyForJob = async (req, res) => {
             expected_salary: req.body.expected_salary,
             availability: req.body.availability,
             gender_match: job.gender_preference === 'Any' || job.gender_preference === candidate.gender,
-            skill_match_score: skillMatchScore
         });
 
         await application.save({ session });
