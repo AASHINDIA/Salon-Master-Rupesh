@@ -65,6 +65,7 @@ export const applyForJob = async (req, res) => {
 };
 
 // Get Applications for Job (Salon View)
+// Get Job Applications (Salon View)
 export const getJobApplications = async (req, res) => {
     try {
         const salon = await Salon.findOne({ user_id: req.user._id });
@@ -72,7 +73,7 @@ export const getJobApplications = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Salon not found' });
         }
 
-        const { page = 1, limit = 10, status, gender, min_match_score } = req.query;
+        const { status, gender, min_match_score } = req.query;
 
         const query = {
             job_id: req.params.jobId,
@@ -83,24 +84,15 @@ export const getJobApplications = async (req, res) => {
         if (gender) query['candidate_id.gender'] = gender;
         if (min_match_score) query.skill_match_score = { $gte: parseInt(min_match_score) };
 
-        const options = {
-            page: parseInt(page),
-            limit: parseInt(limit),
-            populate: [
-                { path: 'candidate_id', select: 'name gender skills experience image' },
-                { path: 'job_id', select: 'job_title location' }
-            ],
-            sort: { skill_match_score: -1, application_date: -1 }
-        };
-
-        const result = await JobApplication.paginate(query, options);
+        const applications = await JobApplication.find(query)
+            .populate({ path: 'candidate_id', select: 'name gender skills experience image' })
+            .populate({ path: 'job_id', select: 'job_title location' })
+            .sort({ skill_match_score: -1, application_date: -1 });
 
         res.status(200).json({
             success: true,
-            data: result.docs,
-            total: result.totalDocs,
-            pages: result.totalPages,
-            currentPage: result.page
+            data: applications,
+            total: applications.length
         });
     } catch (error) {
         res.status(500).json({
@@ -121,32 +113,26 @@ export const getMyApplications = async (req, res) => {
             return res.status(404).json({ success:false, message: 'Please complete your profile to continue.' });
         }
 
-        const { page = 1, limit = 10, status } = req.query;
+        const { status } = req.query;
 
         const query = { candidate_id: candidate._id };
         if (status) query.status = status;
 
-        const options = {
-            page: parseInt(page),
-            limit: parseInt(limit),
-            populate: [
-                {
-                    path: 'job_id', select: 'job_title location salary_range', populate: {
-                        path: 'salon_id', select: 'salon_name brand_name image_path'
-                    }
+        const applications = await JobApplication.find(query)
+            .populate({
+                path: 'job_id',
+                select: 'job_title location salary_range',
+                populate: {
+                    path: 'salon_id',
+                    select: 'salon_name brand_name image_path'
                 }
-            ],
-            sort: { application_date: -1 }
-        };
-
-        const result = await JobApplication.paginate(query, options);
+            })
+            .sort({ application_date: -1 });
 
         res.status(200).json({
             success: true,
-            data: result.docs,
-            total: result.totalDocs,
-            pages: result.totalPages,
-            currentPage: result.page
+            data: applications,
+            total: applications.length
         });
     } catch (error) {
         res.status(500).json({
@@ -156,6 +142,7 @@ export const getMyApplications = async (req, res) => {
         });
     }
 };
+
 
 // Update Application Status
 export const updateApplicationStatus = async (req, res) => {
