@@ -10,7 +10,7 @@ import { protect, roleCheck } from '../../Middlewares/authMiddleware/auth.js';
 const router = express.Router();
 
 // Candidate-specific routes
-// router.use(protect, roleCheck('worker'));
+router.use(protect);
 
 // Apply for a job
 router.post('/jobs/:jobId/apply', applyForJob);
