@@ -24,6 +24,7 @@ router.post('/', createJobPosting);
 router.post('/suggestcandidate', getSuggestedCandidates);
 
 router.post('/RequestForJobToSuggestedCandidates', RequestForJobToSuggestedCandidates);
+
 router.get('/getCandidateRequests', getCandidateRequests);
 
 // Update a job posting
