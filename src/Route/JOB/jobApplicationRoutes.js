@@ -19,7 +19,7 @@ router.post('/jobs/:jobId/apply', protect, applyForJob);
 router.get('/my-applications', getMyApplications);
 
 // Salon-specific routes
-router.use(protect, roleCheck('salon'));
+router.use(protect);
 
 // Get applications for a specific job
 router.get('/jobs/:jobId/applications', getJobApplications);
