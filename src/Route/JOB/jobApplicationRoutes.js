@@ -13,7 +13,7 @@ const router = express.Router();
 router.use(protect);
 
 // Apply for a job
-router.post('/jobs/:jobId/apply', applyForJob);
+router.post('/jobs/:jobId/apply', protect, applyForJob);
 
 // Get my applications
 router.get('/my-applications', getMyApplications);
