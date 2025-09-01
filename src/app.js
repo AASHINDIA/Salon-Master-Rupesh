@@ -38,6 +38,7 @@ import salseFigureRoute from './Route/SalseFigure/SalseFigure.js';
 import  importuserfromexcle from './Route/ImportdataRoute/ImportData.js'
 import sopproduct from './Route/sopandProduct/sopandProduct.js'
 import jobandworker from './Route/FindJobandWorker/FindJobWorker.js'
+import updateApplicationStatus from './Route/ApplicationStausUpdate/ApplicationStausUpdate.js'
 const app = express();
 
 // ---------------------------
@@ -145,6 +146,7 @@ app.use('/api/v1/sopproduct', sopproduct)
 
 // ---------------------------
 app.use('/api/v1/jobandworker', jobandworker)
+app.use('/api/v1/update', updateApplicationStatus)
 // 🧱 Error Handlers
 // ---------------------------
 app.use(notFound);
