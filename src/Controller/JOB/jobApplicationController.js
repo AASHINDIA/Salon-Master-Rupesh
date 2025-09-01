@@ -67,87 +67,87 @@ export const applyForJob = async (req, res) => {
 // Get Applications for Job (Salon View)
 // Get Job Applications (Salon View)
 const maskNumber = (number) => {
-  if (!number) return "";
-  const str = number.toString();
-  const last4 = str.slice(-4);
-  return "*".repeat(str.length - 4) + last4;
+    if (!number) return "";
+    const str = number.toString();
+    const last4 = str.slice(-4);
+    return "*".repeat(str.length - 4) + last4;
 };
 
 export const maskName = (name) => {
-  if (!name) return "";
-  if (name.length <= 2) return name[0] + "*"; // short names
-  const firstLetter = name[0];
-  const lastLetter = name.length > 2 ? name[name.length - 1] : "";
-  const middleMask = "*".repeat(name.length - 2);
-  return `${firstLetter}${middleMask}${lastLetter}`;
+    if (!name) return "";
+    if (name.length <= 2) return name[0] + "*"; // short names
+    const firstLetter = name[0];
+    const lastLetter = name.length > 2 ? name[name.length - 1] : "";
+    const middleMask = "*".repeat(name.length - 2);
+    return `${firstLetter}${middleMask}${lastLetter}`;
 }
 export const getJobApplications = async (req, res) => {
-  try {
-    // Find salon by logged-in user
-    const salon = await Salon.findOne({ user_id: req.user._id });
+    try {
+        // Find salon by logged-in user
+        const salon = await Salon.findOne({ user_id: req.user._id });
 
-    if (!salon) {
-      return res.status(404).json({ success: false, message: "Salon not found" });
+        if (!salon) {
+            return res.status(404).json({ success: false, message: "Salon not found" });
+        }
+
+        // Ensure job belongs to this salon
+        const job = await JobPosting.findOne({
+            _id: req.params.jobId,
+            salon_id: salon._id,
+        });
+
+        if (!job) {
+            return res.status(404).json({ success: false, message: "Job not found for this salon" });
+        }
+
+        // Build query for JobApplication
+        const { status } = req.query;
+        const query = { job_id: job._id };
+        if (status) query.status = status;
+
+        // Fetch applications
+        let applications = await JobApplication.find(query)
+            .populate({
+                path: "candidate_id",
+                select: "name whatsapp_number gender skills experience", // fetch more details
+            })
+            .populate({
+                path: "job_id",
+                select: "job_title location",
+            })
+            .sort({ skill_match_score: -1, application_date: -1 });
+
+        // Format response with masked WhatsApp and selected details
+        applications = applications.map((app) => {
+            const candidate = app.candidate_id;
+            return {
+                _id: app._id,
+                candidate_name: maskName(candidate?.name) || "",
+                whatsapp_number: maskNumber(candidate?.whatsapp_number),
+                gender: candidate?.gender || "",
+                skills: candidate?.skills || [],
+                experience: candidate?.experience || 0,
+                job_title: app.job_id?.job_title || "",
+                location: app.job_id?.location || "",
+                status: app.status,
+                application_date: app.application_date,
+                skill_match_score: app.skill_match_score,
+            };
+        });
+
+        res.status(200).json({
+            success: true,
+            data: applications,
+            total: applications.length,
+        });
+    } catch (error) {
+        console.error("Error fetching applications:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error fetching applications",
+            error: error.message,
+        });
     }
-
-    // Ensure job belongs to this salon
-    const job = await JobPosting.findOne({
-      _id: req.params.jobId,
-      salon_id: salon._id,
-    });
-
-    if (!job) {
-      return res.status(404).json({ success: false, message: "Job not found for this salon" });
-    }
-
-    // Build query for JobApplication
-    const { status } = req.query;
-    const query = { job_id: job._id };
-    if (status) query.status = status;
-
-    // Fetch applications
-    let applications = await JobApplication.find(query)
-      .populate({
-        path: "candidate_id",
-        select: "name whatsapp_number gender skills experience", // fetch more details
-      })
-      .populate({
-        path: "job_id",
-        select: "job_title location",
-      })
-      .sort({ skill_match_score: -1, application_date: -1 });
-
-    // Format response with masked WhatsApp and selected details
-    applications = applications.map((app) => {
-      const candidate = app.candidate_id;
-      return {
-        _id: app._id,
-        candidate_name: maskName(candidate?.name) || "",
-        whatsapp_number: maskNumber(candidate?.whatsapp_number),
-        gender: candidate?.gender || "",
-        skills: candidate?.skills || [],
-        experience: candidate?.experience || 0,
-        job_title: app.job_id?.job_title || "",
-        location: app.job_id?.location || "",
-        status: app.status,
-        application_date: app.application_date,
-        skill_match_score: app.skill_match_score,
-      };
-    });
-
-    res.status(200).json({
-      success: true,
-      data: applications,
-      total: applications.length,
-    });
-  } catch (error) {
-    console.error("Error fetching applications:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching applications",
-      error: error.message,
-    });
-  }
 };
 
 
@@ -158,7 +158,7 @@ export const getMyApplications = async (req, res) => {
     try {
         const candidate = await Candidate.findOne({ user_id: req.user._id });
         if (!candidate) {
-            return res.status(404).json({ success:false, message: 'Please complete your profile to continue.' });
+            return res.status(404).json({ success: false, message: 'Please complete your profile to continue.' });
         }
 
         const { status } = req.query;
