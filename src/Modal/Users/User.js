@@ -24,7 +24,7 @@ const UserSchema = new mongoose.Schema({
     }],
     domain_type: {
         type: String,
-        enum: ['salon', 'worker', 'company', 'admin', 'superadmin',],
+        enum: ['salon', 'worker', 'company', 'admin', 'superadmin',"Sale_Lease", "Training", "Franchise"],
         required: true
     },
     whatsapp_number: {
@@ -126,4 +126,3 @@ export default User;
 
 
 
-// "Sale_Lease", "Training", "Franchise"
