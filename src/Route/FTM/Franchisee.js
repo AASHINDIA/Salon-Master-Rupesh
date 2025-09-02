@@ -3,7 +3,7 @@ import express from 'express';
 
 const route = express.Router();
 
-route.post('/create', createFranchisee);
-route.get('/get', getAllFranchisees);
+route.post('/createFranchisee', createFranchisee);
+route.get('/getAllFranchisees', getAllFranchisees);
 
 export default route;
