@@ -8,6 +8,9 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import { generateOTP, setOtpExpiry } from '../../Utils/generateOtp.js';
 import axios from 'axios';
+import Company from '../../Modal/Compony/ComponyModal.js';
+import Salon from '../../Modal/Salon/Salon.js';
+import Candidate from '../../Modal/Candidate/Candidate.js';
 
 import { sendWhatsAppOtp, verifyWhatsAppOtp } from '../../Utils/whatsapp.js';
 const TEMPLATE = process.env.WHATSAPP_TEMPLATE_NAME
@@ -75,7 +78,7 @@ export const register = async (req, res) => {
 
         const user = await newUser.save();
 
-        
+
         // Create User Registration if salon
         if (domain_type === 'company') {
             const newCompany = new Company({
