@@ -12,7 +12,6 @@ const companySchema = new mongoose.Schema({
     },
     company_name: {
         type: String,
-        required: true,
         trim: true
     },
     brand: {
@@ -39,22 +38,21 @@ const companySchema = new mongoose.Schema({
         country: {
             type: String,
             trim: true,
-            required: true
+            
         },
         state: {
             type: String,
             trim: true,
-            required: true
+            
         },
         city: {
             type: String,
             trim: true,
-            required: true
         },
         pincode: {
             type: String,
             trim: true,
-            required: true
+            
         },
         countryIsoCode: {
             type: String,

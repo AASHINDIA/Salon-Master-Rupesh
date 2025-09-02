@@ -6,7 +6,7 @@ import morgan from 'morgan';
 import hpp from 'hpp';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
-import rateLimit from 'express-rate-limit';
+import rateLimit,{ipKeyGenerator } from 'express-rate-limit';
 import { xss } from 'express-xss-sanitizer';
 
 // Main route definitions
@@ -75,23 +75,14 @@ app.use(morgan('dev')); // Logging
 
 
 // Middleware
+// ✅ Use ipKeyGenerator for correct IPv4 + IPv6 handling
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: (req, res) => {
-    // If user is logged in → 2000
-    if (req.user) {
-      return 2000;
-    }
-    // Guest → 1000
-    return 1000;
-  },
-  keyGenerator: (req, res) => {
-    // Prefer unique user ID if logged in
-    return req.user?.id || req.ip;
-  },
-  standardHeaders: true, // Send rate limit info in headers
-  legacyHeaders: false,  // Disable old headers
-  message: "Too many requests, please try again later."
+  max: 1000, // limit each IP to 100 requests per window
+  standardHeaders: true, 
+  legacyHeaders: false,
+  keyGenerator: (req, res) => ipKeyGenerator(req), // 👈 fix for IPv6
+  message: 'Too many requests from this IP, please try again later',
 });
 app.use('/api', limiter);
 

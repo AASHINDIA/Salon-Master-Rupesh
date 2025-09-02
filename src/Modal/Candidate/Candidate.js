@@ -11,7 +11,6 @@ const candidateSchema = new mongoose.Schema({
     },
     uniquename: {
         type: String,
-        required: true
     },
     id_no: {
         type: String,
@@ -89,22 +88,18 @@ const candidateSchema = new mongoose.Schema({
         country: {  
             type: String,
             trim: true,
-            required: true
         },
         state: {
             type: String,
             trim: true,
-            required: true
         },
         city: {
             type: String,
             trim: true,
-            required: true
         },
         pincode: {
             type: String,
             trim: true,
-            required: true
         },
         countryIsoCode: {
             type: String,
