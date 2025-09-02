@@ -4,8 +4,8 @@ import Franchisee from "../../Modal/FTC/Franchisee.js";
 
 export const createFranchisee = async (req, res) => {
     try {
-        const { user_id, image_academy, title, address, social_media_url, website_url } = req.body;
-
+        const { image_academy, title, address, social_media_url, website_url } = req.body;
+        const user_id = req.user.id;
         // Check if the user already has a Franchisee entry
         const existingFranchisee = await Franchisee.findOne({ user_id });
         if (existingFranchisee) {
