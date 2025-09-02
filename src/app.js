@@ -74,12 +74,24 @@ app.use(morgan('dev')); // Logging
 // ---------------------------
 
 
+// Middleware
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: 'Too many requests from this IP, please try again later'
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: (req, res) => {
+    // If user is logged in → 2000
+    if (req.user) {
+      return 2000;
+    }
+    // Guest → 1000
+    return 1000;
+  },
+  keyGenerator: (req, res) => {
+    // Prefer unique user ID if logged in
+    return req.user?.id || req.ip;
+  },
+  standardHeaders: true, // Send rate limit info in headers
+  legacyHeaders: false,  // Disable old headers
+  message: "Too many requests, please try again later."
 });
 app.use('/api', limiter);
 
