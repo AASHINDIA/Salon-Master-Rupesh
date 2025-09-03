@@ -22,7 +22,6 @@ const candidateSchema = new mongoose.Schema({
     },
     name: {
         type: String,
-        required: true,
         trim: true
     },
     date_of_birth: {
@@ -31,7 +30,6 @@ const candidateSchema = new mongoose.Schema({
     gender: {
         type: String,
         enum: ['male', 'female', 'other'],
-        required: true
     },
 
     pan_no: {
