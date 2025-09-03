@@ -61,69 +61,77 @@ const createTrendingVideo = async (req, res) => {
  * @route   GET /api/trending-videos
  * @access  Public
  */
+
 const getMyVideos = async (req, res) => {
-    try {
-        const {
-            page = 1,
-            limit = 10,
-            sort = '-createdAt',
-            search,
-            category,
-            minDuration,
-            maxDuration,
-            active
-        } = req.query;
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      sort = "-createdAt",
+      search,
+      category,
+      minDuration,
+      maxDuration,
+      active,
+    } = req.query;
 
-        let query = {
-            user_id: req.user._id // 👈 mandatory logged-in user
-        };
+    const domain = req.user.domain_type;
 
-        // Search filter
-        if (search) {
-            query.$or = [
-                { title: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } }
-            ];
-        }
-
-        // Category filter
-        if (category) {
-            query.categories = { $in: [category] };
-        }
-
-        // Duration filter
-        if (minDuration || maxDuration) {
-            query.duration = {};
-            if (minDuration) query.duration.$gte = Number(minDuration);
-            if (maxDuration) query.duration.$lte = Number(maxDuration);
-        }
-
-        // Active status filter
-        if (active !== undefined) {
-            query.isActive = active === 'true';
-        }
-
-        const videos = await TrendingVideo.find(query)
-            .sort(sort)
-            .limit(Number(limit))
-            .skip((Number(page) - 1) * Number(limit))
-            .lean();
-
-        const total = await TrendingVideo.countDocuments(query);
-
-        res.json({
-            videos: videos.map(video => ({
-                ...video,
-                formattedDuration: formatDuration(video.duration)
-            })),
-            page: Number(page),
-            totalPages: Math.ceil(total / Number(limit)),
-            total
-        });
-    } catch (error) {
-        res.status(500).json({ message: 'Server Error', error: error.message });
+    // Base query
+    let query = {};
+    if (domain === "company") {
+      query.user_id = req.user._id; // Restrict vendor
     }
+    // superadmin → no user_id filter, so it sees all
+
+    // Search filter
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Category filter
+    if (category) {
+      query.categories = { $in: [category] };
+    }
+
+    // Duration filter
+    if (minDuration || maxDuration) {
+      query.duration = {};
+      if (minDuration) query.duration.$gte = Number(minDuration);
+      if (maxDuration) query.duration.$lte = Number(maxDuration);
+    }
+
+    // Active status filter
+    if (active !== undefined) {
+      query.isActive = active === "true";
+    }
+
+    // Fetch videos
+    const videos = await TrendingVideo.find(query)
+      .sort(sort)
+      .limit(Number(limit))
+      .skip((Number(page) - 1) * Number(limit))
+      .lean();
+
+    const total = await TrendingVideo.countDocuments(query);
+
+    res.json({
+      videos: videos.map((video) => ({
+        ...video,
+        formattedDuration: formatDuration(video.duration),
+      })),
+      page: Number(page),
+      totalPages: Math.ceil(total / Number(limit)),
+      total,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
 };
+
 
 const getTrendingVideos = async (req, res) => {
     try {

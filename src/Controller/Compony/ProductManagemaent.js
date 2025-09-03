@@ -553,33 +553,38 @@ export const updateStatus = async (req, res) => {
  */
 export const getVendorProducts = async (req, res) => {
   try {
-    const vendorId = req.user.id; // Get vendor ID from authenticated user
-      console.log("vendorId",vendorId)
-    // Build filters including the vendor ID
-    const filters = {
-      UserId: vendorId, // Ensure this matches your schema field name
-      ...buildProductFilters(req.query)
-    };
+    const vendorId = req.user.id; // Authenticated user ID
+    const domain = req.user.domain_type;
+
+    // Base filters
+    let filters = {};
+    if (domain === "company") {
+      // Vendor can only see their own products
+      filters.UserId = vendorId;
+    }
+
+    // Merge with query filters
+    filters = { ...filters, ...buildProductFilters(req.query) };
 
     // Sorting
-    const sortBy = req.query.sortBy || '-createdAt';
+    const sortBy = req.query.sortBy || "-createdAt";
     const sortOrder = {};
-    const sortField = sortBy.replace(/^-/, ''); // Remove leading '-' if present
-    sortOrder[sortField] = sortBy.startsWith('-') ? -1 : 1;
+    const sortField = sortBy.replace(/^-/, "");
+    sortOrder[sortField] = sortBy.startsWith("-") ? -1 : 1;
 
     // Pagination
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    // Query products with proper filtering for the vendor
+    // Query products
     const products = await Product.find(filters)
       .sort(sortOrder)
       .skip(skip)
       .limit(limit)
-      .populate('category', 'name slug');
+      .populate("category", "name slug");
 
-    // Count total products for this vendor
+    // Count total
     const total = await Product.countDocuments(filters);
 
     res.json({
@@ -589,13 +594,13 @@ export const getVendorProducts = async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
