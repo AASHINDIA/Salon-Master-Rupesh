@@ -24,7 +24,7 @@ export const register = async (req, res) => {
     try {
         const { name, password, domain_type, whatsapp_number } = req.body;
 
-        console.log("Registration attempt for:", { name, email, whatsapp_number });
+        console.log("Registration attempt for:", { name, whatsapp_number });
 
         // Check if user exists
         const existingUser = await User.findOne(

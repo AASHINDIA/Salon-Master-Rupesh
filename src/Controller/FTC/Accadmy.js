@@ -13,7 +13,7 @@ export const createAcademy = async () => {
             return res.status(400).json({ message: 'Academy entry already exists for this user.' });
         }
 
-        let imageUrls = [];
+        let image_academy = [];
         let leflate_image = [];
 
         if (req.files && req.files.length > 0) {
@@ -24,17 +24,17 @@ export const createAcademy = async () => {
         }
 
         if (req.files && req.files.length > 0) {
-            imageUrls = await Promise.all(
+            image_academy = await Promise.all(
                 req.files.map((file) => uploadToCloudinary(file.buffer, "Academy"))
             );
-            imageUrls = imageUrls.map((img) => img.secure_url); // only store the URL
+            image_academy = image_academy.map((img) => img.secure_url); // only store the URL
         }
 
         const newAcademy = new Academy(
             {
 
                 leflate_image,
-                image_academy: imageUrls,
+                image_academy,
                 user_id,
                 title,
                 address,
@@ -64,7 +64,7 @@ export const createAcademy = async () => {
 }
 
 
-export const getAllAcademy = () => {
+export const getAllAcademy = async () => {
     try {
         const {
             page = 1,
@@ -82,7 +82,22 @@ export const getAllAcademy = () => {
             sort: { [sortBy]: order === 'desc' ? -1 : 1 },
         };
 
-        
+
+        const franchisees = await Academy.find(query)
+
+            .sort(options.sort)
+            .skip((options.page - 1) * options.limit)
+            .limit(options.limit);
+
+
+
+        res.status(200).json({
+            success: true,
+            data: franchisees,
+            message: "Data Fetched Successfully "
+        });
+
+
 
     } catch (error) {
 
