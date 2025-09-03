@@ -345,7 +345,7 @@ export const getAllCandidates = async (req, res) => {
 
         // Fetch candidates
         const candidates = await Candidate.find(query)
-            .select("name  address skills expected_salary") // only required fields
+            .select("name  address skills expected_salary contact_no") // only required fields
             .populate("skills", "name") // populate skills with only name
             .sort(sortOptions)
             .skip((page - 1) * limit)

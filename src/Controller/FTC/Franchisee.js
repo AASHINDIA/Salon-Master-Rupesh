@@ -86,7 +86,7 @@ export const deleteFranchisee = async (req, res) => {
 
 export const getAllFranchisees = async (req, res) => {
     try {
-        const {
+        const {       
             page = 1,
             limit = 10,
             sortBy = 'createdAt',

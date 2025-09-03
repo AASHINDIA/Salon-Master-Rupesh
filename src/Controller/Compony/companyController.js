@@ -57,7 +57,7 @@ export const getAllCompanies = async (req, res) => {
 
         // Fetch data
         const companies = await Company.find(query)
-            .select("company_name brand whatsapp_number address products social_media_links createdAt") // Include required fields
+            .select("company_name brand whatsapp_number address products social_media_links") // Include required fields
             .sort(sortOptions)
             .skip((page - 1) * limit)
             .limit(limit);

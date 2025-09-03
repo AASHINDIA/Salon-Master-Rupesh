@@ -143,8 +143,6 @@ export const getCandidateRequests = async (req, res) => {
     }
 };
 
-
-
 export const getSuggestedCandidates = async (req, res) => {
     try {
         // Find the salon for the logged-in user

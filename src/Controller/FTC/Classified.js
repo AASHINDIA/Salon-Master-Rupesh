@@ -1,5 +1,5 @@
 import Classified from "../../Modal/FTC/Classified.js";
-
+import { uploadToCloudinary } from "../../Utils/imageUpload.js";
 
 export const createFranchisee = async (req, res) => {
     try {
@@ -36,3 +36,20 @@ export const createFranchisee = async (req, res) => {
     }
 };
 
+
+// export const getClassified=async()=>{
+
+//     try {
+//         const {
+//             Pasge=1,
+//             limit=10,
+//             search='',
+//             type=
+//         }= req.query;
+
+
+
+//     } catch (error) {
+        
+//     }
+// }
