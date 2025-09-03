@@ -22,14 +22,14 @@ const TEMPLATE = process.env.WHATSAPP_TEMPLATE_NAME
 // Register User
 export const register = async (req, res) => {
     try {
-        const { name, email, password, domain_type, whatsapp_number } = req.body;
+        const { name, password, domain_type, whatsapp_number } = req.body;
 
         console.log("Registration attempt for:", { name, email, whatsapp_number });
 
         // Check if user exists
-        const existingUser = await User.findOne({
-            $or: [{ email }, { whatsapp_number }]
-        });
+        const existingUser = await User.findOne(
+            { whatsapp_number }
+        );
 
         if (existingUser) {
             return res.status(400).json({
@@ -66,7 +66,7 @@ export const register = async (req, res) => {
         // Create user with WhatsApp UID
         const newUser = new User({
             name,
-            email,
+            
             password,
             domain_type,
             whatsapp_number,
