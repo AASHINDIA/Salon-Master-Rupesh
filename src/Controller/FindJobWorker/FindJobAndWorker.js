@@ -1,8 +1,11 @@
 import JobPosting from "../../Modal/JOB/JobPosting.js";
 import Candidate from "../../Modal/Candidate/Candidate.js";
+
 import Salon from "../../Modal/Salon/Salon.js";
 import JobPostingDummy from "../../Modal/Dummaydata/jobsDummay.js";
 import Emp from '../../Modal/Dummaydata/jobsDummay.js'
+import JobApplication from "../../Modal/JOB/JobApplication.js";
+import SuggestedCandidate from "../../Modal/RequestJobSuggestedCandidate/RequestJobSuggestCandidate.js";
 // Helper function to mask sensitive information
 // const maskData = {
 //     // Mask name: John Doe -> J*** D***
@@ -365,11 +368,6 @@ import Emp from '../../Modal/Dummaydata/jobsDummay.js'
 //         jobSkillIds.includes(skill._id.toString())
 //     );
 // };  
-
-
-
-
-
 
 
 

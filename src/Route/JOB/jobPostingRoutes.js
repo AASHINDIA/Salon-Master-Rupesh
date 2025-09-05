@@ -7,6 +7,9 @@ import {
     getJobPostingById,
     updateJobPosting,
     closeJobPosting,
+    getJobRequestsForCandidate,
+    getRequestedCandidatesForSalon,
+    getRequestedCandidatesForSalon,
     getCandidateRequests,
     getSuggestedCandidates
 } from '../../Controller/JOB/jobPostingController.js';
@@ -16,9 +19,16 @@ const router = express.Router();
 
 // Get all job postings (with pagination, search, and filters)
 router.get('/', getAllJobPostings);
+
+
+
 // Salon-specific routes (require salon authentication)
 router.use(protect);
 // roleCheck('salon')
+
+router.get('/getJobRequestsForCandidate', getJobRequestsForCandidate);
+router.get('/getRequestedCandidatesForSalon', getRequestedCandidatesForSalon);
+
 // Create a new job posting
 router.post('/', createJobPosting);
 router.post('/suggestcandidate', getSuggestedCandidates);

@@ -405,82 +405,82 @@ function calculateMatchScore(candidate, job) {
 // Get all job postings with advanced filtering
 
 export const RequestForJobToSuggestedCandidates = async (req, res) => {
-  try {
-    const { candidateId, jobid } = req.body;
+    try {
+        const { candidateId, jobid } = req.body;
 
-    // Find salon linked with logged-in user
-    const salon = await Salon.findOne({ user_id: req.user._id });
-    if (!salon) {
-      return res.status(404).json({ success: false, message: 'Salon not found' });
+        // Find salon linked with logged-in user
+        const salon = await Salon.findOne({ user_id: req.user._id });
+        if (!salon) {
+            return res.status(404).json({ success: false, message: 'Salon not found' });
+        }
+
+        // Find job and validate ownership
+        const job = await JobPosting.findById(jobid)
+            .populate('salon_id', 'salon_name brand_name image_path location contact_number');
+
+        if (!job || job.salon_id._id.toString() !== salon._id.toString()) {
+            return res.status(404).json({ success: false, message: 'Job not found or not authorized' });
+        }
+
+        // Ensure job is active
+        if (!job.is_active) {
+            return res.status(400).json({ success: false, message: 'Job posting is closed' });
+        }
+
+        // Check candidate in both models (Candidate or Emp as fallback)
+        let candidate = await Candidate.findById(candidateId);
+        let isDummy = false;
+
+        if (!candidate) {
+            candidate = await Emp.findById(candidateId);
+            isDummy = true;
+        }
+
+        if (!candidate) {
+            return res.status(404).json({ success: false, message: 'Candidate not found' });
+        }
+
+        // Prevent duplicate application
+        const existingApplication = await suggestedCandidate.findOne({
+            candidate_id: candidate._id,
+            job_id: job._id
+        });
+
+        if (existingApplication) {
+            return res.status(400).json({ success: false, message: 'Candidate has already applied for this job' });
+        }
+
+        // Create new application
+        const application = new suggestedCandidate({
+            candidate_id: candidate._id,
+            job_id: job._id,
+            candidate_name: candidate.name,
+            status: isDummy ? 'Accepted' : 'Pending'
+        });
+
+        await application.save();
+
+        return res.status(201).json({
+            success: true,
+            message: 'Job application created successfully',
+            data: application
+        });
+
+        // 🔔 Notification (optional)
+        // if (candidate.devicetoken) {
+        //   const title = `${job.salon_id.salon_name} has a new job application request`;
+        //   const message = `You have a new job application request for the position: ${job.job_title}. Please check your dashboard for details.`;
+        //   await sendNotification(candidate._id, job._id, title, message);
+        // }
+
+    } catch (error) {
+        console.error('Error requesting job to candidate:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error requesting job to candidate',
+            error: error.message
+        });
     }
-
-    // Find job and validate ownership
-    const job = await JobPosting.findById(jobid)
-      .populate('salon_id', 'salon_name brand_name image_path location contact_number');
-
-    if (!job || job.salon_id._id.toString() !== salon._id.toString()) {
-      return res.status(404).json({ success: false, message: 'Job not found or not authorized' });
-    }
-
-    // Ensure job is active
-    if (!job.is_active) {
-      return res.status(400).json({ success: false, message: 'Job posting is closed' });
-    }
-
-    // Check candidate in both models (Candidate or Emp as fallback)
-    let candidate = await Candidate.findById(candidateId);
-    let isDummy = false;
-
-    if (!candidate) {
-      candidate = await Emp.findById(candidateId);
-      isDummy = true;
-    }
-
-    if (!candidate) {
-      return res.status(404).json({ success: false, message: 'Candidate not found' });
-    }
-
-    // Prevent duplicate application
-    const existingApplication = await suggestedCandidate.findOne({
-      candidate_id: candidate._id,
-      job_id: job._id
-    });
-
-    if (existingApplication) {
-      return res.status(400).json({ success: false, message: 'Candidate has already applied for this job' });
-    }
-
-    // Create new application
-    const application = new suggestedCandidate({
-      candidate_id: candidate._id,
-      job_id: job._id,
-      candidate_name: candidate.name,
-      status: isDummy ? 'Accepted' : 'Pending'
-    });
-
-    await application.save();
-
-    return res.status(201).json({
-      success: true,
-      message: 'Job application created successfully',
-      data: application
-    });
-
-    // 🔔 Notification (optional)
-    // if (candidate.devicetoken) {
-    //   const title = `${job.salon_id.salon_name} has a new job application request`;
-    //   const message = `You have a new job application request for the position: ${job.job_title}. Please check your dashboard for details.`;
-    //   await sendNotification(candidate._id, job._id, title, message);
-    // }
-
-  } catch (error) {
-    console.error('Error requesting job to candidate:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Error requesting job to candidate',
-      error: error.message
-    });
-  }
 };
 
 export const getAllJobPostings = async (req, res) => {
@@ -856,7 +856,7 @@ export const getJobRequestsForCandidate = async (req, res) => {
     try {
         const candidateId = req.user._id; // Candidate logged in
 
-        const jobRequests = await SuggestedCandidate.find({ candidate_id: candidateId })
+        const jobRequests = await suggestedCandidate.find({ candidate_id: candidateId })
             .populate({
                 path: "job_id",
                 select: "job_title job_type salary_range address is_active createdAt",
@@ -918,9 +918,11 @@ export const getJobRequestsForCandidate = async (req, res) => {
     }
 };
 
+
 // =======================
 // Salon side controller
 // =======================
+
 export const getRequestedCandidatesForSalon = async (req, res) => {
     try {
         const salon = await Salon.findOne({ user_id: req.user._id });
@@ -931,7 +933,7 @@ export const getRequestedCandidatesForSalon = async (req, res) => {
             });
         }
 
-        const requests = await SuggestedCandidate.find()
+        const requests = await suggestedCandidate.find()
             .populate({
                 path: "job_id",
                 match: { salon_id: salon._id },
@@ -939,7 +941,7 @@ export const getRequestedCandidatesForSalon = async (req, res) => {
             })
             .populate({
                 path: "candidate_id",
-                select: "name gender skills experience whatsapp_number address"
+                select: "name gender skills experience contact_no address"
             })
             .sort({ createdAt: -1 });
 
@@ -957,7 +959,7 @@ export const getRequestedCandidatesForSalon = async (req, res) => {
             const candidate = req.candidate_id;
 
             let name = candidate?.name || "";
-            let whatsapp = candidate?.whatsapp_number || "";
+            let whatsapp = candidate?.contact_no || "";
 
             if (req.status !== "Accepted") {
                 name = maskName(name);
