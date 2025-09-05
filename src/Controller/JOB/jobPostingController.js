@@ -441,7 +441,7 @@ export const RequestForJobToSuggestedCandidates = async (req, res) => {
         }
 
         // Prevent duplicate application
-        const existingApplication = await suggestedCandidate.findOne({
+        const existingApplication = await SuggestedCandidate.findOne({
             candidate_id: candidate._id,
             job_id: job._id
         });
@@ -451,7 +451,7 @@ export const RequestForJobToSuggestedCandidates = async (req, res) => {
         }
 
         // Create new application
-        const application = new suggestedCandidate({
+        const application = new SuggestedCandidate({
             candidate_id: candidate._id,
             job_id: job._id,
             candidate_name: candidate.name,
@@ -856,8 +856,13 @@ export const getJobRequestsForCandidate = async (req, res) => {
     try {
         const candidateId = req.user._id; // Candidate logged in
         console.log("candidateId", candidateId);
+        
+        const user = await Candidate.findOne({ user_id: candidateId })
+        
+        const c_id = user._id
 
-        const jobRequests = await SuggestedCandidate.find({ candidate_id: candidateId })
+
+        const jobRequests = await SuggestedCandidate.find({ candidate_id: c_id })
             .populate({
                 path: "job_id",
                 select: "job_title job_type salary_range address is_active createdAt",
@@ -906,7 +911,7 @@ export const getJobRequestsForCandidate = async (req, res) => {
             };
         });
 
-        console.log("processedData",processedData)
+        console.log("processedData", processedData)
         return res.status(200).json({
             success: true,
             message: "Job requests fetched successfully",
