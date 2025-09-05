@@ -174,6 +174,24 @@ export const saveSalonProfile = async (req, res) => {
 
 
 // getAllSalon.js
+// Reuse masking helpers
+const maskNumber = (number) => {
+    if (!number) return "";
+    const str = number.toString();
+    if (str.length <= 4) return "*".repeat(str.length);
+    const last4 = str.slice(-4);
+    return "*".repeat(str.length - 4) + last4;
+};
+
+const maskName = (name) => {
+    if (!name) return "";
+    if (name.length <= 2) return name[0] + "*"; // short names
+    const firstLetter = name[0];
+    const lastLetter = name.length > 2 ? name[name.length - 1] : "";
+    const middleMask = "*".repeat(name.length - 2);
+    return `${firstLetter}${middleMask}${lastLetter}`;
+};
+
 export const getAllSalon = async (req, res) => {
     try {
         let {
@@ -213,11 +231,18 @@ export const getAllSalon = async (req, res) => {
         sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
 
         // Fetch paginated salons
-        const salons = await Salon.find(query)
+        let salons = await Salon.find(query)
             .select("salon_name brand_name year_of_start address whatsapp_number contact_number female_employees_count male_employees_count managers_count instagram_link facebook_link youtube_link createdAt")
             .sort(sortOptions)
             .skip((page - 1) * limit)
             .limit(limit);
+
+        // Apply masking
+        salons = salons.map(salon => ({
+            ...salon._doc,
+            salon_name: maskName(salon.salon_name),
+            whatsapp_number: maskNumber(salon.whatsapp_number)
+        }));
 
         // Total count for pagination
         const totalSalons = await Salon.countDocuments(query);

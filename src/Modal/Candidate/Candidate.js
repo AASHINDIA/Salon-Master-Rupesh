@@ -9,6 +9,10 @@ const candidateSchema = new mongoose.Schema({
     image: {
         type: String,
     },
+    is_Preuime: {
+        type: Boolean,
+        default: true
+    },
     uniquename: {
         type: String,
     },

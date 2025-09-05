@@ -298,8 +298,23 @@ export const saveCandidateProfile = async (req, res) => {
     }
 };
 
+// Reuse your masking helpers
+const maskNumber = (number) => {
+    if (!number) return "";
+    const str = number.toString();
+    if (str.length <= 4) return "*".repeat(str.length);
+    const last4 = str.slice(-4);
+    return "*".repeat(str.length - 4) + last4;
+};
 
-
+const maskName = (name) => {
+    if (!name) return "";
+    if (name.length <= 2) return name[0] + "*"; // short names
+    const firstLetter = name[0];
+    const lastLetter = name.length > 2 ? name[name.length - 1] : "";
+    const middleMask = "*".repeat(name.length - 2);
+    return `${firstLetter}${middleMask}${lastLetter}`;
+};
 
 export const getAllCandidates = async (req, res) => {
     try {
@@ -344,12 +359,19 @@ export const getAllCandidates = async (req, res) => {
         sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
 
         // Fetch candidates
-        const candidates = await Candidate.find(query)
-            .select("name  address skills expected_salary contact_no") // only required fields
-            .populate("skills", "name") // populate skills with only name
+        let candidates = await Candidate.find(query)
+            .select("name address skills expected_salary contact_no") // only required fields
+            .populate("skills", "name")
             .sort(sortOptions)
             .skip((page - 1) * limit)
             .limit(limit);
+
+        // Mask name & contact
+        candidates = candidates.map(c => ({
+            ...c._doc,
+            name: maskName(c.name),
+            contact_no: maskNumber(c.contact_no)
+        }));
 
         // Count total
         const totalCandidates = await Candidate.countDocuments(query);
@@ -370,4 +392,5 @@ export const getAllCandidates = async (req, res) => {
         });
     }
 };
+
 

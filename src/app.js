@@ -40,6 +40,8 @@ import sopproduct from './Route/sopandProduct/sopandProduct.js'
 import jobandworker from './Route/FindJobandWorker/FindJobWorker.js'
 import updateApplicationStatus from './Route/ApplicationStausUpdate/ApplicationStausUpdate.js'
 import Franchisee from './Route/FTM/Franchisee.js'
+import dummaydata from './Route/dummayData/dummaydataRoute.js'
+import UploadFile from './Route/FTM/UploadFile/UploadFile.js'
 const app = express();
 
 // ---------------------------
@@ -139,7 +141,7 @@ app.use('/api/v1/dataget', RouteData)
 // ---------------------------
 // Store Management Routes
 app.use('/api/v1/itemsroute', ItemsRoute)
-
+   
 app.use('/api/v1/show', ShowDataRoute)
 
 app.use('/api/v1/salefigure', salseFigureRoute)
@@ -152,6 +154,9 @@ app.use('/api/v1/sopproduct', sopproduct)
 app.use('/api/v1/jobandworker', jobandworker)
 app.use('/api/v1/update', updateApplicationStatus)
 app.use('/api/v1', Franchisee)
+app.use('/api/v1', UploadFile)
+
+app.use('/api/v1', dummaydata)
 // 🧱 Error Handlers
 // ---------------------------
 app.use(notFound);

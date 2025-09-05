@@ -50,6 +50,10 @@ const jobPostingSchema = new mongoose.Schema({
         enum: ['Full-time', 'Part-time', 'Contract', 'Temporary'],
         default: 'Full-time'
     },
+    is_Preuime: {
+        type: Boolean,
+        default: true
+    },
     work_timings: {
         start: { type: String }, // e.g. "09:00"
         end: { type: String }    // e.g. "18:00"

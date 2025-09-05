@@ -106,7 +106,7 @@ export const getCandidateRequests = async (req, res) => {
         }
 
         // Fetch all requests with job details
-        const requests = await SuggestedCandidate.find({ candidate_id: candidate._id })
+        const requests = await suggestedCandidate.find({ candidate_id: candidate._id })
             .populate({
                 path: "job_id",
                 select: "job_title location salary_range",
@@ -719,6 +719,174 @@ export const getAllJobPost = async () => {
 
     }
 }
+
+
+
+
+
+
+
+// =======================
+// Utility functions
+// =======================
+const maskName = (name) => {
+  if (!name) return "";
+  if (name.length <= 2) return name[0] + "*".repeat(name.length - 1);
+  return name.slice(0, 2) + "*".repeat(name.length - 2);
+};
+
+const maskNumber = (number) => {
+  if (!number) return "";
+  if (number.length < 4) return "*".repeat(number.length);
+  return number.slice(0, 2) + "*".repeat(number.length - 4) + number.slice(-2);
+};
+
+// =======================
+// Candidate side controller
+// =======================
+export const getJobRequestsForCandidate = async (req, res) => {
+  try {
+    const candidateId = req.user._id; // Candidate logged in
+
+    const jobRequests = await SuggestedCandidate.find({ candidate_id: candidateId })
+      .populate({
+        path: "job_id",
+        select: "job_title job_type salary_range address is_active createdAt",
+        populate: {
+          path: "salon_id",
+          select: "salon_name brand_name address contact_number whatsapp_number"
+        }
+      })
+      .sort({ createdAt: -1 });
+
+    if (!jobRequests || jobRequests.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No job requests found"
+      });
+    }
+
+    // Mask salon details unless status = "Accepted"
+    const processedData = jobRequests.map(req => {
+      const salon = req.job_id?.salon_id;
+
+      let salonName = salon?.salon_name || "";
+      let whatsapp = salon?.whatsapp_number || "";
+      let contact = salon?.contact_number || "";
+
+      if (req.status !== "Accepted") {
+        salonName = maskName(salonName);
+        whatsapp = maskNumber(whatsapp);
+        contact = maskNumber(contact);
+      }
+
+      return {
+        ...req._doc,
+        job_id: {
+          ...req.job_id._doc,
+          salon_id: {
+            ...salon._doc,
+            salon_name: salonName,
+            whatsapp_number: whatsapp,
+            contact_number: contact
+          }
+        }
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Job requests fetched successfully",
+      total: processedData.length,
+      data: processedData
+    });
+  } catch (error) {
+    console.error("Error fetching job requests for candidate:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching job requests",
+      error: error.message
+    });
+  }
+};
+
+// =======================
+// Salon side controller
+// =======================
+export const getRequestedCandidatesForSalon = async (req, res) => {
+  try {
+    const salon = await Salon.findOne({ user_id: req.user._id });
+    if (!salon) {
+      return res.status(404).json({
+        success: false,
+        message: "Salon not found"
+      });
+    }
+
+    const requests = await SuggestedCandidate.find()
+      .populate({
+        path: "job_id",
+        match: { salon_id: salon._id },
+        select: "job_title job_type salary_range address createdAt"
+      })
+      .populate({
+        path: "candidate_id",
+        select: "name gender skills experience whatsapp_number address"
+      })
+      .sort({ createdAt: -1 });
+
+    const filteredRequests = requests.filter(req => req.job_id);
+
+    if (filteredRequests.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No candidates requested yet"
+      });
+    }
+
+    // Mask candidate details unless status = "Accepted"
+    const processedData = filteredRequests.map(req => {
+      const candidate = req.candidate_id;
+
+      let name = candidate?.name || "";
+      let whatsapp = candidate?.whatsapp_number || "";
+
+      if (req.status !== "Accepted") {
+        name = maskName(name);
+        whatsapp = maskNumber(whatsapp);
+      }
+
+      return {
+        ...req._doc,
+        candidate_id: {
+          ...candidate._doc,
+          name,
+          whatsapp_number: whatsapp
+        }
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Requested candidates fetched successfully",
+      total: processedData.length,
+      data: processedData
+    });
+  } catch (error) {
+    console.error("Error fetching requested candidates for salon:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching requested candidates",
+      error: error.message
+    });
+  }
+};
+
+
+
+
+
+
 
 
 const sendNOtification = async (candidateId, jobId, title, message) => {
