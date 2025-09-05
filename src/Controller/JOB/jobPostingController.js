@@ -867,7 +867,7 @@ export const getJobRequestsForCandidate = async (req, res) => {
             })
             .sort({ createdAt: -1 });
 
-        if (!jobRequests || jobRequests.length === 0) {
+        if (!jobRequests) {
             return res.status(404).json({
                 success: false,
                 message: "No job requests found"
