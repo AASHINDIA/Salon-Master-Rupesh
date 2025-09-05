@@ -4,7 +4,7 @@ import Salon from '../../Modal/Salon/Salon.js';
 import Candidate from '../../Modal/Candidate/Candidate.js';
 import mongoose from 'mongoose';
 import Skill from '../../Modal/skill/skill.js';
-import suggestedCandidate from '../../Modal/RequestJobSuggestedCandidate/RequestJobSuggestCandidate.js';
+import SuggestedCandidate from '../../Modal/RequestJobSuggestedCandidate/RequestJobSuggestCandidate.js';
 import admin from '../../Utils/firebaseAdmin.js';
 import User from '../../Modal/Users/User.js'
 import Emp from '../../Modal/Dummaydata/Emp.js';
@@ -856,7 +856,7 @@ export const getJobRequestsForCandidate = async (req, res) => {
     try {
         const candidateId = req.user._id; // Candidate logged in
 
-        const jobRequests = await suggestedCandidate.find({ candidate_id: candidateId })
+        const jobRequests = await SuggestedCandidate.find({ candidate_id: candidateId })
             .populate({
                 path: "job_id",
                 select: "job_title job_type salary_range address is_active createdAt",
@@ -933,7 +933,7 @@ export const getRequestedCandidatesForSalon = async (req, res) => {
             });
         }
 
-        const requests = await suggestedCandidate.find()
+        const requests = await SuggestedCandidate.find()
             .populate({
                 path: "job_id",
                 match: { salon_id: salon._id },
