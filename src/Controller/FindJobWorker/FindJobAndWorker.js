@@ -166,205 +166,205 @@ import Emp from '../../Modal/Dummaydata/jobsDummay.js'
 //     }
 // };
 
-// Find jobs matching a candidate profile
-export const findJobsForWorker = async (req, res) => {
-    try {
-        const { candidateId } = req.params;
+// // Find jobs matching a candidate profile
+// export const findJobsForWorker = async (req, res) => {
+//     try {
+//         const { candidateId } = req.params;
 
-        // Find the candidate
-        const candidate = await Candidate.findOne({ user_id: candidateId })
-            .populate('skills')
-            .exec();
+//         // Find the candidate
+//         const candidate = await Candidate.findOne({ user_id: candidateId })
+//             .populate('skills')
+//             .exec();
 
 
-        if (!candidate) {
-            return res.status(404).json({
-                success: false,
-                message: 'Candidate not found'
-            });
-        }
+//         if (!candidate) {
+//             return res.status(404).json({
+//                 success: false,
+//                 message: 'Candidate not found'
+//             });
+//         }
 
-        if (!candidate.available_for_join) {
-            return res.status(400).json({
-                success: false,
-                message: 'Candidate is not available for joining'
-            });
-        }
+//         if (!candidate.available_for_join) {
+//             return res.status(400).json({
+//                 success: false,
+//                 message: 'Candidate is not available for joining'
+//             });
+//         }
 
-        // Build match criteria
-        const matchCriteria = {
-            is_active: true,
-            $or: [
-                { 'address.state': { $in: candidate.preferred_locations } },
-                { 'address.state': candidate.address.state } // Include jobs in candidate's current state
-            ]
-        };
+//         // Build match criteria
+//         const matchCriteria = {
+//             is_active: true,
+//             $or: [
+//                 { 'address.state': { $in: candidate.preferred_locations } },
+//                 { 'address.state': candidate.address.state } // Include jobs in candidate's current state
+//             ]
+//         };
 
-        // Add gender filter if candidate has specific gender
-        if (candidate.gender !== 'other') {
-            const capitalizedGender = candidate.gender.charAt(0).toUpperCase() + candidate.gender.slice(1);
-            matchCriteria.$or.push({
-                gender_preference: { $in: [capitalizedGender, 'Any'] }
-            });
-        } else {
-            matchCriteria.gender_preference = 'Any';
-        }
+//         // Add gender filter if candidate has specific gender
+//         if (candidate.gender !== 'other') {
+//             const capitalizedGender = candidate.gender.charAt(0).toUpperCase() + candidate.gender.slice(1);
+//             matchCriteria.$or.push({
+//                 gender_preference: { $in: [capitalizedGender, 'Any'] }
+//             });
+//         } else {
+//             matchCriteria.gender_preference = 'Any';
+//         }
 
-        // Add salary range filter
-        if (candidate.expected_salary.min > 0 || candidate.expected_salary.max > 0) {
-            matchCriteria.$and = [
-                { 'salary_range.min': { $lte: candidate.expected_salary.max || Number.MAX_SAFE_INTEGER } },
-                { 'salary_range.max': { $gte: candidate.expected_salary.min } }
-            ];
-        }
+//         // Add salary range filter
+//         if (candidate.expected_salary.min > 0 || candidate.expected_salary.max > 0) {
+//             matchCriteria.$and = [
+//                 { 'salary_range.min': { $lte: candidate.expected_salary.max || Number.MAX_SAFE_INTEGER } },
+//                 { 'salary_range.max': { $gte: candidate.expected_salary.min } }
+//             ];
+//         }
 
-        // Find matching job posts
-        const matchingJobs = await JobPosting.find(matchCriteria)
-            .populate('required_skills')
-            .populate('salon_id')
-            .exec();
+//         // Find matching job posts
+//         const matchingJobs = await JobPosting.find(matchCriteria)
+//             .populate('required_skills')
+//             .populate('salon_id')
+//             .exec();
 
-        // Calculate match score for each job
-        const jobsWithScores = matchingJobs.map(jobPost => {
-            const score = calculateJobMatchScore(candidate, jobPost);
-            return {
-                jobPost: {
-                    _id: jobPost._id,
-                    job_title: jobPost.job_title,
-                    custom_job_title: jobPost.custom_job_title,
-                    salon_id: jobPost.salon_id ? {
-                        _id: jobPost.salon_id._id,
-                        salon_name: maskData.maskName(jobPost.salon_id.salon_name), // Masked salon name
-                        brand_name: maskData.maskName(jobPost.salon_id.brand_name), // Masked brand name
-                        contact_number: maskData.maskPhone(jobPost.salon_id.contact_number), // Masked contact
-                        whatsapp_number: maskData.maskWhatsApp(jobPost.salon_id.whatsapp_number), // Masked WhatsApp
-                        address: maskData.partialAddress(jobPost.salon_id.address) // Partial address
-                    } : null,
-                    required_skills: jobPost.required_skills,
-                    gender_preference: jobPost.gender_preference,
-                    salary_range: jobPost.salary_range,
-                    job_type: jobPost.job_type,
-                    work_timings: jobPost.work_timings,
-                    working_days: jobPost.working_days,
-                    address: maskData.partialAddress(jobPost.address), // Partial address
-                    location: jobPost.location,
-                    contact_person: jobPost.contact_person ? {
-                        name: maskData.maskName(jobPost.contact_person.name), // Masked name
-                        phone: maskData.maskPhone(jobPost.contact_person.phone), // Masked phone
-                        email: jobPost.contact_person.email // Email can be shown partially
-                    } : null
-                },
-                matchScore: score,
-                matchingSkills: getMatchingSkills(candidate.skills, jobPost.required_skills)
-            };
-        });
+//         // Calculate match score for each job
+//         const jobsWithScores = matchingJobs.map(jobPost => {
+//             const score = calculateJobMatchScore(candidate, jobPost);
+//             return {
+//                 jobPost: {
+//                     _id: jobPost._id,
+//                     job_title: jobPost.job_title,
+//                     custom_job_title: jobPost.custom_job_title,
+//                     salon_id: jobPost.salon_id ? {
+//                         _id: jobPost.salon_id._id,
+//                         salon_name: maskData.maskName(jobPost.salon_id.salon_name), // Masked salon name
+//                         brand_name: maskData.maskName(jobPost.salon_id.brand_name), // Masked brand name
+//                         contact_number: maskData.maskPhone(jobPost.salon_id.contact_number), // Masked contact
+//                         whatsapp_number: maskData.maskWhatsApp(jobPost.salon_id.whatsapp_number), // Masked WhatsApp
+//                         address: maskData.partialAddress(jobPost.salon_id.address) // Partial address
+//                     } : null,
+//                     required_skills: jobPost.required_skills,
+//                     gender_preference: jobPost.gender_preference,
+//                     salary_range: jobPost.salary_range,
+//                     job_type: jobPost.job_type,
+//                     work_timings: jobPost.work_timings,
+//                     working_days: jobPost.working_days,
+//                     address: maskData.partialAddress(jobPost.address), // Partial address
+//                     location: jobPost.location,
+//                     contact_person: jobPost.contact_person ? {
+//                         name: maskData.maskName(jobPost.contact_person.name), // Masked name
+//                         phone: maskData.maskPhone(jobPost.contact_person.phone), // Masked phone
+//                         email: jobPost.contact_person.email // Email can be shown partially
+//                     } : null
+//                 },
+//                 matchScore: score,
+//                 matchingSkills: getMatchingSkills(candidate.skills, jobPost.required_skills)
+//             };
+//         });
 
-        // Sort by match score (descending)
-        jobsWithScores.sort((a, b) => b.matchScore - a.matchScore);
+//         // Sort by match score (descending)
+//         jobsWithScores.sort((a, b) => b.matchScore - a.matchScore);
 
-        res.status(200).json({
-            success: true,
-            data: {
-                candidate: {
-                    _id: candidate._id,
-                    name: maskData.maskName(candidate.name), // Masked name
-                    image: candidate.image,
-                    gender: candidate.gender,
-                    skills: candidate.skills,
-                    expected_salary: candidate.expected_salary,
-                    preferred_locations: candidate.preferred_locations,
-                    contact_no: maskData.maskPhone(candidate.contact_no), // Masked phone
-                    whatsapp_number: maskData.maskWhatsApp(candidate.whatsapp_number), // Masked WhatsApp
-                    address: maskData.partialAddress(candidate.address) // Partial address
-                },
-                totalMatches: jobsWithScores.length,
-                jobs: jobsWithScores
-            }
-        });
+//         res.status(200).json({
+//             success: true,
+//             data: {
+//                 candidate: {
+//                     _id: candidate._id,
+//                     name: maskData.maskName(candidate.name), // Masked name
+//                     image: candidate.image,
+//                     gender: candidate.gender,
+//                     skills: candidate.skills,
+//                     expected_salary: candidate.expected_salary,
+//                     preferred_locations: candidate.preferred_locations,
+//                     contact_no: maskData.maskPhone(candidate.contact_no), // Masked phone
+//                     whatsapp_number: maskData.maskWhatsApp(candidate.whatsapp_number), // Masked WhatsApp
+//                     address: maskData.partialAddress(candidate.address) // Partial address
+//                 },
+//                 totalMatches: jobsWithScores.length,
+//                 jobs: jobsWithScores
+//             }
+//         });
 
-    } catch (error) {
-        console.error('Error finding jobs for worker:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error',
-            error: error.message
-        });
-    }
-};
+//     } catch (error) {
+//         console.error('Error finding jobs for worker:', error);
+//         res.status(500).json({
+//             success: false,
+//             message: 'Server error',
+//             error: error.message
+//         });
+//     }
+// };
 
-// Helper functions (calculateMatchScore, calculateJobMatchScore, getMatchingSkills) remain the same
-// Helper function to calculate match score
-const calculateMatchScore = (candidate, jobPost) => {
-    let score = 0;
+// // Helper functions (calculateMatchScore, calculateJobMatchScore, getMatchingSkills) remain the same
+// // Helper function to calculate match score
+// const calculateMatchScore = (candidate, jobPost) => {
+//     let score = 0;
 
-    // Skills match (40% weight)
-    const skillMatches = getMatchingSkills(candidate.skills, jobPost.required_skills);
-    const skillMatchPercentage = jobPost.required_skills.length > 0
-        ? (skillMatches.length / jobPost.required_skills.length) * 40
-        : 0;
-    score += skillMatchPercentage;
+//     // Skills match (40% weight)
+//     const skillMatches = getMatchingSkills(candidate.skills, jobPost.required_skills);
+//     const skillMatchPercentage = jobPost.required_skills.length > 0
+//         ? (skillMatches.length / jobPost.required_skills.length) * 40
+//         : 0;
+//     score += skillMatchPercentage;
 
-    // Location match (30% weight)
-    if (candidate.preferred_locations.includes(jobPost.address.state)) {
-        score += 30;
-    } else if (candidate.preferred_locations.length === 0) {
-        score += 15; // Partial score for no preference
-    }
+//     // Location match (30% weight)
+//     if (candidate.preferred_locations.includes(jobPost.address.state)) {
+//         score += 30;
+//     } else if (candidate.preferred_locations.length === 0) {
+//         score += 15; // Partial score for no preference
+//     }
 
-    // Salary match (30% weight)
-    if (jobPost.salary_range.min > 0 || jobPost.salary_range.max > 0) {
-        if (candidate.expected_salary.min <= (jobPost.salary_range.max || Number.MAX_SAFE_INTEGER) &&
-            candidate.expected_salary.max >= jobPost.salary_range.min) {
-            score += 30;
-        } else if (candidate.expected_salary.min === 0 && candidate.expected_salary.max === 0) {
-            score += 15; // Partial score for no salary expectation
-        }
-    }
+//     // Salary match (30% weight)
+//     if (jobPost.salary_range.min > 0 || jobPost.salary_range.max > 0) {
+//         if (candidate.expected_salary.min <= (jobPost.salary_range.max || Number.MAX_SAFE_INTEGER) &&
+//             candidate.expected_salary.max >= jobPost.salary_range.min) {
+//             score += 30;
+//         } else if (candidate.expected_salary.min === 0 && candidate.expected_salary.max === 0) {
+//             score += 15; // Partial score for no salary expectation
+//         }
+//     }
 
-    return Math.min(100, Math.round(score));
-};
+//     return Math.min(100, Math.round(score));
+// };
 
-// Helper function to calculate job match score
-const calculateJobMatchScore = (candidate, jobPost) => {
-    let score = 0;
+// // Helper function to calculate job match score
+// const calculateJobMatchScore = (candidate, jobPost) => {
+//     let score = 0;
 
-    // Skills match (40% weight)
-    const skillMatches = getMatchingSkills(candidate.skills, jobPost.required_skills);
-    const skillMatchPercentage = jobPost.required_skills.length > 0
-        ? (skillMatches.length / jobPost.required_skills.length) * 40
-        : 0;
-    score += skillMatchPercentage;
+//     // Skills match (40% weight)
+//     const skillMatches = getMatchingSkills(candidate.skills, jobPost.required_skills);
+//     const skillMatchPercentage = jobPost.required_skills.length > 0
+//         ? (skillMatches.length / jobPost.required_skills.length) * 40
+//         : 0;
+//     score += skillMatchPercentage;
 
-    // Location match (30% weight)
-    if (candidate.preferred_locations.includes(jobPost.address.state)) {
-        score += 30;
-    } else if (jobPost.address.state === candidate.address.state) {
-        score += 20; // Partial score for current state
-    }
+//     // Location match (30% weight)
+//     if (candidate.preferred_locations.includes(jobPost.address.state)) {
+//         score += 30;
+//     } else if (jobPost.address.state === candidate.address.state) {
+//         score += 20; // Partial score for current state
+//     }
 
-    // Salary match (30% weight)
-    if (candidate.expected_salary.min > 0 || candidate.expected_salary.max > 0) {
-        if (jobPost.salary_range.min <= candidate.expected_salary.max &&
-            jobPost.salary_range.max >= candidate.expected_salary.min) {
-            score += 30;
-        }
-    } else {
-        // Candidate has no salary expectation, give partial score
-        score += 15;
-    }
+//     // Salary match (30% weight)
+//     if (candidate.expected_salary.min > 0 || candidate.expected_salary.max > 0) {
+//         if (jobPost.salary_range.min <= candidate.expected_salary.max &&
+//             jobPost.salary_range.max >= candidate.expected_salary.min) {
+//             score += 30;
+//         }
+//     } else {
+//         // Candidate has no salary expectation, give partial score
+//         score += 15;
+//     }
 
-    return Math.min(100, Math.round(score));
-};
+//     return Math.min(100, Math.round(score));
+// };
 
-// Helper function to get matching skills
-const getMatchingSkills = (candidateSkills, jobSkills) => {
-    const candidateSkillIds = candidateSkills.map(skill => skill._id.toString());
-    const jobSkillIds = jobSkills.map(skill => skill._id.toString());
+// // Helper function to get matching skills
+// const getMatchingSkills = (candidateSkills, jobSkills) => {
+//     const candidateSkillIds = candidateSkills.map(skill => skill._id.toString());
+//     const jobSkillIds = jobSkills.map(skill => skill._id.toString());
 
-    return candidateSkills.filter(skill =>
-        jobSkillIds.includes(skill._id.toString())
-    );
-};  
+//     return candidateSkills.filter(skill =>
+//         jobSkillIds.includes(skill._id.toString())
+//     );
+// };  
 
 
 
@@ -585,342 +585,342 @@ export const findWorkersForJob = async (req, res) => {
 
 
 // Find jobs matching a candidate profile
-// export const findJobsForWorker = async (req, res) => {
-//     try {
-//         const { candidateId } = req.params;
+export const findJobsForWorker = async (req, res) => {
+    try {
+        const { candidateId } = req.params;
 
-//         // First try to find in premium candidates
-//         let candidate = await Candidate.findOne({ user_id: candidateId })
-//             .populate('skills')
-//             .exec();
+        // First try to find in premium candidates
+        let candidate = await Candidate.findOne({ user_id: candidateId })
+            .populate('skills')
+            .exec();
 
-//         let isPremium = true;
+        let isPremium = true;
 
-//         // If not found in premium, try in dummy data
-//         if (!candidate) {
-//             candidate = await Emp.findOne({ user_id: candidateId }).exec();
-//             isPremium = false;
+        // If not found in premium, try in dummy data
+        if (!candidate) {
+            candidate = await Emp.findOne({ user_id: candidateId }).exec();
+            isPremium = false;
 
-//             if (!candidate) {
-//                 return res.status(404).json({
-//                     success: false,
-//                     message: 'Candidate not found'
-//                 });
-//             }
-//         }
+            if (!candidate) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Candidate not found'
+                });
+            }
+        }
 
-//         if (!candidate.available_for_join) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: 'Candidate is not available for joining'
-//             });
-//         }
+        if (!candidate.available_for_join) {
+            return res.status(400).json({
+                success: false,
+                message: 'Candidate is not available for joining'
+            });
+        }
 
-//         // Build match criteria for both premium and dummy jobs
-//         const matchCriteria = {
-//             is_active: true,
-//             $or: [
-//                 { 'address.state': { $in: candidate.preferred_locations || [] } },
-//                 { 'address.state': candidate.address?.state || candidate.looking_job_location || '' }
-//             ]
-//         };
+        // Build match criteria for both premium and dummy jobs
+        const matchCriteria = {
+            is_active: true,
+            $or: [
+                { 'address.state': { $in: candidate.preferred_locations || [] } },
+                { 'address.state': candidate.address?.state || candidate.looking_job_location || '' }
+            ]
+        };
 
-//         // Add gender filter if candidate has specific gender
-//         if (candidate.gender !== 'other') {
-//             const capitalizedGender = candidate.gender.charAt(0).toUpperCase() + candidate.gender.slice(1);
-//             matchCriteria.$or.push({
-//                 gender_preference: { $in: [capitalizedGender, 'Any'] }
-//             });
-//         } else {
-//             matchCriteria.gender_preference = 'Any';
-//         }
+        // Add gender filter if candidate has specific gender
+        if (candidate.gender !== 'other') {
+            const capitalizedGender = candidate.gender.charAt(0).toUpperCase() + candidate.gender.slice(1);
+            matchCriteria.$or.push({
+                gender_preference: { $in: [capitalizedGender, 'Any'] }
+            });
+        } else {
+            matchCriteria.gender_preference = 'Any';
+        }
 
-//         // Add salary range filter
-//         if (candidate.expected_salary?.min > 0 || candidate.expected_salary?.max > 0) {
-//             matchCriteria.$and = [
-//                 { 'salary_range.min': { $lte: candidate.expected_salary.max || Number.MAX_SAFE_INTEGER } },
-//                 { 'salary_range.max': { $gte: candidate.expected_salary.min || 0 } }
-//             ];
-//         }
+        // Add salary range filter
+        if (candidate.expected_salary?.min > 0 || candidate.expected_salary?.max > 0) {
+            matchCriteria.$and = [
+                { 'salary_range.min': { $lte: candidate.expected_salary.max || Number.MAX_SAFE_INTEGER } },
+                { 'salary_range.max': { $gte: candidate.expected_salary.min || 0 } }
+            ];
+        }
 
-//         // Find matching job posts - search in both premium and dummy collections
-//         const premiumJobs = await JobPosting.find(matchCriteria)
-//             .populate('required_skills')
-//             .populate('salon_id')
-//             .exec();
+        // Find matching job posts - search in both premium and dummy collections
+        const premiumJobs = await JobPosting.find(matchCriteria)
+            .populate('required_skills')
+            .populate('salon_id')
+            .exec();
 
-//         const dummyJobs = await JobPostingDummy.find(matchCriteria).exec();
+        const dummyJobs = await JobPostingDummy.find(matchCriteria).exec();
 
-//         // Combine results
-//         const matchingJobs = [...premiumJobs, ...dummyJobs];
+        // Combine results
+        const matchingJobs = [...premiumJobs, ...dummyJobs];
 
-//         // Calculate match score for each job
-//         const jobsWithScores = matchingJobs.map(jobPost => {
-//             const isJobPremium = jobPost instanceof JobPosting;
-//             const score = isPremium ?
-//                 calculateJobMatchScore(candidate, jobPost) :
-//                 calculateDummyJobMatchScore(candidate, jobPost);
+        // Calculate match score for each job
+        const jobsWithScores = matchingJobs.map(jobPost => {
+            const isJobPremium = jobPost instanceof JobPosting;
+            const score = isPremium ?
+                calculateJobMatchScore(candidate, jobPost) :
+                calculateDummyJobMatchScore(candidate, jobPost);
 
-//             let jobResponse;
+            let jobResponse;
 
-//             if (isJobPremium) {
-//                 jobResponse = {
-//                     _id: jobPost._id,
-//                     job_title: jobPost.job_title,
-//                     custom_job_title: jobPost.custom_job_title,
-//                     salon_id: jobPost.salon_id ? {
-//                         _id: jobPost.salon_id._id,
-//                         salon_name: maskData.maskName(jobPost.salon_id.salon_name || ''), // Masked salon name
-//                         brand_name: maskData.maskName(jobPost.salon_id.brand_name || ''), // Masked brand name
-//                         contact_number: maskData.maskPhone(jobPost.salon_id.contact_number || ''), // Masked contact
-//                         whatsapp_number: maskData.maskWhatsApp(jobPost.salon_id.whatsapp_number || ''), // Masked WhatsApp
-//                         address: maskData.partialAddress(jobPost.salon_id.address || {}) // Partial address
-//                     } : null,
-//                     required_skills: jobPost.required_skills || [],
-//                     gender_preference: jobPost.gender_preference,
-//                     salary_range: jobPost.salary_range,
-//                     job_type: jobPost.job_type,
-//                     work_timings: jobPost.work_timings,
-//                     working_days: jobPost.working_days,
-//                     address: maskData.partialAddress(jobPost.address || {}), // Partial address
-//                     location: jobPost.location,
-//                     contact_person: jobPost.contact_person ? {
-//                         name: maskData.maskName(jobPost.contact_person.name || ''), // Masked name
-//                         phone: maskData.maskPhone(jobPost.contact_person.phone || ''), // Masked phone
-//                         email: jobPost.contact_person.email || '' // Email can be shown partially
-//                     } : null,
-//                     is_premium: true
-//                 };
-//             } else {
-//                 jobResponse = {
-//                     _id: jobPost._id,
-//                     job_title: jobPost.job_title,
-//                     custom_job_title: jobPost.custom_job_title,
-//                     salon_id: {
-//                         _id: jobPost.salon_id?._id || jobPost._id,
-//                         salon_name: maskData.maskName(jobPost.salon_id?.name || ''), // Masked salon name
-//                         brand_name: maskData.maskName(jobPost.salon_id?.brand_name || ''), // Masked brand name
-//                         contact_number: maskData.maskPhone(jobPost.salon_id?.contact_no || ''), // Masked contact
-//                         address: maskData.partialAddress(jobPost.address || {}) // Partial address
-//                     },
-//                     required_skills: jobPost.required_skills || [],
-//                     gender_preference: jobPost.gender_preference,
-//                     salary_range: jobPost.salary_range,
-//                     job_type: jobPost.job_type,
-//                     work_timings: jobPost.work_timings,
-//                     working_days: jobPost.working_days,
-//                     address: maskData.partialAddress(jobPost.address || {}), // Partial address
-//                     location: jobPost.location,
-//                     is_premium: false
-//                 };
-//             }
+            if (isJobPremium) {
+                jobResponse = {
+                    _id: jobPost._id,
+                    job_title: jobPost.job_title,
+                    custom_job_title: jobPost.custom_job_title,
+                    salon_id: jobPost.salon_id ? {
+                        _id: jobPost.salon_id._id,
+                        salon_name: maskData.maskName(jobPost.salon_id.salon_name || ''), // Masked salon name
+                        brand_name: maskData.maskName(jobPost.salon_id.brand_name || ''), // Masked brand name
+                        contact_number: maskData.maskPhone(jobPost.salon_id.contact_number || ''), // Masked contact
+                        whatsapp_number: maskData.maskWhatsApp(jobPost.salon_id.whatsapp_number || ''), // Masked WhatsApp
+                        address: maskData.partialAddress(jobPost.salon_id.address || {}) // Partial address
+                    } : null,
+                    required_skills: jobPost.required_skills || [],
+                    gender_preference: jobPost.gender_preference,
+                    salary_range: jobPost.salary_range,
+                    job_type: jobPost.job_type,
+                    work_timings: jobPost.work_timings,
+                    working_days: jobPost.working_days,
+                    address: maskData.partialAddress(jobPost.address || {}), // Partial address
+                    location: jobPost.location,
+                    contact_person: jobPost.contact_person ? {
+                        name: maskData.maskName(jobPost.contact_person.name || ''), // Masked name
+                        phone: maskData.maskPhone(jobPost.contact_person.phone || ''), // Masked phone
+                        email: jobPost.contact_person.email || '' // Email can be shown partially
+                    } : null,
+                    is_premium: true
+                };
+            } else {
+                jobResponse = {
+                    _id: jobPost._id,
+                    job_title: jobPost.job_title,
+                    custom_job_title: jobPost.custom_job_title,
+                    salon_id: {
+                        _id: jobPost.salon_id?._id || jobPost._id,
+                        salon_name: maskData.maskName(jobPost.salon_id?.name || ''), // Masked salon name
+                        brand_name: maskData.maskName(jobPost.salon_id?.brand_name || ''), // Masked brand name
+                        contact_number: maskData.maskPhone(jobPost.salon_id?.contact_no || ''), // Masked contact
+                        address: maskData.partialAddress(jobPost.address || {}) // Partial address
+                    },
+                    required_skills: jobPost.required_skills || [],
+                    gender_preference: jobPost.gender_preference,
+                    salary_range: jobPost.salary_range,
+                    job_type: jobPost.job_type,
+                    work_timings: jobPost.work_timings,
+                    working_days: jobPost.working_days,
+                    address: maskData.partialAddress(jobPost.address || {}), // Partial address
+                    location: jobPost.location,
+                    is_premium: false
+                };
+            }
 
-//             return {
-//                 jobPost: jobResponse,
-//                 matchScore: score,
-//                 matchingSkills: isPremium ?
-//                     getMatchingSkills(candidate.skills || [], jobPost.required_skills || []) :
-//                     getDummyMatchingSkills(candidate.skills || [], jobPost.required_skills || [])
-//             };
-//         });
+            return {
+                jobPost: jobResponse,
+                matchScore: score,
+                matchingSkills: isPremium ?
+                    getMatchingSkills(candidate.skills || [], jobPost.required_skills || []) :
+                    getDummyMatchingSkills(candidate.skills || [], jobPost.required_skills || [])
+            };
+        });
 
-//         // Sort by match score (descending)
-//         jobsWithScores.sort((a, b) => b.matchScore - a.matchScore);
+        // Sort by match score (descending)
+        jobsWithScores.sort((a, b) => b.matchScore - a.matchScore);
 
-//         // Prepare candidate response
-//         const candidateResponse = {
-//             _id: candidate._id,
-//             name: maskData.maskName(candidate.name || candidate.user_id?.name || ''), // Masked name
-//             image: candidate.image,
-//             gender: candidate.gender,
-//             skills: candidate.skills || [],
-//             expected_salary: candidate.expected_salary || { min: 0, max: 0 },
-//             preferred_locations: candidate.preferred_locations || [],
-//             contact_no: maskData.maskPhone(candidate.contact_no || candidate.user_id?.contact_no || ''), // Masked phone
-//             whatsapp_number: maskData.maskWhatsApp(candidate.whatsapp_number || ''), // Masked WhatsApp
-//             address: maskData.partialAddress(candidate.address || {}), // Partial address
-//             is_premium: isPremium
-//         };
+        // Prepare candidate response
+        const candidateResponse = {
+            _id: candidate._id,
+            name: maskData.maskName(candidate.name || candidate.user_id?.name || ''), // Masked name
+            image: candidate.image,
+            gender: candidate.gender,
+            skills: candidate.skills || [],
+            expected_salary: candidate.expected_salary || { min: 0, max: 0 },
+            preferred_locations: candidate.preferred_locations || [],
+            contact_no: maskData.maskPhone(candidate.contact_no || candidate.user_id?.contact_no || ''), // Masked phone
+            whatsapp_number: maskData.maskWhatsApp(candidate.whatsapp_number || ''), // Masked WhatsApp
+            address: maskData.partialAddress(candidate.address || {}), // Partial address
+            is_premium: isPremium
+        };
 
-//         res.status(200).json({
-//             success: true,
-//             data: {
-//                 candidate: candidateResponse,
-//                 totalMatches: jobsWithScores.length,
-//                 jobs: jobsWithScores
-//             }
-//         });
+        res.status(200).json({
+            success: true,
+            data: {
+                candidate: candidateResponse,
+                totalMatches: jobsWithScores.length,
+                jobs: jobsWithScores
+            }
+        });
 
-//     } catch (error) {
-//         console.error('Error finding jobs for worker:', error);
-//         res.status(500).json({
-//             success: false,
-//             message: 'Server error',
-//             error: error.message
-//         });
-//     }
-// };
+    } catch (error) {
+        console.error('Error finding jobs for worker:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
 
-// // Helper function to calculate match score for premium data
-// const calculateMatchScore = (candidate, jobPost) => {
-//     let score = 0;
+// Helper function to calculate match score for premium data
+const calculateMatchScore = (candidate, jobPost) => {
+    let score = 0;
 
-//     // Skills match (40% weight)
-//     const skillMatches = getMatchingSkills(candidate.skills || [], jobPost.required_skills || []);
-//     const skillMatchPercentage = jobPost.required_skills?.length > 0
-//         ? (skillMatches.length / jobPost.required_skills.length) * 40
-//         : 0;
-//     score += skillMatchPercentage;
+    // Skills match (40% weight)
+    const skillMatches = getMatchingSkills(candidate.skills || [], jobPost.required_skills || []);
+    const skillMatchPercentage = jobPost.required_skills?.length > 0
+        ? (skillMatches.length / jobPost.required_skills.length) * 40
+        : 0;
+    score += skillMatchPercentage;
 
-//     // Location match (30% weight)
-//     if (candidate.preferred_locations?.includes(jobPost.address?.state)) {
-//         score += 30;
-//     } else if (candidate.preferred_locations?.length === 0) {
-//         score += 15; // Partial score for no preference
-//     }
+    // Location match (30% weight)
+    if (candidate.preferred_locations?.includes(jobPost.address?.state)) {
+        score += 30;
+    } else if (candidate.preferred_locations?.length === 0) {
+        score += 15; // Partial score for no preference
+    }
 
-//     // Salary match (30% weight)
-//     if (jobPost.salary_range?.min > 0 || jobPost.salary_range?.max > 0) {
-//         if (candidate.expected_salary?.min <= (jobPost.salary_range.max || Number.MAX_SAFE_INTEGER) &&
-//             candidate.expected_salary?.max >= jobPost.salary_range.min) {
-//             score += 30;
-//         } else if (candidate.expected_salary?.min === 0 && candidate.expected_salary?.max === 0) {
-//             score += 15; // Partial score for no salary expectation
-//         }
-//     }
+    // Salary match (30% weight)
+    if (jobPost.salary_range?.min > 0 || jobPost.salary_range?.max > 0) {
+        if (candidate.expected_salary?.min <= (jobPost.salary_range.max || Number.MAX_SAFE_INTEGER) &&
+            candidate.expected_salary?.max >= jobPost.salary_range.min) {
+            score += 30;
+        } else if (candidate.expected_salary?.min === 0 && candidate.expected_salary?.max === 0) {
+            score += 15; // Partial score for no salary expectation
+        }
+    }
 
-//     return Math.min(100, Math.round(score));
-// };
+    return Math.min(100, Math.round(score));
+};
 
-// // Helper function to calculate match score for dummy data
-// const calculateDummyMatchScore = (candidate, jobPost) => {
-//     let score = 0;
+// Helper function to calculate match score for dummy data
+const calculateDummyMatchScore = (candidate, jobPost) => {
+    let score = 0;
 
-//     // Skills match (40% weight)
-//     const skillMatches = getDummyMatchingSkills(candidate.skills || [], jobPost.required_skills || []);
-//     const skillMatchPercentage = jobPost.required_skills?.length > 0
-//         ? (skillMatches.length / jobPost.required_skills.length) * 40
-//         : 0;
-//     score += skillMatchPercentage;
+    // Skills match (40% weight)
+    const skillMatches = getDummyMatchingSkills(candidate.skills || [], jobPost.required_skills || []);
+    const skillMatchPercentage = jobPost.required_skills?.length > 0
+        ? (skillMatches.length / jobPost.required_skills.length) * 40
+        : 0;
+    score += skillMatchPercentage;
 
-//     // Location match (30% weight)
-//     if (candidate.preferred_locations?.includes(jobPost.address?.state)) {
-//         score += 30;
-//     } else if (candidate.preferred_locations?.length === 0) {
-//         score += 15; // Partial score for no preference
-//     }
+    // Location match (30% weight)
+    if (candidate.preferred_locations?.includes(jobPost.address?.state)) {
+        score += 30;
+    } else if (candidate.preferred_locations?.length === 0) {
+        score += 15; // Partial score for no preference
+    }
 
-//     // Salary match (30% weight)
-//     if (jobPost.salary_range?.min > 0 || jobPost.salary_range?.max > 0) {
-//         if (candidate.expected_salary?.min <= (jobPost.salary_range.max || Number.MAX_SAFE_INTEGER) &&
-//             candidate.expected_salary?.max >= jobPost.salary_range.min) {
-//             score += 30;
-//         } else if (candidate.expected_salary?.min === 0 && candidate.expected_salary?.max === 0) {
-//             score += 15; // Partial score for no salary expectation
-//         }
-//     }
+    // Salary match (30% weight)
+    if (jobPost.salary_range?.min > 0 || jobPost.salary_range?.max > 0) {
+        if (candidate.expected_salary?.min <= (jobPost.salary_range.max || Number.MAX_SAFE_INTEGER) &&
+            candidate.expected_salary?.max >= jobPost.salary_range.min) {
+            score += 30;
+        } else if (candidate.expected_salary?.min === 0 && candidate.expected_salary?.max === 0) {
+            score += 15; // Partial score for no salary expectation
+        }
+    }
 
-//     return Math.min(100, Math.round(score));
-// };
+    return Math.min(100, Math.round(score));
+};
 
-// // Helper function to calculate job match score for premium data
-// const calculateJobMatchScore = (candidate, jobPost) => {
-//     let score = 0;
+// Helper function to calculate job match score for premium data
+const calculateJobMatchScore = (candidate, jobPost) => {
+    let score = 0;
 
-//     // Skills match (40% weight)
-//     const skillMatches = getMatchingSkills(candidate.skills || [], jobPost.required_skills || []);
-//     const skillMatchPercentage = jobPost.required_skills?.length > 0
-//         ? (skillMatches.length / jobPost.required_skills.length) * 40
-//         : 0;
-//     score += skillMatchPercentage;
+    // Skills match (40% weight)
+    const skillMatches = getMatchingSkills(candidate.skills || [], jobPost.required_skills || []);
+    const skillMatchPercentage = jobPost.required_skills?.length > 0
+        ? (skillMatches.length / jobPost.required_skills.length) * 40
+        : 0;
+    score += skillMatchPercentage;
 
-//     // Location match (30% weight)
-//     if (candidate.preferred_locations?.includes(jobPost.address?.state)) {
-//         score += 30;
-//     } else if (jobPost.address?.state === candidate.address?.state) {
-//         score += 20; // Partial score for current state
-//     }
+    // Location match (30% weight)
+    if (candidate.preferred_locations?.includes(jobPost.address?.state)) {
+        score += 30;
+    } else if (jobPost.address?.state === candidate.address?.state) {
+        score += 20; // Partial score for current state
+    }
 
-//     // Salary match (30% weight)
-//     if (candidate.expected_salary?.min > 0 || candidate.expected_salary?.max > 0) {
-//         if (jobPost.salary_range?.min <= candidate.expected_salary.max &&
-//             jobPost.salary_range?.max >= candidate.expected_salary.min) {
-//             score += 30;
-//         }
-//     } else {
-//         // Candidate has no salary expectation, give partial score
-//         score += 15;
-//     }
+    // Salary match (30% weight)
+    if (candidate.expected_salary?.min > 0 || candidate.expected_salary?.max > 0) {
+        if (jobPost.salary_range?.min <= candidate.expected_salary.max &&
+            jobPost.salary_range?.max >= candidate.expected_salary.min) {
+            score += 30;
+        }
+    } else {
+        // Candidate has no salary expectation, give partial score
+        score += 15;
+    }
 
-//     return Math.min(100, Math.round(score));
-// };
+    return Math.min(100, Math.round(score));
+};
 
-// // Helper function to calculate job match score for dummy data
-// const calculateDummyJobMatchScore = (candidate, jobPost) => {
-//     let score = 0;
+// Helper function to calculate job match score for dummy data
+const calculateDummyJobMatchScore = (candidate, jobPost) => {
+    let score = 0;
 
-//     // Skills match (40% weight)
-//     const skillMatches = getDummyMatchingSkills(candidate.skills || [], jobPost.required_skills || []);
-//     const skillMatchPercentage = jobPost.required_skills?.length > 0
-//         ? (skillMatches.length / jobPost.required_skills.length) * 40
-//         : 0;
-//     score += skillMatchPercentage;
+    // Skills match (40% weight)
+    const skillMatches = getDummyMatchingSkills(candidate.skills || [], jobPost.required_skills || []);
+    const skillMatchPercentage = jobPost.required_skills?.length > 0
+        ? (skillMatches.length / jobPost.required_skills.length) * 40
+        : 0;
+    score += skillMatchPercentage;
 
-//     // Location match (30% weight)
-//     if (candidate.preferred_locations?.includes(jobPost.address?.state)) {
-//         score += 30;
-//     } else if (jobPost.address?.state === (candidate.address?.state || candidate.looking_job_location)) {
-//         score += 20; // Partial score for current state
-//     }
+    // Location match (30% weight)
+    if (candidate.preferred_locations?.includes(jobPost.address?.state)) {
+        score += 30;
+    } else if (jobPost.address?.state === (candidate.address?.state || candidate.looking_job_location)) {
+        score += 20; // Partial score for current state
+    }
 
-//     // Salary match (30% weight)
-//     if (candidate.expected_salary?.min > 0 || candidate.expected_salary?.max > 0) {
-//         if (jobPost.salary_range?.min <= candidate.expected_salary.max &&
-//             jobPost.salary_range?.max >= candidate.expected_salary.min) {
-//             score += 30;
-//         }
-//     } else {
-//         // Candidate has no salary expectation, give partial score
-//         score += 15;
-//     }
+    // Salary match (30% weight)
+    if (candidate.expected_salary?.min > 0 || candidate.expected_salary?.max > 0) {
+        if (jobPost.salary_range?.min <= candidate.expected_salary.max &&
+            jobPost.salary_range?.max >= candidate.expected_salary.min) {
+            score += 30;
+        }
+    } else {
+        // Candidate has no salary expectation, give partial score
+        score += 15;
+    }
 
-//     return Math.min(100, Math.round(score));
-// };
+    return Math.min(100, Math.round(score));
+};
 
-// // Helper function to get matching skills for premium data
-// const getMatchingSkills = (candidateSkills, jobSkills) => {
-//     // Ensure inputs are arrays
-//     if (!Array.isArray(candidateSkills) || !Array.isArray(jobSkills)) {
-//         return [];
-//     }
+// Helper function to get matching skills for premium data
+const getMatchingSkills = (candidateSkills, jobSkills) => {
+    // Ensure inputs are arrays
+    if (!Array.isArray(candidateSkills) || !Array.isArray(jobSkills)) {
+        return [];
+    }
 
-//     // Map candidate skill IDs, ensuring _id exists
-//     const candidateSkillIds = candidateSkills
-//         .filter(skill => skill && skill._id) // Check for valid skill object with _id
-//         .map(skill => skill._id.toString());
+    // Map candidate skill IDs, ensuring _id exists
+    const candidateSkillIds = candidateSkills
+        .filter(skill => skill && skill._id) // Check for valid skill object with _id
+        .map(skill => skill._id.toString());
 
-//     // Map job skill IDs, ensuring _id exists
-//     const jobSkillIds = jobSkills
-//         .filter(skill => skill && skill._id) // Check for valid skill object with _id
-//         .map(skill => skill._id.toString());
+    // Map job skill IDs, ensuring _id exists
+    const jobSkillIds = jobSkills
+        .filter(skill => skill && skill._id) // Check for valid skill object with _id
+        .map(skill => skill._id.toString());
 
-//     // Return matching skills
-//     return candidateSkills.filter(skill =>
-//         skill && skill._id && jobSkillIds.includes(skill._id.toString())
-//     );
-// };
+    // Return matching skills
+    return candidateSkills.filter(skill =>
+        skill && skill._id && jobSkillIds.includes(skill._id.toString())
+    );
+};
 
-// // Helper function to get matching skills for dummy data
-// const getDummyMatchingSkills = (candidateSkills, jobSkills) => {
-//     // Ensure inputs are arrays
-//     if (!Array.isArray(candidateSkills) || !Array.isArray(jobSkills)) {
-//         return [];
-//     }
+// Helper function to get matching skills for dummy data
+const getDummyMatchingSkills = (candidateSkills, jobSkills) => {
+    // Ensure inputs are arrays
+    if (!Array.isArray(candidateSkills) || !Array.isArray(jobSkills)) {
+        return [];
+    }
 
-//     return candidateSkills.filter(skill =>
-//         jobSkills.includes(skill)
-//     );
-// };
+    return candidateSkills.filter(skill =>
+        jobSkills.includes(skill)
+    );
+};
 
 
 
