@@ -874,6 +874,8 @@ export const getJobRequestsForCandidate = async (req, res) => {
             });
         }
 
+        console.log("jobRequests",jobRequests)
+
         // Mask salon details unless status = "Accepted"
         const processedData = jobRequests.map(req => {
             const salon = req.job_id?.salon_id;
