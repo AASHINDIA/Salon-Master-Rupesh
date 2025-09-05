@@ -933,6 +933,76 @@ export const getJobRequestsForCandidate = async (req, res) => {
 // Salon side controller
 // =======================
 
+// export const getRequestedCandidatesForSalon = async (req, res) => {
+//     try {
+//         const salon = await Salon.findOne({ user_id: req.user._id });
+//         if (!salon) {
+//             return res.status(404).json({
+//                 success: false,
+//                 message: "Salon not found"
+//             });
+//         }
+
+//         const requests = await SuggestedCandidate.find()
+//             .populate({
+//                 path: "job_id",
+//                 match: { salon_id: salon._id },
+//                 select: "job_title job_type salary_range address createdAt"
+//             })
+//             .populate({
+//                 path: "candidate_id",
+//                 select: "name gender skills experience contact_no address"
+//             })
+//             .sort({ createdAt: -1 });
+
+//         const filteredRequests = requests.filter(req => req.job_id);
+
+//         if (filteredRequests.length === 0) {
+//             return res.status(404).json({
+//                 success: false,
+//                 message: "No candidates requested yet"
+//             });
+//         }
+
+//         // Mask candidate details unless status = "Accepted"
+//         const processedData = filteredRequests.map(req => {
+//             const candidate = req.candidate_id;
+
+//             let name = candidate?.name || "";
+//             let whatsapp = candidate?.contact_no || "";
+
+//             if (req.status !== "Accepted") {
+//                 name = maskName(name);
+//                 whatsapp = maskNumber(whatsapp);
+//             }
+
+//             return {
+//                 ...req._doc,
+//                 candidate_id: {
+//                     ...candidate._doc,
+//                     name,
+//                     whatsapp_number: whatsapp
+//                 }
+//             };
+//         });
+
+//         return res.status(200).json({
+//             success: true,
+//             message: "Requested candidates fetched successfully",
+//             total: processedData.length,
+//             data: processedData
+//         });
+//     } catch (error) {
+//         console.error("Error fetching requested candidates for salon:", error);
+//         return res.status(500).json({
+//             success: false,
+//             message: "Error fetching requested candidates",
+//             error: error.message
+//         });
+//     }
+// };
+
+
 export const getRequestedCandidatesForSalon = async (req, res) => {
     try {
         const salon = await Salon.findOne({ user_id: req.user._id });
@@ -955,7 +1025,8 @@ export const getRequestedCandidatesForSalon = async (req, res) => {
             })
             .sort({ createdAt: -1 });
 
-        const filteredRequests = requests.filter(req => req.job_id);
+        // keep only requests that belong to this salon
+        const filteredRequests = requests.filter(r => r.job_id);
 
         if (filteredRequests.length === 0) {
             return res.status(404).json({
@@ -964,25 +1035,31 @@ export const getRequestedCandidatesForSalon = async (req, res) => {
             });
         }
 
-        // Mask candidate details unless status = "Accepted"
-        const processedData = filteredRequests.map(req => {
-            const candidate = req.candidate_id;
+        // Process candidates
+        const processedData = filteredRequests.map(r => {
+            const candidate = r.candidate_id;
 
             let name = candidate?.name || "";
             let whatsapp = candidate?.contact_no || "";
 
-            if (req.status !== "Accepted") {
+            // Mask details unless status = "Accepted"
+            if (r.status !== "Accepted") {
                 name = maskName(name);
                 whatsapp = maskNumber(whatsapp);
             }
 
             return {
-                ...req._doc,
-                candidate_id: {
-                    ...candidate._doc,
-                    name,
-                    whatsapp_number: whatsapp
-                }
+                ...r.toObject(), // safer than r._doc
+                candidate_id: candidate
+                    ? {
+                          ...candidate.toObject(),
+                          name,
+                          whatsapp_number: whatsapp
+                      }
+                    : {
+                          name,
+                          whatsapp_number: whatsapp
+                      }
             };
         });
 
@@ -1001,7 +1078,6 @@ export const getRequestedCandidatesForSalon = async (req, res) => {
         });
     }
 };
-
 
 
 
