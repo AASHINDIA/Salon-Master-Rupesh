@@ -54,6 +54,7 @@ export const applyForJob = async (req, res) => {
                 const application = new JobApplication({
                     candidate_id: candidate._id,
                     job_id: job._id,
+                    status:'Hired',
                     cover_message: req.body.cover_message,
                     expected_salary: req.body.expected_salary,
                     availability: req.body.availability,
