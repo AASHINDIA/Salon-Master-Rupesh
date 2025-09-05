@@ -695,7 +695,6 @@ export const findJobsForWorker = async (req, res) => {
                 jobResponse = {
                     _id: jobPost._id,
                     job_title: jobPost.job_title,
-                    status: jobPost.status,
                     custom_job_title: jobPost.custom_job_title,
                     salon_id: {
                         _id: jobPost.salon_id?._id || jobPost._id,
