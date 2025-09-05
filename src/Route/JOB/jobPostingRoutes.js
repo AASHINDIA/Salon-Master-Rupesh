@@ -9,7 +9,6 @@ import {
     closeJobPosting,
     getJobRequestsForCandidate,
     getRequestedCandidatesForSalon,
-    getRequestedCandidatesForSalon,
     getCandidateRequests,
     getSuggestedCandidates
 } from '../../Controller/JOB/jobPostingController.js';
