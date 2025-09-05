@@ -7,11 +7,10 @@ import JobPostingDummy from '../../Modal/Dummaydata/jobsDummay.js';
 // Apply for Job
 export const applyForJob = async (req, res) => {
     const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
-        const candidate = await Candidate.findOne({ user_id: req.user._id }).session(session);
+        session.startTransaction();
 
+        const candidate = await Candidate.findOne({ user_id: req.user._id }).session(session);
         if (!candidate) {
             await session.abortTransaction();
             session.endSession();
@@ -44,19 +43,23 @@ export const applyForJob = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Already applied to this job' });
         }
 
+        // Safe defaults for missing fields
+        const requiredSkills = Array.isArray(job.required_skills) ? job.required_skills : [];
+        const genderPreference = job.gender_preference || "Any";
+
         // Calculate match score
-        const matchedSkills = job.required_skills?.filter(skill =>
+        const matchedSkills = requiredSkills.filter(skill =>
             candidate.skills.includes(skill)
-        ) || [];
+        );
 
         // Create application
         const application = new JobApplication({
             candidate_id: candidate._id,
             job_id: job._id,
-            cover_message: req.body.cover_message,
-            expected_salary: req.body.expected_salary,
-            availability: req.body.availability,
-            gender_match: job.gender_preference === 'Any' || job.gender_preference === candidate.gender,
+            cover_message: req.body.cover_message || "",
+            expected_salary: req.body.expected_salary || null,
+            availability: req.body.availability || null,
+            gender_match: genderPreference === 'Any' || genderPreference === candidate.gender,
             status: isDummy ? 'Hired' : 'Pending'
         });
 
@@ -69,6 +72,7 @@ export const applyForJob = async (req, res) => {
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
+        console.error("❌ applyForJob error:", error);  // 👈 Add this to debug
         return res.status(500).json({
             success: false,
             message: 'Error applying for job',
@@ -76,6 +80,7 @@ export const applyForJob = async (req, res) => {
         });
     }
 };
+
 
 
 // Get Applications for Job (Salon View)
