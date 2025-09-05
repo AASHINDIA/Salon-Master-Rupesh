@@ -354,14 +354,14 @@ export const RequestForJobToSuggestedCandidates = async (req, res) => {
 
         res.status(201).json({ success: true, message: 'Job application created successfully', data: application });
         // Send notification to candidate
-        if (!candidate.devicetoken) {
-            return res.status(400).json({ success: false, message: 'Candidate does not have a device token' });
-        }
-        // Assuming you have a function to send notifications via Firebase
+        // if (!candidate.devicetoken) {
+        //     return res.status(400).json({ success: false, message: 'Candidate does not have a device token' });
+        // }
+        // // Assuming you have a function to send notifications via Firebase
 
-        const title = `${job.salon_name} has a new job application request`;
-        const message = `You have a new job application request for the position: ${job.job_title}. Please check your dashboard for details.`;
-        await sendNOtification(candidateId, jobid, title, message);
+        // const title = `${job.salon_name} has a new job application request`;
+        // const message = `You have a new job application request for the position: ${job.job_title}. Please check your dashboard for details.`;
+        // await sendNOtification(candidateId, jobid, title, message);
 
     }
     catch (error) {
