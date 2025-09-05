@@ -424,12 +424,12 @@ export const findWorkersForJob = async (req, res) => {
             .exec();
 
         let isPremium = true;
-        
+
         // If not found in premium, try in dummy data
         if (!jobPost) {
             jobPost = await JobPostingDummy.findById(jobId).exec();
             isPremium = false;
-            
+
             if (!jobPost) {
                 return res.status(404).json({
                     success: false,
@@ -490,10 +490,10 @@ export const findWorkersForJob = async (req, res) => {
 
         // Calculate match score for each candidate
         const candidatesWithScores = matchingCandidates.map(candidate => {
-            const score = isPremium ? 
-                calculateMatchScore(candidate, jobPost) : 
+            const score = isPremium ?
+                calculateMatchScore(candidate, jobPost) :
                 calculateDummyMatchScore(candidate, jobPost);
-                
+
             return {
                 candidate: {
                     _id: candidate._id,
@@ -510,8 +510,8 @@ export const findWorkersForJob = async (req, res) => {
                     address: maskData.partialAddress(candidate.address) // Partial address
                 },
                 matchScore: score,
-                matchingSkills: isPremium ? 
-                    getMatchingSkills(candidate.skills, jobPost.required_skills) : 
+                matchingSkills: isPremium ?
+                    getMatchingSkills(candidate.skills, jobPost.required_skills) :
                     getDummyMatchingSkills(candidate.skills, jobPost.required_skills)
             };
         });
@@ -581,6 +581,9 @@ export const findWorkersForJob = async (req, res) => {
     }
 };
 
+
+
+
 // Find jobs matching a candidate profile
 export const findJobsForWorker = async (req, res) => {
     try {
@@ -592,12 +595,12 @@ export const findJobsForWorker = async (req, res) => {
             .exec();
 
         let isPremium = true;
-        
+
         // If not found in premium, try in dummy data
         if (!candidate) {
             candidate = await Emp.findOne({ user_id: candidateId }).exec();
             isPremium = false;
-            
+
             if (!candidate) {
                 return res.status(404).json({
                     success: false,
@@ -617,8 +620,8 @@ export const findJobsForWorker = async (req, res) => {
         const matchCriteria = {
             is_active: true,
             $or: [
-                { 'address.state': { $in: candidate.preferred_locations } },
-                { 'address.state': candidate.address?.state || candidate.looking_job_location } // Include jobs in candidate's current state
+                { 'address.state': { $in: candidate.preferred_locations || [] } },
+                { 'address.state': candidate.address?.state || candidate.looking_job_location || '' }
             ]
         };
 
@@ -633,10 +636,10 @@ export const findJobsForWorker = async (req, res) => {
         }
 
         // Add salary range filter
-        if (candidate.expected_salary.min > 0 || candidate.expected_salary.max > 0) {
+        if (candidate.expected_salary?.min > 0 || candidate.expected_salary?.max > 0) {
             matchCriteria.$and = [
                 { 'salary_range.min': { $lte: candidate.expected_salary.max || Number.MAX_SAFE_INTEGER } },
-                { 'salary_range.max': { $gte: candidate.expected_salary.min } }
+                { 'salary_range.max': { $gte: candidate.expected_salary.min || 0 } }
             ];
         }
 
@@ -647,19 +650,19 @@ export const findJobsForWorker = async (req, res) => {
             .exec();
 
         const dummyJobs = await JobPostingDummy.find(matchCriteria).exec();
-        
+
         // Combine results
         const matchingJobs = [...premiumJobs, ...dummyJobs];
 
         // Calculate match score for each job
         const jobsWithScores = matchingJobs.map(jobPost => {
             const isJobPremium = jobPost instanceof JobPosting;
-            const score = isPremium ? 
-                calculateJobMatchScore(candidate, jobPost) : 
+            const score = isPremium ?
+                calculateJobMatchScore(candidate, jobPost) :
                 calculateDummyJobMatchScore(candidate, jobPost);
-                
+
             let jobResponse;
-            
+
             if (isJobPremium) {
                 jobResponse = {
                     _id: jobPost._id,
@@ -667,24 +670,24 @@ export const findJobsForWorker = async (req, res) => {
                     custom_job_title: jobPost.custom_job_title,
                     salon_id: jobPost.salon_id ? {
                         _id: jobPost.salon_id._id,
-                        salon_name: maskData.maskName(jobPost.salon_id.salon_name), // Masked salon name
-                        brand_name: maskData.maskName(jobPost.salon_id.brand_name), // Masked brand name
-                        contact_number: maskData.maskPhone(jobPost.salon_id.contact_number), // Masked contact
-                        whatsapp_number: maskData.maskWhatsApp(jobPost.salon_id.whatsapp_number), // Masked WhatsApp
-                        address: maskData.partialAddress(jobPost.salon_id.address) // Partial address
+                        salon_name: maskData.maskName(jobPost.salon_id.salon_name || ''), // Masked salon name
+                        brand_name: maskData.maskName(jobPost.salon_id.brand_name || ''), // Masked brand name
+                        contact_number: maskData.maskPhone(jobPost.salon_id.contact_number || ''), // Masked contact
+                        whatsapp_number: maskData.maskWhatsApp(jobPost.salon_id.whatsapp_number || ''), // Masked WhatsApp
+                        address: maskData.partialAddress(jobPost.salon_id.address || {}) // Partial address
                     } : null,
-                    required_skills: jobPost.required_skills,
+                    required_skills: jobPost.required_skills || [],
                     gender_preference: jobPost.gender_preference,
                     salary_range: jobPost.salary_range,
                     job_type: jobPost.job_type,
                     work_timings: jobPost.work_timings,
                     working_days: jobPost.working_days,
-                    address: maskData.partialAddress(jobPost.address), // Partial address
+                    address: maskData.partialAddress(jobPost.address || {}), // Partial address
                     location: jobPost.location,
                     contact_person: jobPost.contact_person ? {
-                        name: maskData.maskName(jobPost.contact_person.name), // Masked name
-                        phone: maskData.maskPhone(jobPost.contact_person.phone), // Masked phone
-                        email: jobPost.contact_person.email // Email can be shown partially
+                        name: maskData.maskName(jobPost.contact_person.name || ''), // Masked name
+                        phone: maskData.maskPhone(jobPost.contact_person.phone || ''), // Masked phone
+                        email: jobPost.contact_person.email || '' // Email can be shown partially
                     } : null,
                     is_premium: true
                 };
@@ -695,29 +698,29 @@ export const findJobsForWorker = async (req, res) => {
                     custom_job_title: jobPost.custom_job_title,
                     salon_id: {
                         _id: jobPost.salon_id?._id || jobPost._id,
-                        salon_name: maskData.maskName(jobPost.salon_id?.name), // Masked salon name
-                        brand_name: maskData.maskName(jobPost.salon_id?.brand_name), // Masked brand name
-                        contact_number: maskData.maskPhone(jobPost.salon_id?.contact_no), // Masked contact
-                        address: maskData.partialAddress(jobPost.address) // Partial address
+                        salon_name: maskData.maskName(jobPost.salon_id?.name || ''), // Masked salon name
+                        brand_name: maskData.maskName(jobPost.salon_id?.brand_name || ''), // Masked brand name
+                        contact_number: maskData.maskPhone(jobPost.salon_id?.contact_no || ''), // Masked contact
+                        address: maskData.partialAddress(jobPost.address || {}) // Partial address
                     },
-                    required_skills: jobPost.required_skills,
+                    required_skills: jobPost.required_skills || [],
                     gender_preference: jobPost.gender_preference,
                     salary_range: jobPost.salary_range,
                     job_type: jobPost.job_type,
                     work_timings: jobPost.work_timings,
                     working_days: jobPost.working_days,
-                    address: maskData.partialAddress(jobPost.address), // Partial address
+                    address: maskData.partialAddress(jobPost.address || {}), // Partial address
                     location: jobPost.location,
                     is_premium: false
                 };
             }
-            
+
             return {
                 jobPost: jobResponse,
                 matchScore: score,
-                matchingSkills: isPremium ? 
-                    getMatchingSkills(candidate.skills, jobPost.required_skills) : 
-                    getDummyMatchingSkills(candidate.skills, jobPost.required_skills)
+                matchingSkills: isPremium ?
+                    getMatchingSkills(candidate.skills || [], jobPost.required_skills || []) :
+                    getDummyMatchingSkills(candidate.skills || [], jobPost.required_skills || [])
             };
         });
 
@@ -727,15 +730,15 @@ export const findJobsForWorker = async (req, res) => {
         // Prepare candidate response
         const candidateResponse = {
             _id: candidate._id,
-            name: maskData.maskName(candidate.name || candidate.user_id?.name), // Masked name
+            name: maskData.maskName(candidate.name || candidate.user_id?.name || ''), // Masked name
             image: candidate.image,
             gender: candidate.gender,
-            skills: candidate.skills,
-            expected_salary: candidate.expected_salary,
-            preferred_locations: candidate.preferred_locations,
-            contact_no: maskData.maskPhone(candidate.contact_no || candidate.user_id?.contact_no), // Masked phone
-            whatsapp_number: maskData.maskWhatsApp(candidate.whatsapp_number), // Masked WhatsApp
-            address: maskData.partialAddress(candidate.address), // Partial address
+            skills: candidate.skills || [],
+            expected_salary: candidate.expected_salary || { min: 0, max: 0 },
+            preferred_locations: candidate.preferred_locations || [],
+            contact_no: maskData.maskPhone(candidate.contact_no || candidate.user_id?.contact_no || ''), // Masked phone
+            whatsapp_number: maskData.maskWhatsApp(candidate.whatsapp_number || ''), // Masked WhatsApp
+            address: maskData.partialAddress(candidate.address || {}), // Partial address
             is_premium: isPremium
         };
 
@@ -763,25 +766,25 @@ const calculateMatchScore = (candidate, jobPost) => {
     let score = 0;
 
     // Skills match (40% weight)
-    const skillMatches = getMatchingSkills(candidate.skills, jobPost.required_skills);
-    const skillMatchPercentage = jobPost.required_skills.length > 0
+    const skillMatches = getMatchingSkills(candidate.skills || [], jobPost.required_skills || []);
+    const skillMatchPercentage = jobPost.required_skills?.length > 0
         ? (skillMatches.length / jobPost.required_skills.length) * 40
         : 0;
     score += skillMatchPercentage;
 
     // Location match (30% weight)
-    if (candidate.preferred_locations.includes(jobPost.address.state)) {
+    if (candidate.preferred_locations?.includes(jobPost.address?.state)) {
         score += 30;
-    } else if (candidate.preferred_locations.length === 0) {
+    } else if (candidate.preferred_locations?.length === 0) {
         score += 15; // Partial score for no preference
     }
 
     // Salary match (30% weight)
-    if (jobPost.salary_range.min > 0 || jobPost.salary_range.max > 0) {
-        if (candidate.expected_salary.min <= (jobPost.salary_range.max || Number.MAX_SAFE_INTEGER) &&
-            candidate.expected_salary.max >= jobPost.salary_range.min) {
+    if (jobPost.salary_range?.min > 0 || jobPost.salary_range?.max > 0) {
+        if (candidate.expected_salary?.min <= (jobPost.salary_range.max || Number.MAX_SAFE_INTEGER) &&
+            candidate.expected_salary?.max >= jobPost.salary_range.min) {
             score += 30;
-        } else if (candidate.expected_salary.min === 0 && candidate.expected_salary.max === 0) {
+        } else if (candidate.expected_salary?.min === 0 && candidate.expected_salary?.max === 0) {
             score += 15; // Partial score for no salary expectation
         }
     }
@@ -794,25 +797,25 @@ const calculateDummyMatchScore = (candidate, jobPost) => {
     let score = 0;
 
     // Skills match (40% weight)
-    const skillMatches = getDummyMatchingSkills(candidate.skills, jobPost.required_skills);
-    const skillMatchPercentage = jobPost.required_skills.length > 0
+    const skillMatches = getDummyMatchingSkills(candidate.skills || [], jobPost.required_skills || []);
+    const skillMatchPercentage = jobPost.required_skills?.length > 0
         ? (skillMatches.length / jobPost.required_skills.length) * 40
         : 0;
     score += skillMatchPercentage;
 
     // Location match (30% weight)
-    if (candidate.preferred_locations.includes(jobPost.address.state)) {
+    if (candidate.preferred_locations?.includes(jobPost.address?.state)) {
         score += 30;
-    } else if (candidate.preferred_locations.length === 0) {
+    } else if (candidate.preferred_locations?.length === 0) {
         score += 15; // Partial score for no preference
     }
 
     // Salary match (30% weight)
-    if (jobPost.salary_range.min > 0 || jobPost.salary_range.max > 0) {
-        if (candidate.expected_salary.min <= (jobPost.salary_range.max || Number.MAX_SAFE_INTEGER) &&
-            candidate.expected_salary.max >= jobPost.salary_range.min) {
+    if (jobPost.salary_range?.min > 0 || jobPost.salary_range?.max > 0) {
+        if (candidate.expected_salary?.min <= (jobPost.salary_range.max || Number.MAX_SAFE_INTEGER) &&
+            candidate.expected_salary?.max >= jobPost.salary_range.min) {
             score += 30;
-        } else if (candidate.expected_salary.min === 0 && candidate.expected_salary.max === 0) {
+        } else if (candidate.expected_salary?.min === 0 && candidate.expected_salary?.max === 0) {
             score += 15; // Partial score for no salary expectation
         }
     }
@@ -825,23 +828,23 @@ const calculateJobMatchScore = (candidate, jobPost) => {
     let score = 0;
 
     // Skills match (40% weight)
-    const skillMatches = getMatchingSkills(candidate.skills, jobPost.required_skills);
-    const skillMatchPercentage = jobPost.required_skills.length > 0
+    const skillMatches = getMatchingSkills(candidate.skills || [], jobPost.required_skills || []);
+    const skillMatchPercentage = jobPost.required_skills?.length > 0
         ? (skillMatches.length / jobPost.required_skills.length) * 40
         : 0;
     score += skillMatchPercentage;
 
     // Location match (30% weight)
-    if (candidate.preferred_locations.includes(jobPost.address.state)) {
+    if (candidate.preferred_locations?.includes(jobPost.address?.state)) {
         score += 30;
-    } else if (jobPost.address.state === candidate.address.state) {
+    } else if (jobPost.address?.state === candidate.address?.state) {
         score += 20; // Partial score for current state
     }
 
     // Salary match (30% weight)
-    if (candidate.expected_salary.min > 0 || candidate.expected_salary.max > 0) {
-        if (jobPost.salary_range.min <= candidate.expected_salary.max &&
-            jobPost.salary_range.max >= candidate.expected_salary.min) {
+    if (candidate.expected_salary?.min > 0 || candidate.expected_salary?.max > 0) {
+        if (jobPost.salary_range?.min <= candidate.expected_salary.max &&
+            jobPost.salary_range?.max >= candidate.expected_salary.min) {
             score += 30;
         }
     } else {
@@ -857,23 +860,23 @@ const calculateDummyJobMatchScore = (candidate, jobPost) => {
     let score = 0;
 
     // Skills match (40% weight)
-    const skillMatches = getDummyMatchingSkills(candidate.skills, jobPost.required_skills);
-    const skillMatchPercentage = jobPost.required_skills.length > 0
+    const skillMatches = getDummyMatchingSkills(candidate.skills || [], jobPost.required_skills || []);
+    const skillMatchPercentage = jobPost.required_skills?.length > 0
         ? (skillMatches.length / jobPost.required_skills.length) * 40
         : 0;
     score += skillMatchPercentage;
 
     // Location match (30% weight)
-    if (candidate.preferred_locations.includes(jobPost.address.state)) {
+    if (candidate.preferred_locations?.includes(jobPost.address?.state)) {
         score += 30;
-    } else if (jobPost.address.state === (candidate.address?.state || candidate.looking_job_location)) {
+    } else if (jobPost.address?.state === (candidate.address?.state || candidate.looking_job_location)) {
         score += 20; // Partial score for current state
     }
 
     // Salary match (30% weight)
-    if (candidate.expected_salary.min > 0 || candidate.expected_salary.max > 0) {
-        if (jobPost.salary_range.min <= candidate.expected_salary.max &&
-            jobPost.salary_range.max >= candidate.expected_salary.min) {
+    if (candidate.expected_salary?.min > 0 || candidate.expected_salary?.max > 0) {
+        if (jobPost.salary_range?.min <= candidate.expected_salary.max &&
+            jobPost.salary_range?.max >= candidate.expected_salary.min) {
             score += 30;
         }
     } else {
@@ -886,20 +889,41 @@ const calculateDummyJobMatchScore = (candidate, jobPost) => {
 
 // Helper function to get matching skills for premium data
 const getMatchingSkills = (candidateSkills, jobSkills) => {
-    const candidateSkillIds = candidateSkills.map(skill => skill._id.toString());
-    const jobSkillIds = jobSkills.map(skill => skill._id.toString());
+    // Ensure inputs are arrays
+    if (!Array.isArray(candidateSkills) || !Array.isArray(jobSkills)) {
+        return [];
+    }
 
+    // Map candidate skill IDs, ensuring _id exists
+    const candidateSkillIds = candidateSkills
+        .filter(skill => skill && skill._id) // Check for valid skill object with _id
+        .map(skill => skill._id.toString());
+
+    // Map job skill IDs, ensuring _id exists
+    const jobSkillIds = jobSkills
+        .filter(skill => skill && skill._id) // Check for valid skill object with _id
+        .map(skill => skill._id.toString());
+
+    // Return matching skills
     return candidateSkills.filter(skill =>
-        jobSkillIds.includes(skill._id.toString())
+        skill && skill._id && jobSkillIds.includes(skill._id.toString())
     );
 };
 
 // Helper function to get matching skills for dummy data
 const getDummyMatchingSkills = (candidateSkills, jobSkills) => {
+    // Ensure inputs are arrays
+    if (!Array.isArray(candidateSkills) || !Array.isArray(jobSkills)) {
+        return [];
+    }
+
     return candidateSkills.filter(skill =>
         jobSkills.includes(skill)
     );
 };
+
+
+
 
 // -------------------------------------------------------------------------------
 
