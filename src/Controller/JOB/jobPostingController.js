@@ -7,6 +7,7 @@ import Skill from '../../Modal/skill/skill.js';
 import suggestedCandidate from '../../Modal/RequestJobSuggestedCandidate/RequestJobSuggestCandidate.js';
 import admin from '../../Utils/firebaseAdmin.js';
 import User from '../../Modal/Users/User.js'
+import Emp from '../../Modal/Dummaydata/Emp.js';
 
 
 export const createJobPosting = async (req, res) => {
@@ -307,74 +308,181 @@ function calculateMatchScore(candidate, job) {
     return Math.min(Math.round(score), 100); // Cap at 100
 }
 
-export const RequestForJobToSuggestedCandidates = async (req, res) => {
+// export const RequestForJobToSuggestedCandidates = async (req, res) => {
 
-    try {
-        const { candidateId, jobid } = req.body;
-        const salon = await Salon.findOne({ user_id: req.user._id });
+//     try {
+//         const { candidateId, jobid } = req.body;
+//         const salon = await Salon.findOne({ user_id: req.user._id });
 
-        if (!salon) {
-            return res.status(404).json({ success: false, message: 'Salon not found' });
+//         if (!salon) {
+//             return res.status(404).json({ success: false, message: 'Salon not found' });
 
-        }
-        const job = await JobPosting.findById(jobid)
-            .populate('salon_id', 'salon_name brand_name image_path location contact_number');
-        // Check if the job exists and belongs to the salon
-        if (!job || job.salon_id.toString() !== salon._id.toString()) {
-            return res.status(404).json({ success: false, message: 'Job not foundor not authorized' });
-        }
-        // Check if the job is active
+//         }
+//         const job = await JobPosting.findById(jobid)
+//             .populate('salon_id', 'salon_name brand_name image_path location contact_number');
+//         // Check if the job exists and belongs to the salon
+//         if (!job || job.salon_id.toString() !== salon._id.toString()) {
+//             return res.status(404).json({ success: false, message: 'Job not foundor not authorized' });
+//         }
+//         // Check if the job is active
 
-        if (!job.is_active) {
-            return res.status(400).json({ success: false, message: 'Job posting is closed' });
-        }
-        // Check if the candidate exists
-        const candidate = await Candidate.findById(candidateId);
-        if (!candidate) {
-            return res.status(404).json({ success: false, message: 'Candidate not found' });
-        }
-        // Check if the candidate has already applied for this job
-        const existingApplication = await suggestedCandidate.findOne({
-            candidate_id: candidate._id,
-            job_id: job._id
-        });
+//         if (!job.is_active) {
+//             return res.status(400).json({ success: false, message: 'Job posting is closed' });
+//         }
+//         // Check if the candidate exists
+//         const candidate = await Candidate.findById(candidateId);
+//         if (!candidate) {
+//             const Dummaycandidate = await Emp.findById(candidateId);
 
-        if (existingApplication) {
-            return res.status(400).json({ success: false, message: 'Candidate has already applied for this job' });
-        }
-        // Create a new job application
-        const application = new suggestedCandidate({
-            candidate_id: candidate._id,
-            job_id: job._id,
-            candidate_name: candidate.name,
-            status: 'Pending'
+//             if (!Dummaycandidate) {
+//                 return res.status(404).json({ success: false, message: 'Candidate not found' });
+//             }
 
-        });
-        await application.save();
 
-        res.status(201).json({ success: true, message: 'Job application created successfully', data: application });
-        // Send notification to candidate
-        // if (!candidate.devicetoken) {
-        //     return res.status(400).json({ success: false, message: 'Candidate does not have a device token' });
-        // }
-        // // Assuming you have a function to send notifications via Firebase
+//             const existingApplication = await suggestedCandidate.findOne({
+//             candidate_id: candidate._id,
+//             job_id: job._id
+//         });
 
-        // const title = `${job.salon_name} has a new job application request`;
-        // const message = `You have a new job application request for the position: ${job.job_title}. Please check your dashboard for details.`;
-        // await sendNOtification(candidateId, jobid, title, message);
+//         if (existingApplication) {
+//             return res.status(400).json({ success: false, message: 'Candidate has already applied for this job' });
+//         }
+//         // Create a new job application
+//         const application = new suggestedCandidate({
+//             candidate_id: candidate._id,
+//             job_id: job._id,
+//             candidate_name: candidate.name,
+//             status: 'Accepted'
 
-    }
-    catch (error) {
-        console.error('Error requesting job to candidate:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error requesting job to candidate',
-            error: error.message
-        });
-    }
-};
+//         });
+//         await application.save();
+
+//         res.status(201).json({ success: true, message: 'Job application created successfully', data: application });
+
+
+//         }
+//         // Check if the candidate has already applied for this job
+//         const existingApplication = await suggestedCandidate.findOne({
+//             candidate_id: candidate._id,
+//             job_id: job._id
+//         });
+
+//         if (existingApplication) {
+//             return res.status(400).json({ success: false, message: 'Candidate has already applied for this job' });
+//         }
+//         // Create a new job application
+//         const application = new suggestedCandidate({
+//             candidate_id: candidate._id,
+//             job_id: job._id,
+//             candidate_name: candidate.name,
+//             status: 'Pending'
+
+//         });
+//         await application.save();
+
+//         res.status(201).json({ success: true, message: 'Job application created successfully', data: application });
+//         // Send notification to candidate
+//         // if (!candidate.devicetoken) {
+//         //     return res.status(400).json({ success: false, message: 'Candidate does not have a device token' });
+//         // }
+//         // // Assuming you have a function to send notifications via Firebase
+
+//         // const title = `${job.salon_name} has a new job application request`;
+//         // const message = `You have a new job application request for the position: ${job.job_title}. Please check your dashboard for details.`;
+//         // await sendNOtification(candidateId, jobid, title, message);
+
+//     }
+//     catch (error) {
+//         console.error('Error requesting job to candidate:', error);
+//         res.status(500).json({
+//             success: false,
+//             message: 'Error requesting job to candidate',
+//             error: error.message
+//         });
+//     }
+// };
 
 // Get all job postings with advanced filtering
+
+export const RequestForJobToSuggestedCandidates = async (req, res) => {
+  try {
+    const { candidateId, jobid } = req.body;
+
+    // Find salon linked with logged-in user
+    const salon = await Salon.findOne({ user_id: req.user._id });
+    if (!salon) {
+      return res.status(404).json({ success: false, message: 'Salon not found' });
+    }
+
+    // Find job and validate ownership
+    const job = await JobPosting.findById(jobid)
+      .populate('salon_id', 'salon_name brand_name image_path location contact_number');
+
+    if (!job || job.salon_id._id.toString() !== salon._id.toString()) {
+      return res.status(404).json({ success: false, message: 'Job not found or not authorized' });
+    }
+
+    // Ensure job is active
+    if (!job.is_active) {
+      return res.status(400).json({ success: false, message: 'Job posting is closed' });
+    }
+
+    // Check candidate in both models (Candidate or Emp as fallback)
+    let candidate = await Candidate.findById(candidateId);
+    let isDummy = false;
+
+    if (!candidate) {
+      candidate = await Emp.findById(candidateId);
+      isDummy = true;
+    }
+
+    if (!candidate) {
+      return res.status(404).json({ success: false, message: 'Candidate not found' });
+    }
+
+    // Prevent duplicate application
+    const existingApplication = await suggestedCandidate.findOne({
+      candidate_id: candidate._id,
+      job_id: job._id
+    });
+
+    if (existingApplication) {
+      return res.status(400).json({ success: false, message: 'Candidate has already applied for this job' });
+    }
+
+    // Create new application
+    const application = new suggestedCandidate({
+      candidate_id: candidate._id,
+      job_id: job._id,
+      candidate_name: candidate.name,
+      status: isDummy ? 'Accepted' : 'Pending'
+    });
+
+    await application.save();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Job application created successfully',
+      data: application
+    });
+
+    // 🔔 Notification (optional)
+    // if (candidate.devicetoken) {
+    //   const title = `${job.salon_id.salon_name} has a new job application request`;
+    //   const message = `You have a new job application request for the position: ${job.job_title}. Please check your dashboard for details.`;
+    //   await sendNotification(candidate._id, job._id, title, message);
+    // }
+
+  } catch (error) {
+    console.error('Error requesting job to candidate:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error requesting job to candidate',
+      error: error.message
+    });
+  }
+};
+
 export const getAllJobPostings = async (req, res) => {
     try {
         const {
@@ -730,156 +838,156 @@ export const getAllJobPost = async () => {
 // Utility functions
 // =======================
 const maskName = (name) => {
-  if (!name) return "";
-  if (name.length <= 2) return name[0] + "*".repeat(name.length - 1);
-  return name.slice(0, 2) + "*".repeat(name.length - 2);
+    if (!name) return "";
+    if (name.length <= 2) return name[0] + "*".repeat(name.length - 1);
+    return name.slice(0, 2) + "*".repeat(name.length - 2);
 };
 
 const maskNumber = (number) => {
-  if (!number) return "";
-  if (number.length < 4) return "*".repeat(number.length);
-  return number.slice(0, 2) + "*".repeat(number.length - 4) + number.slice(-2);
+    if (!number) return "";
+    if (number.length < 4) return "*".repeat(number.length);
+    return number.slice(0, 2) + "*".repeat(number.length - 4) + number.slice(-2);
 };
 
 // =======================
 // Candidate side controller
 // =======================
 export const getJobRequestsForCandidate = async (req, res) => {
-  try {
-    const candidateId = req.user._id; // Candidate logged in
+    try {
+        const candidateId = req.user._id; // Candidate logged in
 
-    const jobRequests = await SuggestedCandidate.find({ candidate_id: candidateId })
-      .populate({
-        path: "job_id",
-        select: "job_title job_type salary_range address is_active createdAt",
-        populate: {
-          path: "salon_id",
-          select: "salon_name brand_name address contact_number whatsapp_number"
+        const jobRequests = await SuggestedCandidate.find({ candidate_id: candidateId })
+            .populate({
+                path: "job_id",
+                select: "job_title job_type salary_range address is_active createdAt",
+                populate: {
+                    path: "salon_id",
+                    select: "salon_name brand_name address contact_number whatsapp_number"
+                }
+            })
+            .sort({ createdAt: -1 });
+
+        if (!jobRequests || jobRequests.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No job requests found"
+            });
         }
-      })
-      .sort({ createdAt: -1 });
 
-    if (!jobRequests || jobRequests.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No job requests found"
-      });
+        // Mask salon details unless status = "Accepted"
+        const processedData = jobRequests.map(req => {
+            const salon = req.job_id?.salon_id;
+
+            let salonName = salon?.salon_name || "";
+            let whatsapp = salon?.whatsapp_number || "";
+            let contact = salon?.contact_number || "";
+
+            if (req.status !== "Accepted") {
+                salonName = maskName(salonName);
+                whatsapp = maskNumber(whatsapp);
+                contact = maskNumber(contact);
+            }
+
+            return {
+                ...req._doc,
+                job_id: {
+                    ...req.job_id._doc,
+                    salon_id: {
+                        ...salon._doc,
+                        salon_name: salonName,
+                        whatsapp_number: whatsapp,
+                        contact_number: contact
+                    }
+                }
+            };
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Job requests fetched successfully",
+            total: processedData.length,
+            data: processedData
+        });
+    } catch (error) {
+        console.error("Error fetching job requests for candidate:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Error fetching job requests",
+            error: error.message
+        });
     }
-
-    // Mask salon details unless status = "Accepted"
-    const processedData = jobRequests.map(req => {
-      const salon = req.job_id?.salon_id;
-
-      let salonName = salon?.salon_name || "";
-      let whatsapp = salon?.whatsapp_number || "";
-      let contact = salon?.contact_number || "";
-
-      if (req.status !== "Accepted") {
-        salonName = maskName(salonName);
-        whatsapp = maskNumber(whatsapp);
-        contact = maskNumber(contact);
-      }
-
-      return {
-        ...req._doc,
-        job_id: {
-          ...req.job_id._doc,
-          salon_id: {
-            ...salon._doc,
-            salon_name: salonName,
-            whatsapp_number: whatsapp,
-            contact_number: contact
-          }
-        }
-      };
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "Job requests fetched successfully",
-      total: processedData.length,
-      data: processedData
-    });
-  } catch (error) {
-    console.error("Error fetching job requests for candidate:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Error fetching job requests",
-      error: error.message
-    });
-  }
 };
 
 // =======================
 // Salon side controller
 // =======================
 export const getRequestedCandidatesForSalon = async (req, res) => {
-  try {
-    const salon = await Salon.findOne({ user_id: req.user._id });
-    if (!salon) {
-      return res.status(404).json({
-        success: false,
-        message: "Salon not found"
-      });
-    }
-
-    const requests = await SuggestedCandidate.find()
-      .populate({
-        path: "job_id",
-        match: { salon_id: salon._id },
-        select: "job_title job_type salary_range address createdAt"
-      })
-      .populate({
-        path: "candidate_id",
-        select: "name gender skills experience whatsapp_number address"
-      })
-      .sort({ createdAt: -1 });
-
-    const filteredRequests = requests.filter(req => req.job_id);
-
-    if (filteredRequests.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No candidates requested yet"
-      });
-    }
-
-    // Mask candidate details unless status = "Accepted"
-    const processedData = filteredRequests.map(req => {
-      const candidate = req.candidate_id;
-
-      let name = candidate?.name || "";
-      let whatsapp = candidate?.whatsapp_number || "";
-
-      if (req.status !== "Accepted") {
-        name = maskName(name);
-        whatsapp = maskNumber(whatsapp);
-      }
-
-      return {
-        ...req._doc,
-        candidate_id: {
-          ...candidate._doc,
-          name,
-          whatsapp_number: whatsapp
+    try {
+        const salon = await Salon.findOne({ user_id: req.user._id });
+        if (!salon) {
+            return res.status(404).json({
+                success: false,
+                message: "Salon not found"
+            });
         }
-      };
-    });
 
-    return res.status(200).json({
-      success: true,
-      message: "Requested candidates fetched successfully",
-      total: processedData.length,
-      data: processedData
-    });
-  } catch (error) {
-    console.error("Error fetching requested candidates for salon:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Error fetching requested candidates",
-      error: error.message
-    });
-  }
+        const requests = await SuggestedCandidate.find()
+            .populate({
+                path: "job_id",
+                match: { salon_id: salon._id },
+                select: "job_title job_type salary_range address createdAt"
+            })
+            .populate({
+                path: "candidate_id",
+                select: "name gender skills experience whatsapp_number address"
+            })
+            .sort({ createdAt: -1 });
+
+        const filteredRequests = requests.filter(req => req.job_id);
+
+        if (filteredRequests.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No candidates requested yet"
+            });
+        }
+
+        // Mask candidate details unless status = "Accepted"
+        const processedData = filteredRequests.map(req => {
+            const candidate = req.candidate_id;
+
+            let name = candidate?.name || "";
+            let whatsapp = candidate?.whatsapp_number || "";
+
+            if (req.status !== "Accepted") {
+                name = maskName(name);
+                whatsapp = maskNumber(whatsapp);
+            }
+
+            return {
+                ...req._doc,
+                candidate_id: {
+                    ...candidate._doc,
+                    name,
+                    whatsapp_number: whatsapp
+                }
+            };
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Requested candidates fetched successfully",
+            total: processedData.length,
+            data: processedData
+        });
+    } catch (error) {
+        console.error("Error fetching requested candidates for salon:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Error fetching requested candidates",
+            error: error.message
+        });
+    }
 };
 
 

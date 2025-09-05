@@ -35,6 +35,8 @@ export const createFranchisee = async (req, res) => {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };
+
+
 export const getFranchiseeByUserId = async (req, res) => {
     try {
         const { user_id } = req.params;
