@@ -12,66 +12,25 @@ export const applyForJob = async (req, res) => {
     try {
         const candidate = await Candidate.findOne({ user_id: req.user._id }).session(session);
 
-
         if (!candidate) {
             await session.abortTransaction();
             session.endSession();
             return res.status(404).json({ success: false, message: 'Candidate profile not found' });
         }
 
-        const job = await JobPosting.findById(req.params.jobId).session(session);
+        let job = await JobPosting.findById(req.params.jobId).session(session);
+        let isDummy = false;
 
-
+        // If not found in real jobs, check dummy jobs
         if (!job) {
-            try {
-                const jobdummay = await JobPostingDummy.findById(req.params.jobId).session(session);
-
-                if (!jobdummay) {
-                    await session.abortTransaction();
-                    session.endSession();
-                    return res.status(404).json({ success: false, message: 'Job not found or closed' });
-                }
-
-
-
-
-                const existingApplication = await JobApplication.findOne({
-                    candidate_id: candidate._id,
-                    job_id: job._id
-                }).session(session);
-
-
-                if (existingApplication) {
-                    await session.abortTransaction();
-                    session.endSession();
-                    return res.status(400).json({ success: false, message: 'Already applied to this job' });
-                }
-
-                // Calculate match score
-                const matchedSkills = job.required_skills.filter(skill =>
-                    candidate.skills.includes(skill));
-
-                const application = new JobApplication({
-                    candidate_id: candidate._id,
-                    job_id: job._id,
-                    status:'Hired',
-                    cover_message: req.body.cover_message,
-                    expected_salary: req.body.expected_salary,
-                    availability: req.body.availability,
-                    gender_match: job.gender_preference === 'Any' || job.gender_preference === candidate.gender,
-                });
-
-                await application.save({ session });
-                await session.commitTransaction();
+            job = await JobPostingDummy.findById(req.params.jobId).session(session);
+            if (!job) {
+                await session.abortTransaction();
                 session.endSession();
-
-                res.status(201).json({ success: true, data: application });
-            } catch (error) {
-
+                return res.status(404).json({ success: false, message: 'Job not found or closed' });
             }
+            isDummy = true;
         }
-
-       
 
         // Check if already applied
         const existingApplication = await JobApplication.findOne({
@@ -86,9 +45,11 @@ export const applyForJob = async (req, res) => {
         }
 
         // Calculate match score
-        const matchedSkills = job.required_skills.filter(skill =>
-            candidate.skills.includes(skill));
+        const matchedSkills = job.required_skills?.filter(skill =>
+            candidate.skills.includes(skill)
+        ) || [];
 
+        // Create application
         const application = new JobApplication({
             candidate_id: candidate._id,
             job_id: job._id,
@@ -96,23 +57,26 @@ export const applyForJob = async (req, res) => {
             expected_salary: req.body.expected_salary,
             availability: req.body.availability,
             gender_match: job.gender_preference === 'Any' || job.gender_preference === candidate.gender,
+            status: isDummy ? 'Hired' : 'Pending'
         });
 
         await application.save({ session });
         await session.commitTransaction();
         session.endSession();
 
-        res.status(201).json({ success: true, data: application });
+        return res.status(201).json({ success: true, data: application });
+
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: 'Error applying for job',
             error: error.message
         });
     }
 };
+
 
 // Get Applications for Job (Salon View)
 // Get Job Applications (Salon View)
