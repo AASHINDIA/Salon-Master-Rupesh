@@ -60,7 +60,7 @@ export const applyForJob = async (req, res) => {
             expected_salary: req.body.expected_salary || null,
             availability: req.body.availability || null,
             gender_match: genderPreference === 'Any' || genderPreference === candidate.gender,
-            status: isDummy ? 'Hired' : 'Pending'
+            status: isDummy ? 'Hired' : 'Applied'
         });
 
         await application.save({ session });
