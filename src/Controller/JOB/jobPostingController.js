@@ -855,6 +855,7 @@ const maskNumber = (number) => {
 export const getJobRequestsForCandidate = async (req, res) => {
     try {
         const candidateId = req.user._id; // Candidate logged in
+        console.log("candidateId", candidateId);
 
         const jobRequests = await SuggestedCandidate.find({ candidate_id: candidateId })
             .populate({
@@ -867,6 +868,7 @@ export const getJobRequestsForCandidate = async (req, res) => {
             })
             .sort({ createdAt: -1 });
 
+        console.log("jobRequests", jobRequests);
         if (!jobRequests) {
             return res.status(404).json({
                 success: false,
@@ -874,7 +876,7 @@ export const getJobRequestsForCandidate = async (req, res) => {
             });
         }
 
-        console.log("jobRequests",jobRequests)
+
 
         // Mask salon details unless status = "Accepted"
         const processedData = jobRequests.map(req => {
@@ -904,6 +906,7 @@ export const getJobRequestsForCandidate = async (req, res) => {
             };
         });
 
+        console.log("processedData",processedData)
         return res.status(200).json({
             success: true,
             message: "Job requests fetched successfully",
