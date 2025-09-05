@@ -3,6 +3,7 @@ import JobPosting from '../../Modal/JOB/JobPosting.js';
 import JobApplication from '../../Modal/JOB/JobApplication.js';
 import Salon from '../../Modal/Salon/Salon.js';
 import mongoose from 'mongoose';
+import JobPostingDummy from '../../Modal/Dummaydata/jobsDummay.js';
 // Apply for Job
 export const applyForJob = async (req, res) => {
     const session = await mongoose.startSession();
@@ -10,6 +11,8 @@ export const applyForJob = async (req, res) => {
 
     try {
         const candidate = await Candidate.findOne({ user_id: req.user._id }).session(session);
+
+
         if (!candidate) {
             await session.abortTransaction();
             session.endSession();
@@ -17,11 +20,57 @@ export const applyForJob = async (req, res) => {
         }
 
         const job = await JobPosting.findById(req.params.jobId).session(session);
-        if (!job || !job.is_active) {
-            await session.abortTransaction();
-            session.endSession();
-            return res.status(404).json({ success: false, message: 'Job not found or closed' });
+
+
+        if (!job) {
+            try {
+                const jobdummay = await JobPostingDummy.findById(req.params.jobId).session(session);
+
+                if (!jobdummay) {
+                    await session.abortTransaction();
+                    session.endSession();
+                    return res.status(404).json({ success: false, message: 'Job not found or closed' });
+                }
+
+
+
+
+                const existingApplication = await JobApplication.findOne({
+                    candidate_id: candidate._id,
+                    job_id: job._id
+                }).session(session);
+
+
+                if (existingApplication) {
+                    await session.abortTransaction();
+                    session.endSession();
+                    return res.status(400).json({ success: false, message: 'Already applied to this job' });
+                }
+
+                // Calculate match score
+                const matchedSkills = job.required_skills.filter(skill =>
+                    candidate.skills.includes(skill));
+
+                const application = new JobApplication({
+                    candidate_id: candidate._id,
+                    job_id: job._id,
+                    cover_message: req.body.cover_message,
+                    expected_salary: req.body.expected_salary,
+                    availability: req.body.availability,
+                    gender_match: job.gender_preference === 'Any' || job.gender_preference === candidate.gender,
+                });
+
+                await application.save({ session });
+                await session.commitTransaction();
+                session.endSession();
+
+                res.status(201).json({ success: true, data: application });
+            } catch (error) {
+
+            }
         }
+
+       
 
         // Check if already applied
         const existingApplication = await JobApplication.findOne({
