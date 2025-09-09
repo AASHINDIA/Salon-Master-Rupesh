@@ -27,6 +27,7 @@ const EmpSchema = new mongoose.Schema({
     gender: {
         type: String,
         enum: ['male', 'female', 'other'],
+        default: null
     },
     skills: {
         type: [String], // 🔹 skills are plain strings
@@ -40,10 +41,11 @@ const EmpSchema = new mongoose.Schema({
 
     joining_date: {
         type: Date,
+        
     },
     expected_salary: {
-        min: { type: Number, default: 0 },
-        max: { type: Number, default: 0 }
+        min: { type: Number, default: 15000 },
+        max: { type: Number, default: 20000 }
     },
 
     looking_job_location: {

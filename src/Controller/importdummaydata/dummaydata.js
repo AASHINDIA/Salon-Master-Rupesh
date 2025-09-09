@@ -4,6 +4,9 @@ import Skill from '../../Modal/skill/skill.js'
 import csv from "csv-parser";
 import fs from "fs";
 import { getPagination,paginateResult } from '../../Utils/pagination.js';
+import moment from "moment";
+
+
 
 export const uploadJobPostingCSV = async (req, res) => {
   try {
@@ -75,6 +78,56 @@ export const uploadJobPostingCSV = async (req, res) => {
 };
 
 
+// export const uploadEmpCSV = async (req, res) => {
+//   try {
+//     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+//     const results = [];
+//     fs.createReadStream(req.file.path)
+//       .pipe(csv())
+//       .on("data", (row) => {
+//         results.push({
+//           user_id: {
+//             name: row.user_name,
+//             contact_no: row.user_contact_no,
+//           },
+//           name: row.name,
+//           date_of_birth: row.date_of_birth ? new Date(row.date_of_birth) : null,
+//           gender: row.gender,
+//           skills: row.skills
+//             ? row.skills.split(",").map((s) => s.trim())
+//             : [],
+//           available_for_join: row.available_for_join
+//             ? row.available_for_join.toLowerCase() === "true"
+//             : true,
+//           joining_date: row.joining_date ? new Date(row.joining_date) : null,
+//           expected_salary: {
+//             min: Number(row.salary_min || 0),
+//             max: Number(row.salary_max || 0),
+//           },
+//           looking_job_location: row.looking_job_location || "india",
+//           preferred_locations: row.preferred_locations
+//             ? row.preferred_locations.split(",").map((l) => l.trim())
+//             : [],
+//         });
+//       })
+//       .on("end", async () => {
+//         await Emp.insertMany(results);
+//         fs.unlinkSync(req.file.path); // cleanup
+//         res.json({
+//           message: "Employees uploaded successfully",
+//           count: results.length,
+//         });
+//       });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ message: "Error uploading employees" });
+//   }
+// };
+
+
+
+
 export const uploadEmpCSV = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
@@ -83,21 +136,50 @@ export const uploadEmpCSV = async (req, res) => {
     fs.createReadStream(req.file.path)
       .pipe(csv())
       .on("data", (row) => {
+        // ✅ date_of_birth parse
+        let dob = null;
+        if (row.date_of_birth) {
+          const parsed = moment(row.date_of_birth, [
+            "YYYY-MM-DD",
+            "DD-MM-YYYY",
+            "MM/DD/YYYY",
+          ], true);
+          dob = parsed.isValid() ? parsed.toDate() : null;
+        }
+
+        // ✅ joining_date parse
+        let joiningDate = null;
+        if (row.joining_date) {
+          const parsed = moment(row.joining_date, [
+            "YYYY-MM-DD",
+            "DD-MM-YYYY",
+            "MM/DD/YYYY",
+          ], true);
+          joiningDate = parsed.isValid() ? parsed.toDate() : null;
+        }
+
+        // ✅ gender validation (only male/female)
+        let gender = null;
+        if (row.gender) {
+          const g = row.gender.trim().toLowerCase();
+          gender = ["male", "female"].includes(g) ? g : null;
+        }
+
         results.push({
           user_id: {
-            name: row.user_name,
-            contact_no: row.user_contact_no,
+            name: row.user_name || "",
+            contact_no: row.user_contact_no || "",
           },
-          name: row.name,
-          date_of_birth: row.date_of_birth ? new Date(row.date_of_birth) : null,
-          gender: row.gender,
+          name: row.name || "",
+          date_of_birth: dob,
+          gender: gender,
           skills: row.skills
             ? row.skills.split(",").map((s) => s.trim())
             : [],
           available_for_join: row.available_for_join
             ? row.available_for_join.toLowerCase() === "true"
             : true,
-          joining_date: row.joining_date ? new Date(row.joining_date) : null,
+          joining_date: joiningDate,
           expected_salary: {
             min: Number(row.salary_min || 0),
             max: Number(row.salary_max || 0),
@@ -109,16 +191,23 @@ export const uploadEmpCSV = async (req, res) => {
         });
       })
       .on("end", async () => {
-        await Emp.insertMany(results);
-        fs.unlinkSync(req.file.path); // cleanup
-        res.json({
-          message: "Employees uploaded successfully",
-          count: results.length,
-        });
+        try {
+          if (results.length > 0) {
+            await Emp.insertMany(results, { ordered: false }); // ordered:false → bad rows skip हो जाई
+          }
+          fs.unlinkSync(req.file.path); // cleanup
+          res.json({
+            message: "Employees uploaded successfully",
+            count: results.length,
+          });
+        } catch (dbErr) {
+          console.error("DB Insert Error:", dbErr);
+          res.status(500).json({ message: "Database insert error", error: dbErr.message });
+        }
       });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error uploading employees" });
+    console.error("Upload CSV Error:", err);
+    res.status(500).json({ message: "Error uploading employees", error: err.message });
   }
 };
 
