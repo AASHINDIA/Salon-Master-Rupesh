@@ -122,7 +122,7 @@ export const GetCartItems = async (req, res) => {
 
         // Fetch cart data with population
         const cartItems = await Cart.find(query)
-            .populate("product_id", "name price image") // only selected fields
+            .populate("product_id", "name price images") // only selected fields
             .skip(skip)
             .limit(parseInt(limit))
             .sort({ datetime: -1 });

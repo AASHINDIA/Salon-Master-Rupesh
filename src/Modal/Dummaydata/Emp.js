@@ -19,11 +19,14 @@ const EmpSchema = new mongoose.Schema({
     },
     name: {
         type: String,
+    
         trim: true
     },
     date_of_birth: {
         type: Date,
     },
+    
+
     gender: {
         type: String,
         enum: ['male', 'female', 'other'],
