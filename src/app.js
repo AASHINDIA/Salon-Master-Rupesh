@@ -42,6 +42,7 @@ import updateApplicationStatus from './Route/ApplicationStausUpdate/ApplicationS
 import Franchisee from './Route/FTM/Franchisee.js'
 import dummaydata from './Route/dummayData/dummaydataRoute.js'
 import UploadFile from './Route/FTM/UploadFile/UploadFile.js'
+import trakingroute from './Route/UserTraking/UserTrakingRoute.js'
 const app = express();
 
 // ---------------------------
@@ -111,6 +112,8 @@ app.use('/api/v1/product', ProductRuoute)
 app.use('/api/v1/candidate', candidate)
 app.use('/api/v1/salon', salon)
 app.use('/api/v1/compnay', compnay)
+
+app.use('/api/v1/trakingroute', trakingroute)
 // ---------------------------
 
 //-------------JOB----------------
