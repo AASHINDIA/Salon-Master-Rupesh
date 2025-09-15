@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const citiesSchema = new mongoose.Schema(
   {
     id: {
-      type: Number, // you can also use mongoose.Schema.Types.ObjectId if auto-generated
+      type: String, // you can also use mongoose.Schema.Types.ObjectId if auto-generated
       
     },
     name: {
@@ -11,7 +11,7 @@ const citiesSchema = new mongoose.Schema(
      
     },
     state_id: {
-      type: Number, // if it's referencing another collection, better use ObjectId
+      type: String, // if it's referencing another collection, better use ObjectId
     },
   },
   { timestamps: true }

@@ -11,7 +11,7 @@ const statesSchema = new mongoose.Schema(
       
     },
     country_id: {
-      type: Number, // or ObjectId if linking with Country collection
+      type: String, // or ObjectId if linking with Country collection
     },
   },
   { timestamps: true }
