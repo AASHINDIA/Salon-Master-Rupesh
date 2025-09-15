@@ -102,7 +102,7 @@ export const importAllData = async (req, res) => {
     // MongoDB insert (Models should be imported at top)
     await Countries.insertMany(countriesData);
     await States.insertMany(statesData);
-    await Cities.insertMany(citiesData);
+    await cities.insertMany(citiesData);
 
     res.status(200).json({ success: true, message: 'Data imported successfully' });
   } catch (error) {
