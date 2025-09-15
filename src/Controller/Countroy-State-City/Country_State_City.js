@@ -3,7 +3,7 @@ import Countries from "../../Modal/State-City-Country/Countries.js";
 import States from "../../Modal/State-City-Country/States.js";
 import fs from "fs";
 
-
+import { dataset } from "../data/data.js";
 
 /**
  * Universal Location Controller
@@ -78,22 +78,23 @@ export const getLocationData = async (req, res) => {
  * Import all dataset (Countries → States → Cities)
  * POST /api/import
  */
+
 export const importAllData = async (req, res) => {
   try {
     // Load JSON files from /data folder
-    const countriesData = JSON.parse(fs.readFileSync("./data/countries.json", "utf-8"));
-    const statesData = JSON.parse(fs.readFileSync("./data/states.json", "utf-8"));
-    const citiesData = JSON.parse(fs.readFileSync("./data/cities.json", "utf-8"));
+    const countriesData = JSON.parse(fs.readFileSync("../data/countries.json", "utf-8"));
+    const statesData = JSON.parse(fs.readFileSync("../data/states.json", "utf-8"));
+    const citiesData = JSON.parse(fs.readFileSync("../data/cities.json", "utf-8"));
 
     // Optional: clear existing data
     await Countries.deleteMany({});
     await States.deleteMany({});
-    await Cities.deleteMany({});
+    await cities.deleteMany({});
 
     // Insert data
     await Countries.insertMany(countriesData);
     await States.insertMany(statesData);
-    await Cities.insertMany(citiesData);
+    await cities.insertMany(citiesData);
 
     return res.status(200).json({
       success: true,
