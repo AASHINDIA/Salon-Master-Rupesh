@@ -1,9 +1,14 @@
 import cities from "../../Modal/State-City-Country/cities.js";
 import Countries from "../../Modal/State-City-Country/Countries.js";
 import States from "../../Modal/State-City-Country/States.js";
-import fs from "fs";
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
-import { dataset } from "../data/data.js";
+
+
+
 
 /**
  * Universal Location Controller
@@ -79,33 +84,29 @@ export const getLocationData = async (req, res) => {
  * POST /api/import
  */
 
+// ES module me __dirname define karo
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Correct path to data folder inside src/Controller/
+const countriesPath = path.join(__dirname, '../data/countries.json');
+const statesPath = path.join(__dirname, '../data/states.json');
+const citiesPath = path.join(__dirname, '../data/cities.json');
+
 export const importAllData = async (req, res) => {
   try {
-    // Load JSON files from /data folder
-    const countriesData = JSON.parse(fs.readFileSync("../data/countries.json", "utf-8"));
-    const statesData = JSON.parse(fs.readFileSync("../data/states.json", "utf-8"));
-    const citiesData = JSON.parse(fs.readFileSync("../data/cities.json", "utf-8"));
+    const countriesData = JSON.parse(fs.readFileSync(countriesPath, 'utf-8'));
+    const statesData = JSON.parse(fs.readFileSync(statesPath, 'utf-8'));
+    const citiesData = JSON.parse(fs.readFileSync(citiesPath, 'utf-8'));
 
-    // Optional: clear existing data
-    await Countries.deleteMany({});
-    await States.deleteMany({});
-    await cities.deleteMany({});
-
-    // Insert data
+    // MongoDB insert (Models should be imported at top)
     await Countries.insertMany(countriesData);
     await States.insertMany(statesData);
-    await cities.insertMany(citiesData);
+    await Cities.insertMany(citiesData);
 
-    return res.status(200).json({
-      success: true,
-      message: "✅ All dataset imported successfully!",
-    });
+    res.status(200).json({ success: true, message: 'Data imported successfully' });
   } catch (error) {
-    console.error("Error importing dataset:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to import dataset",
-      error: error.message,
-    });
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
