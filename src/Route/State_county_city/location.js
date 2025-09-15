@@ -5,6 +5,6 @@ const router = express.Router(); // ✅ Correct way
 
 // Route for countries → states → cities
 router.get("/", getLocationData);
-router.post("/", importAllData);
+// router.post("/", importAllData);
 
 export default router; // ✅ Correct export
