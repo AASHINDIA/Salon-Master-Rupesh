@@ -1,6 +1,7 @@
 import cities from "../../Modal/State-City-Country/cities.js";
 import Countries from "../../Modal/State-City-Country/Countries.js";
 import States from "../../Modal/State-City-Country/States.js";
+import fs from "fs";
 
 
 
@@ -66,4 +67,44 @@ export const getLocationData = async (req, res) => {
             error: error.message,
         });
     }
+};
+
+
+
+
+
+
+/**
+ * Import all dataset (Countries → States → Cities)
+ * POST /api/import
+ */
+export const importAllData = async (req, res) => {
+  try {
+    // Load JSON files from /data folder
+    const countriesData = JSON.parse(fs.readFileSync("./data/countries.json", "utf-8"));
+    const statesData = JSON.parse(fs.readFileSync("./data/states.json", "utf-8"));
+    const citiesData = JSON.parse(fs.readFileSync("./data/cities.json", "utf-8"));
+
+    // Optional: clear existing data
+    await Countries.deleteMany({});
+    await States.deleteMany({});
+    await Cities.deleteMany({});
+
+    // Insert data
+    await Countries.insertMany(countriesData);
+    await States.insertMany(statesData);
+    await Cities.insertMany(citiesData);
+
+    return res.status(200).json({
+      success: true,
+      message: "✅ All dataset imported successfully!",
+    });
+  } catch (error) {
+    console.error("Error importing dataset:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to import dataset",
+      error: error.message,
+    });
+  }
 };
