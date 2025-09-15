@@ -78,35 +78,43 @@ export const getLocationData = async (req, res) => {
 
 
 
-
-/**
- * Import all dataset (Countries → States → Cities)
- * POST /api/import
- */
-
-// ES module me __dirname define karo
+// ES module me __dirname define karna
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Correct path to data folder inside src/Controller/
-const countriesPath = path.join(__dirname, '../data/countries.json');
-const statesPath = path.join(__dirname, '../data/states.json');
-const citiesPath = path.join(__dirname, '../data/cities.json');
-
 export const importAllData = async (req, res) => {
   try {
-    const countriesData = JSON.parse(fs.readFileSync(countriesPath, 'utf-8'));
-    const statesData = JSON.parse(fs.readFileSync(statesPath, 'utf-8'));
-    const citiesData = JSON.parse(fs.readFileSync(citiesPath, 'utf-8'));
+    // Paths to JSON files
+    const countriesPath = path.join(__dirname, '../data/countries.json');
+    const statesPath = path.join(__dirname, '../data/states.json');
+    const citiesPath = path.join(__dirname, '../data/cities.json');
 
-    // MongoDB insert (Models should be imported at top)
-    await Countries.insertMany(countriesData);
-    await States.insertMany(statesData);
-    await cities.insertMany(citiesData);
+    // Read JSON files
+    const countriesRaw = fs.readFileSync(countriesPath, 'utf-8');
+    const statesRaw = fs.readFileSync(statesPath, 'utf-8');
+    const citiesRaw = fs.readFileSync(citiesPath, 'utf-8');
 
-    res.status(200).json({ success: true, message: 'Data imported successfully' });
+    const countriesData = JSON.parse(countriesRaw);
+    const statesData = JSON.parse(statesRaw);
+    const citiesData = JSON.parse(citiesRaw);
+
+    // Check if arrays exist in JSON
+    if (!countriesData.countries || !statesData.states || !citiesData.cities) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'JSON files structure invalid. Make sure to have countries, states, cities arrays.' 
+      });
+    }
+
+    // Insert into MongoDB
+    await Countries.insertMany(countriesData.countries);
+    await States.insertMany(statesData.states);
+    await cities.insertMany(citiesData.cities);
+
+    res.status(200).json({ success: true, message: 'Countries, States and Cities imported successfully' });
   } catch (error) {
-    console.error(error);
+    console.error('Import error:', error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
