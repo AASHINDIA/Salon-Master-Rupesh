@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const stateSchema = new mongoose.Schema(
+const statesSchema = new mongoose.Schema(
   {
     id: {
       type: Number,
@@ -20,4 +20,4 @@ const stateSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model("State", stateSchema);
+export default mongoose.model("States", statesSchema);
