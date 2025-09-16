@@ -6,6 +6,7 @@ import JobPostingDummy from "../../Modal/Dummaydata/jobsDummay.js";
 import Emp from '../../Modal/Dummaydata/jobsDummay.js'
 import JobApplication from "../../Modal/JOB/JobApplication.js";
 import SuggestedCandidate from "../../Modal/RequestJobSuggestedCandidate/RequestJobSuggestCandidate.js";
+
 // Helper function to mask sensitive information
 // const maskData = {
 //     // Mask name: John Doe -> J*** D***
