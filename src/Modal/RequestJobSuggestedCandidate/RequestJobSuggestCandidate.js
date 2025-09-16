@@ -25,7 +25,7 @@ const SuggestedCandidateSchema = new mongoose.Schema({
     timestamps: true // Adds createdAt and updatedAt fields
 });
 
-SuggestedCandidate.index({ job_id: 1, candidate_id: 1 });
+SuggestedCandidateSchema.index({ job_id: 1, candidate_id: 1 });
 const SuggestedCandidate = mongoose.model('SuggestedCandidate', SuggestedCandidateSchema);
 export default SuggestedCandidate;
 
