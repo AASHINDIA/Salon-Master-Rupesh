@@ -486,11 +486,25 @@ export const findWorkersForJob = async (req, res) => {
             matchingCandidates = await Emp.find(matchCriteria).exec();
         }
 
-        // Calculate match score for each candidate
+        // Fetch suggested candidates for the jobId
+        const suggestedCandidates = await SuggestedCandidate.find({ job_id: jobId })
+            .select('candidate_id status')
+            .lean()
+            .exec();
+
+        // Create a map of candidate IDs to their status for quick lookup
+        const suggestedCandidateMap = new Map(
+            suggestedCandidates.map(sc => [sc.candidate_id.toString(), sc.status])
+        );
+
+        // Calculate match score for each candidate and include status
         const candidatesWithScores = matchingCandidates.map(candidate => {
             const score = isPremium ?
                 calculateMatchScore(candidate, jobPost) :
                 calculateDummyMatchScore(candidate, jobPost);
+
+            // Check if candidate is in SuggestedCandidate for this job
+            const candidateStatus = suggestedCandidateMap.get(candidate._id.toString()) || 'Not Suggested';
 
             return {
                 candidate: {
@@ -505,7 +519,8 @@ export const findWorkersForJob = async (req, res) => {
                     preferred_locations: candidate.preferred_locations,
                     contact_no: maskData.maskPhone(candidate.contact_no || candidate.user_id?.contact_no), // Masked phone
                     whatsapp_number: maskData.maskWhatsApp(candidate.whatsapp_number), // Masked WhatsApp
-                    address: maskData.partialAddress(candidate.address) // Partial address
+                    address: maskData.partialAddress(candidate.address), // Partial address
+                    status: candidateStatus // Add status from SuggestedCandidate or 'Not Suggested'
                 },
                 matchScore: score,
                 matchingSkills: isPremium ?
@@ -583,6 +598,184 @@ export const findWorkersForJob = async (req, res) => {
 
 
 // Find jobs matching a candidate profile
+// export const findJobsForWorker = async (req, res) => {
+//     try {
+//         const { candidateId } = req.params;
+
+//         // First try to find in premium candidates
+//         let candidate = await Candidate.findOne({ user_id: candidateId })
+//             .populate('skills')
+//             .exec();
+
+//         let isPremium = true;
+
+//         // If not found in premium, try in dummy data
+//         if (!candidate) {
+//             candidate = await Emp.findOne({ user_id: candidateId }).exec();
+//             isPremium = false;
+
+//             if (!candidate) {
+//                 return res.status(404).json({
+//                     success: false,
+//                     message: 'Candidate not found'
+//                 });
+//             }
+//         }
+
+//         if (!candidate.available_for_join) {
+//             return res.status(400).json({
+//                 success: false,
+//                 message: 'Candidate is not available for joining'
+//             });
+//         }
+
+//         // Build match criteria for both premium and dummy jobs
+//         const matchCriteria = {
+//             is_active: true,
+//             $or: [
+//                 { 'address.state': { $in: candidate.preferred_locations || [] } },
+//                 { 'address.state': candidate.address?.state || candidate.looking_job_location || '' }
+//             ]
+//         };
+
+//         // Add gender filter if candidate has specific gender
+//         if (candidate.gender !== 'other') {
+//             const capitalizedGender = candidate.gender.charAt(0).toUpperCase() + candidate.gender.slice(1);
+//             matchCriteria.$or.push({
+//                 gender_preference: { $in: [capitalizedGender, 'Any'] }
+//             });
+//         } else {
+//             matchCriteria.gender_preference = 'Any';
+//         }
+
+//         // Add salary range filter
+//         if (candidate.expected_salary?.min > 0 || candidate.expected_salary?.max > 0) {
+//             matchCriteria.$and = [
+//                 { 'salary_range.min': { $lte: candidate.expected_salary.max || Number.MAX_SAFE_INTEGER } },
+//                 { 'salary_range.max': { $gte: candidate.expected_salary.min || 0 } }
+//             ];
+//         }
+
+//         // Find matching job posts - search in both premium and dummy collections
+//         const premiumJobs = await JobPosting.find(matchCriteria)
+//             .populate('required_skills')
+//             .populate('salon_id')
+//             .exec();
+
+//         const dummyJobs = await JobPostingDummy.find(matchCriteria).exec();
+
+//         // Combine results
+//         const matchingJobs = [...premiumJobs, ...dummyJobs];
+
+//         // Calculate match score for each job
+//         const jobsWithScores = matchingJobs.map(jobPost => {
+//             const isJobPremium = jobPost instanceof JobPosting;
+//             const score = isPremium ?
+//                 calculateJobMatchScore(candidate, jobPost) :
+//                 calculateDummyJobMatchScore(candidate, jobPost);
+
+//             let jobResponse;
+
+//             if (isJobPremium) {
+//                 jobResponse = {
+//                     _id: jobPost._id,
+//                     job_title: jobPost.job_title,
+//                     custom_job_title: jobPost.custom_job_title,
+//                     salon_id: jobPost.salon_id ? {
+//                         _id: jobPost.salon_id._id,
+//                         salon_name: maskData.maskName(jobPost.salon_id.salon_name || ''), // Masked salon name
+//                         brand_name: maskData.maskName(jobPost.salon_id.brand_name || ''), // Masked brand name
+//                         contact_number: maskData.maskPhone(jobPost.salon_id.contact_number || ''), // Masked contact
+//                         whatsapp_number: maskData.maskWhatsApp(jobPost.salon_id.whatsapp_number || ''), // Masked WhatsApp
+//                         address: maskData.partialAddress(jobPost.salon_id.address || {}) // Partial address
+//                     } : null,
+//                     required_skills: jobPost.required_skills || [],
+//                     gender_preference: jobPost.gender_preference,
+//                     salary_range: jobPost.salary_range,
+//                     job_type: jobPost.job_type,
+//                     work_timings: jobPost.work_timings,
+//                     working_days: jobPost.working_days,
+//                     address: maskData.partialAddress(jobPost.address || {}), // Partial address
+//                     location: jobPost.location,
+//                     contact_person: jobPost.contact_person ? {
+//                         name: maskData.maskName(jobPost.contact_person.name || ''), // Masked name
+//                         phone: maskData.maskPhone(jobPost.contact_person.phone || ''), // Masked phone
+//                         email: jobPost.contact_person.email || '' // Email can be shown partially
+//                     } : null,
+//                     is_premium: true
+//                 };
+//             } else {
+//                 jobResponse = {
+//                     _id: jobPost._id,
+//                     job_title: jobPost.job_title,
+//                     custom_job_title: jobPost.custom_job_title,
+//                     salon_id: {
+//                         _id: jobPost.salon_id?._id || jobPost._id,
+//                         salon_name: maskData.maskName(jobPost.salon_id?.name || ''), // Masked salon name
+//                         brand_name: maskData.maskName(jobPost.salon_id?.brand_name || ''), // Masked brand name
+//                         contact_number: maskData.maskPhone(jobPost.salon_id?.contact_no || ''), // Masked contact
+//                         address: maskData.partialAddress(jobPost.address || {}) // Partial address
+//                     },
+//                     required_skills: jobPost.required_skills || [],
+//                     gender_preference: jobPost.gender_preference,
+//                     salary_range: jobPost.salary_range,
+//                     job_type: jobPost.job_type,
+//                     work_timings: jobPost.work_timings,
+//                     working_days: jobPost.working_days,
+//                     address: maskData.partialAddress(jobPost.address || {}), // Partial address
+//                     location: jobPost.location,
+//                     is_premium: false
+//                 };
+//             }
+
+//             return {
+//                 jobPost: jobResponse,
+//                 matchScore: score,
+//                 matchingSkills: isPremium ?
+//                     getMatchingSkills(candidate.skills || [], jobPost.required_skills || []) :
+//                     getDummyMatchingSkills(candidate.skills || [], jobPost.required_skills || [])
+//             };
+//         });
+
+//         // Sort by match score (descending)
+//         jobsWithScores.sort((a, b) => b.matchScore - a.matchScore);
+
+//         // Prepare candidate response
+//         const candidateResponse = {
+//             _id: candidate._id,
+//             name: maskData.maskName(candidate.name || candidate.user_id?.name || ''), // Masked name
+//             image: candidate.image,
+//             gender: candidate.gender,
+//             skills: candidate.skills || [],
+//             expected_salary: candidate.expected_salary || { min: 0, max: 0 },
+//             preferred_locations: candidate.preferred_locations || [],
+//             contact_no: maskData.maskPhone(candidate.contact_no || candidate.user_id?.contact_no || ''), // Masked phone
+//             whatsapp_number: maskData.maskWhatsApp(candidate.whatsapp_number || ''), // Masked WhatsApp
+//             address: maskData.partialAddress(candidate.address || {}), // Partial address
+//             is_premium: isPremium
+//         };
+
+//         res.status(200).json({
+//             success: true,
+//             data: {
+//                 candidate: candidateResponse,
+//                 totalMatches: jobsWithScores.length,
+//                 jobs: jobsWithScores
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error('Error finding jobs for worker:', error);
+//         res.status(500).json({
+//             success: false,
+//             message: 'Server error',
+//             error: error.message
+//         });
+//     }
+// };
+
+
+
 export const findJobsForWorker = async (req, res) => {
     try {
         const { candidateId } = req.params;
@@ -652,12 +845,26 @@ export const findJobsForWorker = async (req, res) => {
         // Combine results
         const matchingJobs = [...premiumJobs, ...dummyJobs];
 
-        // Calculate match score for each job
+        // Fetch job applications for the candidateId
+        const jobApplications = await JobApplication.find({ candidate_id: candidate._id })
+            .select('job_id status')
+            .lean()
+            .exec();
+
+        // Create a map of job IDs to their application status for quick lookup
+        const jobApplicationMap = new Map(
+            jobApplications.map(ja => [ja.job_id.toString(), ja.status])
+        );
+
+        // Calculate match score for each job and include application status
         const jobsWithScores = matchingJobs.map(jobPost => {
             const isJobPremium = jobPost instanceof JobPosting;
             const score = isPremium ?
                 calculateJobMatchScore(candidate, jobPost) :
                 calculateDummyJobMatchScore(candidate, jobPost);
+
+            // Check if candidate has applied to this job
+            const applicationStatus = jobApplicationMap.get(jobPost._id.toString()) || 'Not Applied';
 
             let jobResponse;
 
@@ -687,7 +894,8 @@ export const findJobsForWorker = async (req, res) => {
                         phone: maskData.maskPhone(jobPost.contact_person.phone || ''), // Masked phone
                         email: jobPost.contact_person.email || '' // Email can be shown partially
                     } : null,
-                    is_premium: true
+                    is_premium: true,
+                    application_status: applicationStatus // Add application status
                 };
             } else {
                 jobResponse = {
@@ -709,7 +917,8 @@ export const findJobsForWorker = async (req, res) => {
                     working_days: jobPost.working_days,
                     address: maskData.partialAddress(jobPost.address || {}), // Partial address
                     location: jobPost.location,
-                    is_premium: false
+                    is_premium: false,
+                    application_status: applicationStatus // Add application status
                 };
             }
 

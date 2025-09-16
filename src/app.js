@@ -120,7 +120,7 @@ app.use('/api/v1/locationdata', locationdata)
 // ---------------------------
 
 //-------------JOB----------------
-// ---------------------------
+
 // Job Posting Routes
 app.use('/api/v1/jobpost', JobPost)
 // ---------------------------  
