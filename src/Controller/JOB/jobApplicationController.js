@@ -125,7 +125,7 @@ export const getJobApplications = async (req, res) => {
         let applications = await JobApplication.find(query)
             .populate({
                 path: "candidate_id",
-                select: "name whatsapp_number gender skills experience",
+                select: "name contact_no gender skills experience",
             })
             .populate({
                 path: "job_id",
@@ -141,7 +141,7 @@ export const getJobApplications = async (req, res) => {
             return {
                 _id: app._id,
                 candidate_name: isHired ? candidate?.name : maskName(candidate?.name),
-                whatsapp_number: isHired ? candidate?.whatsapp_number : maskNumber(candidate?.whatsapp_number),
+                whatsapp_number: isHired ? candidate?.contact_no : maskNumber(candidate?.contact_no),
                 gender: candidate?.gender || "",
                 skills: candidate?.skills || [],
                 experience: candidate?.experience || 0,
