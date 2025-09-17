@@ -505,7 +505,7 @@ export const findWorkersForJob = async (req, res) => {
                 calculateDummyMatchScore(candidate, jobPost);
 
             // Check if candidate is in SuggestedCandidate for this job
-            const candidateStatus = suggestedCandidateMap.get(candidate._id.toString()) || 'Not Suggested';
+            const candidateStatus = suggestedCandidateMap.get(candidate._id.toString()) || 'not_suggested';
 
             return {
                 candidate: {
