@@ -6,7 +6,7 @@ import morgan from 'morgan';
 import hpp from 'hpp';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
-import rateLimit,{ipKeyGenerator } from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { xss } from 'express-xss-sanitizer';
 import './Controller/Cronjob/cronJobs.js'
 // Main route definitions
@@ -35,7 +35,7 @@ import PremissionRoute from './Route/authRoute/permissionRoutes.js'
 import cartRoute from './Route/Cart/CartRoute.js'
 import ShowDataRoute from './Route/ShowData/ShowDataRoute.js'
 import salseFigureRoute from './Route/SalseFigure/SalseFigure.js';
-import  importuserfromexcle from './Route/ImportdataRoute/ImportData.js'
+import importuserfromexcle from './Route/ImportdataRoute/ImportData.js'
 import sopproduct from './Route/sopandProduct/sopandProduct.js'
 import jobandworker from './Route/FindJobandWorker/FindJobWorker.js'
 import updateApplicationStatus from './Route/ApplicationStausUpdate/ApplicationStausUpdate.js'
@@ -85,7 +85,7 @@ app.use(morgan('dev')); // Logging
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 1000, // limit each IP to 100 requests per window
-  standardHeaders: true, 
+  standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req, res) => ipKeyGenerator(req), // 👈 fix for IPv6
   message: 'Too many requests from this IP, please try again later',
@@ -110,7 +110,7 @@ app.use('/api/v1/category', CategoryRuoute)
 app.use('/api/v1/product', ProductRuoute)
 
 // ---------------------------
-  app.use('/api/v1/TraningVideos', TraningVideos)
+app.use('/api/v1/TraningVideos', TraningVideos)
 app.use('/api/v1/candidate', candidate)
 app.use('/api/v1/salon', salon)
 app.use('/api/v1/compnay', compnay)
@@ -148,7 +148,7 @@ app.use('/api/v1/DashboardApi', DashboardApi)
 // ---------------------------
 // Store Management Routes
 app.use('/api/v1/itemsroute', ItemsRoute)
-   
+
 app.use('/api/v1/show', ShowDataRoute)
 
 app.use('/api/v1/salefigure', salseFigureRoute)
@@ -165,7 +165,7 @@ app.use('/api/v1', UploadFile)
 
 app.use('/api/v1', dummaydata)
 
-app.use('/api/v1', SallerRoute)
+app.use('/api/v1/sallerroute', SallerRoute)
 // 🧱 Error Handlers
 // ---------------------------
 app.use(notFound);
