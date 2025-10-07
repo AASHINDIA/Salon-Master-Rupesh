@@ -36,7 +36,6 @@ const UserSchema = new mongoose.Schema({
         ],
         required: true
     },
-
     sub_domain_type: {
         type: String,
         enum: ['buyer', 'seller'],

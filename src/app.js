@@ -44,6 +44,7 @@ import dummaydata from './Route/dummayData/dummaydataRoute.js'
 import UploadFile from './Route/FTM/UploadFile/UploadFile.js'
 import trakingroute from './Route/UserTraking/UserTrakingRoute.js'
 import locationdata from './Route/State_county_city/location.js'
+import SallerRoute from './Route/SaleRoute/commonsaller.js'
 const app = express();
 
 // ---------------------------
@@ -163,6 +164,8 @@ app.use('/api/v1', Franchisee)
 app.use('/api/v1', UploadFile)
 
 app.use('/api/v1', dummaydata)
+
+app.use('/api/v1', SallerRoute)
 // 🧱 Error Handlers
 // ---------------------------
 app.use(notFound);
