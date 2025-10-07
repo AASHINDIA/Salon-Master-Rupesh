@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const commonSellerSchema = new mongoose.Schema(
+const traininginstituteSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -14,14 +14,14 @@ const commonSellerSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-   
+
     phoneNumber: {
       type: String,
       required: true,
       trim: true,
       match: [/^[0-9]{10}$/, "Invalid phone number"],
     },
-    
+
     email: {
       type: String,
       required: true,
@@ -43,4 +43,4 @@ const commonSellerSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model("CommonSeller", commonSellerSchema);
+export default mongoose.model("traininginstitute", traininginstituteSchema);

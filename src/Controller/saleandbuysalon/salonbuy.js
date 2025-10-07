@@ -1,7 +1,131 @@
 import User from "../../Modal/Users/User.js";
 import CommonSeller from "../../Modal/sales/commonseller.js";
+import Candidate from "../../Modal/Candidate/Candidate.js";
+import Company from "../../Modal/Compony/ComponyModal.js";
+import Salon from "../../Modal/Salon/Salon.js";
+import traininginstitute from "../../Modal/traininginstitute/training_institute.js";
+import franchise from "../../Modal/franchise/franchise.js";
 import SellerListing from "../../Modal/sales/SellerListing.js";
 import { uploadToCloudinary } from "../../Utils/imageUpload.js";
+
+
+export const getDetails = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        // Find the user
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        let details;
+        let formattedDetails = {};
+
+        switch (user.domain_type) {
+            case 'salon':
+                details = await Salon.findOne({ user_id: userId });
+                if (details) {
+                    formattedDetails = {
+                        full_name: details.salon_name || details.brand_name,
+                        email: user.email, // Assuming email is in User model
+                        phone_number: details.contact_number || details.whatsapp_number,
+                        id_details: {
+                            pan_number: details.pan_number,
+                            gst_number: details.gst_number
+                        }
+                    };
+                }
+                break;
+            case 'worker':
+                details = await Candidate.findOne({ user_id: userId });
+                if (details) {
+                    formattedDetails = {
+                        full_name: details.name,
+                        email: user.email, // Assuming email is in User model
+                        phone_number: details.contact_no,
+                        id_details: {
+                            id_type: details.id_type,
+                            id_number: details.id_detail?.number,
+                            pan_number: details.pan_no
+                        }
+                    };
+                }
+                break;
+            case 'company':
+                details = await Company.findOne({ user_id: userId });
+                if (details) {
+                    formattedDetails = {
+                        full_name: details.company_name || details.brand,
+                        email: user.email, // Assuming email is in User model
+                        phone_number: details.whatsapp_number,
+                        id_details: {
+                            pan_number: details.pan_number,
+                            gst_number: details.gst_number,
+                            cin: details.cin
+                        }
+                    };
+                }
+                break;
+            case 'sales':
+                details = await CommonSeller.findOne({ userId });
+                if (details) {
+                    formattedDetails = {
+                        full_name: details.fullName,
+                        email: details.email,
+                        phone_number: details.phoneNumber,
+                        id_details: {
+                            pan_number: details.panNumber
+                        }
+                    };
+                }
+                break;
+            case 'Training':
+                details = await traininginstitute.findOne({ userId });
+                if (details) {
+                    formattedDetails = {
+                        full_name: details.fullName,
+                        email: details.email,
+                        phone_number: details.phoneNumber,
+                        id_details: {
+                            pan_number: details.panNumber
+                        }
+                    };
+                }
+                break;
+            case 'Franchise':
+                details = await franchise.findOne({ userId });
+                if (details) {
+                    formattedDetails = {
+                        full_name: details.fullName,
+                        email: details.email,
+                        phone_number: details.phoneNumber,
+                        id_details: {
+                            pan_number: details.panNumber
+                        }
+                    };
+                }
+                break;
+            default:
+                return res.status(400).json({ success: false, message: "Invalid domain type" });
+        }
+
+        if (!details) {
+            return res.status(404).json({ success: false, message: "Details not found for this user" });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: formattedDetails,
+            domain_type: user.domain_type
+        });
+    } catch (error) {
+        console.error("Error fetching details:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+
 
 // ✅ Admin or system-controlled update for sub_domain_type
 export const updateSubDomainType = async (req, res) => {
@@ -166,31 +290,35 @@ export const getCommonSellerProfile = async (req, res) => {
 
 export const createSellerListing = async (req, res) => {
     try {
-        const userId = req.user.id; // from JWT auth
+        const userId = req.user.id;
         const {
+            fullName,
+            idDetails,
+            phoneNumber,
+            email,
             shopName,
             status,
+            heading,
             description,
+            short_description,
             address,
             advertisementDetails,
             termsAccepted,
         } = req.body;
 
-        const commonSeller = await CommonSeller.findOne({ userId: userId });
-
-        if (!commonSeller) {
-            return res.status(404).json({ success: false, message: "Seller not found" });
-        }
-
-        const commonSellerId = commonSeller._id;
-
         // Validate required fields
-        if (!shopName || termsAccepted !== true) {
+        if (!fullName || !idDetails || !phoneNumber || !email || !shopName || !status || !heading || termsAccepted !== true) {
             return res.status(400).json({
                 success: false,
-                message: "shopName, status, and termsAccepted are required",
+                message: "Required fields are missing or terms not accepted",
             });
         }
+
+        if (!["active", "inactive"].includes(heading)) {
+            return res.status(400).json({ success: false, message: "Heading must be 'active' or 'inactive'" });
+        }
+
+     
 
         // Upload advertisement images if provided
         let advertisementImages = [];
@@ -203,10 +331,16 @@ export const createSellerListing = async (req, res) => {
 
         // Create new listing
         const newListing = new SellerListing({
-            commonSellerId,
+            userId,
+            fullName,
+            idDetails,
+            phoneNumber,
+            email,
             shopName,
             status,
+            heading,
             description,
+            short_description,
             address,
             advertisementDetails,
             advertisementImages,
@@ -229,6 +363,7 @@ export const createSellerListing = async (req, res) => {
         });
     }
 };
+
 
 
 

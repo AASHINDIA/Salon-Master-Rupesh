@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const sellerListingSchema = new mongoose.Schema(
+const TraningListSchema = new mongoose.Schema(
     {
         userId: {
             type: mongoose.Schema.Types.ObjectId,
@@ -87,4 +87,4 @@ const sellerListingSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-export default mongoose.model("SellerListing", sellerListingSchema);
+export default mongoose.model("TraningList", TraningListSchema);

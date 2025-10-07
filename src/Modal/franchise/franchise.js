@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const commonSellerSchema = new mongoose.Schema(
+const franchiseSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -43,4 +43,4 @@ const commonSellerSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model("CommonSeller", commonSellerSchema);
+export default mongoose.model("franchise", franchiseSchema);
