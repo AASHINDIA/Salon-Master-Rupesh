@@ -376,7 +376,7 @@ export const deleteUser = async (req, res) => {
             case 'worker':
                 await Candidate.deleteOne({ user_id: id }).session(session);
                 break;
-            case 'solan':
+            case 'salon':
                 await Salon.deleteOne({ user_id: id }).session(session);
                 break;
             case 'company':

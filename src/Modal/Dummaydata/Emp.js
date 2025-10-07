@@ -19,13 +19,13 @@ const EmpSchema = new mongoose.Schema({
     },
     name: {
         type: String,
-    
+
         trim: true
     },
     date_of_birth: {
         type: Date,
     },
-    
+
 
     gender: {
         type: String,
@@ -44,13 +44,16 @@ const EmpSchema = new mongoose.Schema({
 
     joining_date: {
         type: Date,
-        
+
     },
     expected_salary: {
         min: { type: Number, default: 15000 },
         max: { type: Number, default: 20000 }
     },
-
+    available_for_join: {
+        type: Boolean,
+        default: true
+    },
     looking_job_location: {
         type: String,
         default: 'india'

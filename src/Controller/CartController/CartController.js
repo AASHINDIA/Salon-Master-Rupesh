@@ -7,7 +7,7 @@ import Cart from "../../Modal/OrderMangement/Cart.js";
 // import Company from "../../Modal/Compony/Company.js";
 // ✅ Add to Cart (already explained before)
 import Company from '../../Modal/Compony/ComponyModal.js'
-
+import { sendCartAddedEmails } from "../../Utils/services/sendOtpEmail.js";
 export const AddintoCart = async (req, res) => {
     try {
         const userId = req.user?.id;
@@ -67,6 +67,26 @@ export const AddintoCart = async (req, res) => {
             quantity: finalQuantity,
             price: finalQuantity * product.price,
         });
+
+
+
+        // ✅ Fetch user and company details
+        const user = await User.findById(userId);
+        const company = await Company.findById(product.company_id); // assuming product has company_id
+        const companyEmailToSend = company.email || "default.gmail@gmail.com";
+
+        // ✅ Send emails
+        try {
+            await sendCartAddedEmails(
+                user,
+                { name: product.name, quantity: finalQuantity },
+                { name: company.name, email: company.email, address: company.address },
+                companyEmailToSend,            // company email
+                process.env.SUPER_ADMIN      // super admin email
+            );
+        } catch (emailError) {
+            console.error("Error sending cart emails:", emailError);
+        }
 
         return res.status(201).json({
             success: true,

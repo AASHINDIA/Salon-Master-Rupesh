@@ -8,7 +8,7 @@ import cookieParser from 'cookie-parser';
 import compression from 'compression';
 import rateLimit,{ipKeyGenerator } from 'express-rate-limit';
 import { xss } from 'express-xss-sanitizer';
-
+import './Controller/Cronjob/cronJobs.js'
 // Main route definitions
 import notFound from './Middlewares/notFound.js';
 import { errorHandler } from './Middlewares/errorHandler.js';

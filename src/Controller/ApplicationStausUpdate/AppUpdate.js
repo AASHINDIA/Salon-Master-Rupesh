@@ -21,6 +21,7 @@ export const updateJobApplicationStatus = async (req, res) => {
             { new: true } // return the updated document
         );
 
+       
         if (!updatedApplication) {
             return res.status(404).json({ message: 'Job application not found.' });
         }

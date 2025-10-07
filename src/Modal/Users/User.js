@@ -24,8 +24,23 @@ const UserSchema = new mongoose.Schema({
     }],
     domain_type: {
         type: String,
-        enum: ['salon', 'worker', 'company', 'admin', 'superadmin',"Sale_Lease", "Training", "Franchise"],
+        enum: [
+            'salon',
+            'worker',
+            'company',
+            'admin',
+            'superadmin',
+            'sales',
+            'Training',
+            'Franchise'
+        ],
         required: true
+    },
+
+    sub_domain_type: {
+        type: String,
+        enum: ['buyer', 'seller'],
+        default: null
     },
     whatsapp_number: {
         type: String,

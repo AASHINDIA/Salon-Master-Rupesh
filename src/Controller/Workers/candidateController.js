@@ -61,7 +61,7 @@ export const saveCandidateProfile = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
 
-    
+
     try {
         const userId = req.user._id;
         const {
@@ -104,24 +104,7 @@ export const saveCandidateProfile = async (req, res) => {
             });
         }
 
-        /** ---------------------------
-         * Job Location Validation
-         ---------------------------- */
-        // if (looking_job_location && !['india', 'outside_india', 'both', ''].includes(looking_job_location)) {
-        //     throw new Error('Invalid looking_job_location value. Must be "india", "outside_india", "both", or "".');
-        // }
-        // if ((looking_job_location === 'india' || looking_job_location === 'both') &&
-        //     (!preferred_locations || (Array.isArray(preferred_locations) && preferred_locations.length === 0))) {
-        //     throw new Error('At least one preferred location is required for India or Both job locations.');
-        // }
 
-        /** ---------------------------
-         * Profile Image Upload
-         ---------------------------- */
-        // if (req.file?.buffer) {
-        //     const result = await uploadToCloudinary(req.file.buffer, 'worker-profile');
-        //     candidate.image = result.secure_url;
-        // }
 
 
         if (req.files && req.files.image && req.files.image[0]) {
@@ -137,10 +120,7 @@ export const saveCandidateProfile = async (req, res) => {
             candidate.image = result.secure_url;
         } else {
             console.log('No image file received');
-            // If image is required, uncomment the following:
-            // if (!candidate.image) {
-            //     throw new Error('Profile image is required');
-            // }
+
         }
         /** ---------------------------
          * Basic Details
@@ -273,7 +253,21 @@ export const saveCandidateProfile = async (req, res) => {
         }
 
         /** Available for Join */
-        if (available_for_join !== undefined) candidate.available_for_join = available_for_join;
+        // if (available_for_join !== undefined) candidate.available_for_join = available_for_join;
+        /** Available for Join */
+        if (available_for_join !== undefined) {
+            if (available_for_join === true) {
+                // Only set start date if previously false or not set
+                if (!candidate.available_for_join) {
+                    candidate.available_for_join_start = Date.now();
+                }
+            } else if (available_for_join === false) {
+                // Reset start date if set to false
+                candidate.available_for_join_start = null;
+            }
+
+            candidate.available_for_join = available_for_join;
+        }
 
         /** ---------------------------
          * Save & Commit
@@ -297,6 +291,9 @@ export const saveCandidateProfile = async (req, res) => {
         });
     }
 };
+
+
+
 
 // Reuse your masking helpers
 const maskNumber = (number) => {

@@ -86,8 +86,11 @@ const candidateSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    available_for_join_start: {
+        type: Date,
+    },
     address: {
-        country: {  
+        country: {
             type: String,
             trim: true,
         },

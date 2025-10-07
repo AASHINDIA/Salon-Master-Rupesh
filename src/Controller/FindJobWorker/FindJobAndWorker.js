@@ -497,6 +497,8 @@ export const findWorkersForJob = async (req, res) => {
         const suggestedCandidateMap = new Map(
             suggestedCandidates.map(sc => [sc.candidate_id.toString(), sc.status])
         );
+        
+        matchingCandidates = matchingCandidates.filter(c => c.available_for_join);
 
         // Calculate match score for each candidate and include status
         const candidatesWithScores = matchingCandidates.map(candidate => {
@@ -844,7 +846,12 @@ export const findJobsForWorker = async (req, res) => {
         const dummyJobs = await JobPostingDummy.find(matchCriteria).exec();
 
         // Combine results
-        const matchingJobs = [...premiumJobs, ...dummyJobs];
+        // const matchingJobs = [...premiumJobs, ...dummyJobs];
+
+        const matchingJobs = [
+            ...premiumJobs.filter(job => job.is_active),
+            ...dummyJobs.filter(job => job.is_active)
+        ];
 
         // Fetch job applications for the candidateId
         const jobApplications = await JobApplication.find({ candidate_id: candidate._id })
