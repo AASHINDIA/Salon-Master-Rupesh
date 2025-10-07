@@ -1,5 +1,7 @@
 import TraningList from "../../Modal/traininginstitute/TraningList.js";
 import FranchiseList from "../../Modal/franchise/FranchiseList.js";
+import SellerListing from "../../Modal/sales/SellerListing.js";
+
 import traininginstitute from "../../Modal/traininginstitute/training_institute.js";
 import franchise from "../../Modal/franchise/franchise.js";
 import { uploadToCloudinary } from "../../Utils/imageUpload.js";
