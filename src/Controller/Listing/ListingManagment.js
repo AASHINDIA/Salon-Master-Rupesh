@@ -92,8 +92,8 @@ export const updateFranchiseList = async (req, res) => {
             });
         }
 
-        if (updateData.heading && !["active", "inactive"].includes(updateData.heading)) {
-            return res.status(400).json({ success: false, message: "Heading must be 'active' or 'inactive'" });
+        if (updateData.heading && !["active", "inactive"].includes(updateData.status)) {
+            return res.status(400).json({ success: false, message: "status must be 'active' or 'inactive'" });
         }
 
         if (updateData.imagesToRemove && Array.isArray(updateData.imagesToRemove)) {
@@ -281,8 +281,8 @@ export const updateTraningList = async (req, res) => {
             });
         }
 
-        if (updateData.heading && !["active", "inactive"].includes(updateData.heading)) {
-            return res.status(400).json({ success: false, message: "Heading must be 'active' or 'inactive'" });
+        if (updateData.heading && !["active", "inactive"].includes(updateData.status)) {
+            return res.status(400).json({ success: false, message: "status must be 'active' or 'inactive'" });
         }
 
         if (updateData.imagesToRemove && Array.isArray(updateData.imagesToRemove)) {
@@ -470,8 +470,8 @@ export const updateSellerListing = async (req, res) => {
             });
         }
 
-        if (updateData.heading && !["active", "inactive"].includes(updateData.heading)) {
-            return res.status(400).json({ success: false, message: "Heading must be 'active' or 'inactive'" });
+        if (updateData.heading && !["active", "inactive"].includes(updateData.status)) {
+            return res.status(400).json({ success: false, message: "status must be 'active' or 'inactive'" });
         }
 
         if (updateData.imagesToRemove && Array.isArray(updateData.imagesToRemove)) {
