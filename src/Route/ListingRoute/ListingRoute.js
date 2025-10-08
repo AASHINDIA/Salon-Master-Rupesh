@@ -7,6 +7,7 @@ import {
 } from '../../Controller/Listing/Listing.js';
 import multer from 'multer';
 import { uploadToCloudinary } from '../../Utils/imageUpload.js';
+import { protect } from '../../Middlewares/authMiddleware/auth.js';
 const router = express.Router();
 
 // Configure multer for file uploads
@@ -19,11 +20,11 @@ const upload = multer({
 });
 
 // Routes for creating listings (multiple files)
-router.post('/training-list', upload.array('advertisementImages', 4), createTraningList);
-router.post('/franchise-list', upload.array('advertisementImages', 4), createFranchiseList);
+router.post('/training-list', protect, upload.array('advertisementImages', 4), createTraningList);
+router.post('/franchise-list', protect, upload.array('advertisementImages', 4), createFranchiseList);
 
 // Routes for creating/updating profiles (single file)
-router.post('/training-institute', upload.single('profileImage'), createOrUpdatetraininginstitute);
-router.post('/franchise', upload.single('profileImage'), createOrUpdatefranchise);
+router.post('/training-institute', protect, upload.single('profileImage'), createOrUpdatetraininginstitute);
+router.post('/franchise', protect, upload.single('profileImage'), createOrUpdatefranchise);
 
 export default router;
