@@ -32,11 +32,11 @@ export const createTraningList = async (req, res) => {
             });
         }
 
-        if (!["active", "inactive"].includes(heading)) {
-            return res.status(400).json({ success: false, message: "Heading must be 'active' or 'inactive'" });
+
+
+        if (!["active", "inactive"].includes(status)) {
+            return res.status(400).json({ success: false, message: "status must be 'active' or 'inactive'" });
         }
-
-
 
 
         // Upload advertisement images if provided
@@ -109,12 +109,12 @@ export const createFranchiseList = async (req, res) => {
             });
         }
 
-        if (!["active", "inactive"].includes(heading)) {
-            return res.status(400).json({ success: false, message: "Heading must be 'active' or 'inactive'" });
+
+
+
+        if (!["active", "inactive"].includes(status)) {
+            return res.status(400).json({ success: false, message: "status must be 'active' or 'inactive'" });
         }
-
-
-
 
         // Upload advertisement images if provided
         let advertisementImages = [];
