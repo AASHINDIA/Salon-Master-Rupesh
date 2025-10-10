@@ -324,4 +324,72 @@ export const createOrUpdatefranchise = async (req, res) => {
 };
 
 
+export const gettraininginstituteProfile = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: "User ID is required to fetch profile",
+            });
+        }
+
+        const seller = await traininginstitute.findOne({ userId }).populate("userId", "name email");
+
+        if (!seller) {
+            return res.status(404).json({
+                success: false,
+                message: "Seller profile not found",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Seller profile fetched successfully",
+            data: seller,
+        });
+    } catch (error) {
+        console.error("Error fetching seller profile:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Server error",
+            error: error.message,
+        });
+    }
+};
+export const getfranchiseProfile = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: "User ID is required to fetch profile",
+            });
+        }
+
+        const seller = await franchise.findOne({ userId }).populate("userId", "name email");
+
+        if (!seller) {
+            return res.status(404).json({
+                success: false,
+                message: "Seller profile not found",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Seller profile fetched successfully",
+            data: seller,
+        });
+    } catch (error) {
+        console.error("Error fetching seller profile:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Server error",
+            error: error.message,
+        });
+    }
+};
 
