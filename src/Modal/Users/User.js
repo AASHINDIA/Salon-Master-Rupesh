@@ -31,8 +31,8 @@ const UserSchema = new mongoose.Schema({
             'admin',
             'superadmin',
             'sales',
-            'Training',
-            'Franchise'
+            'training',
+            'franchise'
         ],
         required: true
     },
