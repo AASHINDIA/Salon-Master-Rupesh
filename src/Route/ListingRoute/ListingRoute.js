@@ -18,13 +18,12 @@ import { uploadToCloudinary } from '../../Utils/imageUpload.js';
 import { protect } from '../../Middlewares/authMiddleware/auth.js';
 const router = express.Router();
 
-// Configur```e multer for file uploads
-const storage = multer.memoryStorage();
+// Configur``e multer for file uploads
+const storage = multer.memoryStorage(); // Keeps image in memory before uploading to Cloudinary
+
 const upload = multer({
-    storage: storage,
-    limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB limit
-    }
+    storage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
 });
 
 // Routes for creating listings (multiple files)

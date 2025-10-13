@@ -135,8 +135,8 @@ export const getUserInterests = async (req, res) => {
 
 export const getInterestsForUserListings = async (req, res) => {
 
-    const adUserId = req.user._id;
-    const { adId } = req.body;
+    const adUserId = req.user.id;
+    const { adId } = req.params; // optional filter by adId
 
     try {
         const {

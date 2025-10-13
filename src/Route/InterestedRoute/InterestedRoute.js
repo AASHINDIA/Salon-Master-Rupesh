@@ -10,7 +10,7 @@ router.post('/express-interest', protect, expressInterest);
 router.get('/getUserInterests', protect, getUserInterests);
 
 // Get interests for all listings of the logged-in user
-router.get('/user-listings', protect, getInterestsForUserListings);
+router.get('/user-listings/:adId', protect, getInterestsForUserListings);
 router.delete('/withdraw-interest/:interestId', protect, withdrawInterest);
 
 router.post('/all-interests', protect, getAllInterests);
