@@ -416,6 +416,7 @@ const getFilteredListings = async (Model, userId, SellerModel, req, res) => {
 
         // Find seller by user ID
         const commonSeller = await SellerModel.findOne({ userId });
+        console.log("Step1 =>", commonSeller)
         if (!commonSeller) {
             return res.status(404).json({
                 success: false,
@@ -425,7 +426,8 @@ const getFilteredListings = async (Model, userId, SellerModel, req, res) => {
 
         // Base filter
         const filter = { userId: commonSeller._id };
-
+        console.log("Step2 =>", filter)
+        
         // Date filter (from–to)
         if (fromDate && toDate) {
             filter.createdAt = { $gte: new Date(fromDate), $lte: new Date(toDate) };
@@ -434,7 +436,8 @@ const getFilteredListings = async (Model, userId, SellerModel, req, res) => {
         } else if (toDate) {
             filter.createdAt = { $lte: new Date(toDate) };
         }
-
+        console.log("Step3 =>", filter)
+        
         // Search filter (optional: modify fields like title, description, etc.)
         if (search.trim()) {
             filter.$or = [
@@ -455,6 +458,7 @@ const getFilteredListings = async (Model, userId, SellerModel, req, res) => {
             .skip(skip)
             .limit(Number(limit));
 
+            console.log("listings",listings);
         // Count total for pagination
         const total = await Model.countDocuments(filter);
 
