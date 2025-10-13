@@ -388,7 +388,7 @@ export const getSellerListingsByUser = async (req, res) => {
     }
 
     // Step 2: Build filter object
-    const filter = { commonSellerId: commonSeller._id };
+    const filter = { commonSellerId: commonSeller.userId };
 
     // Add Date filter (from / to)
     if (fromDate && toDate) {
