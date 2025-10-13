@@ -419,6 +419,7 @@ export const getSellerListingsByUser = async (req, res) => {
       .skip(skip)
       .limit(Number(limit));
 
+      xonsole.log("Listings fetched:", listings);
     // Step 6: Count total for pagination info
     const total = await SellerListing.countDocuments(filter);
 
