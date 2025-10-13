@@ -283,8 +283,8 @@ export const getAllInterests = async (req, res) => {
 
         const interests = await ListingInterestSchema.find(query)
             .populate('adId') // populate ad details
-            .populate('interestedUserId', 'name phone') // interested user info
-            .populate('adUserId', 'name phone') // ad owner info
+            .populate('interestedUserId', 'name whatsapp_number') // interested user info
+            .populate('adUserId', 'name whatsapp_number') // ad owner info
             .skip((page - 1) * limit)
             .limit(limit)
             .sort({ createdAt: -1 }); // latest first
