@@ -7,7 +7,7 @@ const router = express.Router();
 // expressInterest in a listing
 router.post('/express-interest', protect, expressInterest);
 // get all interests expressed by the logged-in user    
-router.post('/getUserInterests', protect, getUserInterests);
+router.get('/getUserInterests', protect, getUserInterests);
 
 // Get interests for all listings of the logged-in user
 router.get('/user-listings', protect, getInterestsForUserListings);

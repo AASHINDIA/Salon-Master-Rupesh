@@ -1,8 +1,6 @@
 import ListingInterestSchema from "../../Modal/InterstedSchema/ListingInterestSchema.js";
 import mongoose from "mongoose";
-
 import FranchiseList from "../../Modal/franchise/FranchiseList.js";
-
 import TraningList from "../../Modal/traininginstitute/TraningList.js";
 import SellerListing from "../../Modal/sales/SellerListing.js";
 
@@ -70,7 +68,7 @@ export const getUserInterests = async (req, res) => {
     try {
         const interests = await ListingInterestSchema.find({
             interestedUserId
-        }).populate('adId').populate('adUserId', 'name email'); // Populate ad details and ad owner details
+        }).populate('adId').populate('adUserId', 'name phone'); // Populate ad details and ad owner details
         res.status(200).json(interests);
     }
     catch (error) {
@@ -136,6 +134,7 @@ export const getUserInterests = async (req, res) => {
 
 
 export const getInterestsForUserListings = async (req, res) => {
+  
     const adUserId = req.user._id;
     const { adId } = req.body;
 
