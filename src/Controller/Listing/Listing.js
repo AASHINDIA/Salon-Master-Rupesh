@@ -416,7 +416,7 @@ const getFilteredListings = async (Model, userId, SellerModel, req, res) => {
 
         // Find seller by user ID
         const commonSeller = await SellerModel.findOne({ userId });
-        console.log("Step1 =>", commonSeller)
+   
         if (!commonSeller) {
             return res.status(404).json({
                 success: false,
@@ -426,7 +426,7 @@ const getFilteredListings = async (Model, userId, SellerModel, req, res) => {
 
         // Base filter
         const filter = { userId: commonSeller.userId };
-        console.log("Step2 =>", filter)
+        
         
         // Date filter (from–to)
         if (fromDate && toDate) {
@@ -436,7 +436,7 @@ const getFilteredListings = async (Model, userId, SellerModel, req, res) => {
         } else if (toDate) {
             filter.createdAt = { $lte: new Date(toDate) };
         }
-        console.log("Step3 =>", filter)
+       
         
         // Search filter (optional: modify fields like title, description, etc.)
         if (search.trim()) {
