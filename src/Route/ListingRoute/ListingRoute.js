@@ -7,7 +7,10 @@ import {
     gettraininginstituteProfile,
     getfranchiseProfile,
     gettraininginstituteListingsByUser,
-    getfranchiseListingsByUser
+    getfranchiseListingsByUser,
+    getFranchiseListings,
+    getTraningListListings,
+    getSellerListing
 
 } from '../../Controller/Listing/Listing.js';
 import multer from 'multer';
@@ -37,4 +40,11 @@ router.get('/getfranchiseProfile', protect, getfranchiseProfile)
 
 router.get('/getfranchiseListingsByUser', protect, getfranchiseListingsByUser)
 router.get('/gettraininginstituteListingsByUser', protect, gettraininginstituteListingsByUser)
+
+router.get('/getFranchiseListings', getFranchiseListings)
+router.get('/getTraningListListings', getTraningListListings)
+router.get('/getSellerListing', getSellerListing)
+
+
+
 export default router;

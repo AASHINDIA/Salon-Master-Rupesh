@@ -2,6 +2,9 @@ import TraningList from "../../Modal/traininginstitute/TraningList.js";
 import FranchiseList from "../../Modal/franchise/FranchiseList.js";
 import SellerListing from "../../Modal/sales/SellerListing.js";
 
+// controllers/franchiseController.js
+import mongoose from "mongoose";
+
 import traininginstitute from "../../Modal/traininginstitute/training_institute.js";
 import franchise from "../../Modal/franchise/franchise.js";
 import { uploadToCloudinary } from "../../Utils/imageUpload.js";
@@ -483,3 +486,111 @@ export const getfranchiseListingsByUser = async (req, res) => {
   const userId = req.user.id;
   await getFilteredListings(FranchiseList, userId, franchise, req, res);
 };
+
+
+
+
+export const getPublicFranchiseListings = async (Model, req, res) => {
+  try {
+    const {
+      search = "",        // text search
+      fromDate,
+      toDate,
+      city,
+      state,
+      page = 1,
+      limit = 10,
+      sort = "latest",    // latest | old
+    } = req.query;
+
+    const filter = {};
+
+    // 🔹 Show only ACTIVE + NON-EXPIRED listings
+    const now = new Date();
+    filter.status = "active";
+    filter.expiredAt = { $gte: now };
+
+    // 🔹 Search filter
+    if (search.trim()) {
+      filter.$or = [
+        
+        { heading: { $regex: search, $options: "i" } },
+        { shopName: { $regex: search, $options: "i" } },
+    
+        { description: { $regex: search, $options: "i" } },
+        { short_description: { $regex: search, $options: "i" } },
+        { advertisementDetails: { $regex: search, $options: "i" } },
+        { address: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // 🔹 Date range filter (createdAt)
+    if (fromDate && toDate) {
+      filter.createdAt = { $gte: new Date(fromDate), $lte: new Date(toDate) };
+    } else if (fromDate) {
+      filter.createdAt = { $gte: new Date(fromDate) };
+    } else if (toDate) {
+      filter.createdAt = { $lte: new Date(toDate) };
+    }
+
+    // 🔹 City/state match (address contains)
+    if (city) {
+      filter.address = { $regex: city, $options: "i" };
+    }
+    if (state) {
+      filter.address = { $regex: state, $options: "i" };
+    }
+
+    // 🔹 Pagination setup
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // 🔹 Sort by created date
+    const sortOrder = sort === "old" ? 1 : -1;
+
+    // 🔹 Fetch listings
+    const listings = await Model.find(filter)
+      .sort({ createdAt: sortOrder })
+      .skip(skip)
+      .limit(Number(limit))
+      .lean();
+
+    // 🔹 Total count
+    const total = await Model.countDocuments(filter);
+
+    // ✅ Response
+    return res.status(200).json({
+      success: true,
+      total,
+      count: listings.length,
+      currentPage: Number(page),
+      totalPages: Math.ceil(total / Number(limit)),
+      filtersApplied: filter,
+      data: listings,
+    });
+  } catch (error) {
+    console.error("Error fetching franchise listings:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching listings",
+      error: error.message,
+    });
+  }
+};
+
+
+
+// For franchise listings
+export const getFranchiseListings = (req, res) => {
+  return getPublicFranchiseListings(FranchiseList, req, res);
+};
+
+// For brand listings
+export const getTraningListListings = (req, res) => {
+  return getPublicFranchiseListings(TraningList, req, res);
+};
+
+// For dealer listings
+export const getSellerListing = (req, res) => {
+  return getPublicFranchiseListings(SellerListing, req, res);
+};
+
