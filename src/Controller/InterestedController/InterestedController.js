@@ -274,6 +274,7 @@ export const getAllInterests = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+
 // Function to delete an interest (Admin only)
 export const deleteInterest = async (req, res) => {
     const { interestId } = req.params;
