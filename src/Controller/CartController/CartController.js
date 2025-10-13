@@ -103,6 +103,73 @@ export const AddintoCart = async (req, res) => {
 
 
 // ✅ Get Cart Items with Pagination, Search, and Date Filter
+// export const GetCartItems = async (req, res) => {
+//     try {
+//         const userId = req.user?.id;
+
+//         // Query params
+//         const {
+//             page = 1,
+//             limit = 10,
+//             search = "",
+//             from,
+//             to
+//         } = req.query;
+
+//         // Pagination values
+//         const skip = (page - 1) * limit;
+
+//         // Build query object
+//         let query = { user_id: userId };
+
+//         // Date filter
+//         if (from || to) {
+//             query.datetime = {};
+//             if (from) query.datetime.$gte = new Date(from);
+//             if (to) query.datetime.$lte = new Date(to);
+//         }
+
+//         // Search by product name
+//         if (search) {
+//             // First, get products that match the search
+//             const products = await Product.find({
+//                 name: { $regex: search, $options: "i" }
+//             }).select("_id");
+
+//             const productIds = products.map(p => p._id);
+//             query.product_id = { $in: productIds };
+//         }
+
+//         // Fetch cart data with population
+//         const cartItems = await Cart.find(query)
+//             .populate("product_id", "name price images") 
+//             .skip(skip)
+//             .limit(parseInt(limit))
+//             .sort({ datetime: -1 });
+
+//         // Total count for pagination
+//         const total = await Cart.countDocuments(query);
+
+//         return res.status(200).json({
+//             success: true,
+//             message: "Cart items fetched successfully",
+//             data: cartItems,
+//             pagination: {
+//                 total,
+//                 page: parseInt(page),
+//                 pages: Math.ceil(total / limit),
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error("Error fetching cart items:", error);
+//         return res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
+//     }
+// };
+
+
+
+// ✅ Get Cart Items with Pagination, Search, and Date Filter
 export const GetCartItems = async (req, res) => {
     try {
         const userId = req.user?.id;
@@ -131,7 +198,6 @@ export const GetCartItems = async (req, res) => {
 
         // Search by product name
         if (search) {
-            // First, get products that match the search
             const products = await Product.find({
                 name: { $regex: search, $options: "i" }
             }).select("_id");
@@ -141,11 +207,20 @@ export const GetCartItems = async (req, res) => {
         }
 
         // Fetch cart data with population
-        const cartItems = await Cart.find(query)
-            .populate("product_id", "name price images") // only selected fields
+        const cartItems1 = await Cart.find(query)
+            .populate("product_id", "name price images")
             .skip(skip)
             .limit(parseInt(limit))
-            .sort({ datetime: -1 });
+            .sort({ datetime: -1 })
+            .lean(); // Use lean() for faster read and easy object manipulation
+
+        // ✅ Round the price to nearest integer
+        const cartItems = cartItems1.map(item => {
+            if (item.product_id && typeof item.product_id.price === "number") {
+                item.product_id.price = Math.round(item.product_id.price);
+            }
+            return item;
+        });
 
         // Total count for pagination
         const total = await Cart.countDocuments(query);
@@ -163,7 +238,11 @@ export const GetCartItems = async (req, res) => {
 
     } catch (error) {
         console.error("Error fetching cart items:", error);
-        return res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+            error: error.message
+        });
     }
 };
 
