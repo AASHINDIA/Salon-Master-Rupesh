@@ -47,7 +47,7 @@ export const expressInterest = async (req, res) => {
             interestedUserId,
             category,
             adId,
-            adUserId: ad._id // Assuming adUserId is sent in the request body
+            adUserId: ad.userId // Assuming adUserId is sent in the request body
         });
         await newInterest.save();
         // Send notification to the listing owner
