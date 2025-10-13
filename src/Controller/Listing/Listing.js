@@ -425,7 +425,7 @@ const getFilteredListings = async (Model, userId, SellerModel, req, res) => {
         }
 
         // Base filter
-        const filter = { userId: commonSeller._id };
+        const filter = { userId: commonSeller.userId };
         console.log("Step2 =>", filter)
         
         // Date filter (from–to)
