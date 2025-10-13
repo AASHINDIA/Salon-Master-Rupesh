@@ -13,7 +13,7 @@ router.get('/getUserInterests', protect, getUserInterests);
 router.get('/user-listings', protect, getInterestsForUserListings);
 router.delete('/withdraw-interest/:interestId', protect, withdrawInterest);
 
-router.get('/all-interests', protect, getAllInterests);
+router.post('/all-interests', protect, getAllInterests);
 router.delete('/delete-interest/:interestId', protect, deleteInterest);
 
 

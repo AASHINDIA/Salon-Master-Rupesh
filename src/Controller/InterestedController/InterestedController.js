@@ -134,7 +134,7 @@ export const getUserInterests = async (req, res) => {
 
 
 export const getInterestsForUserListings = async (req, res) => {
-  
+
     const adUserId = req.user._id;
     const { adId } = req.body;
 
@@ -262,13 +262,42 @@ export const withdrawInterest = async (req, res) => {
 // Function to get all interests (Admin only)
 export const getAllInterests = async (req, res) => {
     try {
-        const interests = await ListingInterestSchema.find()
-            .populate('adId')
-            .populate('interestedUserId', 'name email')
-            .populate('adUserId', 'name email');
-        res.status(200).json(interests);
-    }
-    catch (error) {
+        const { adId } = req.body; // optional filter by adId
+        let { page = 1, limit = 10, search = "" } = req.query;
+
+        page = parseInt(page);
+        limit = parseInt(limit);
+
+        // Build query
+        const query = {};
+        if (adId) query.adId = adId;
+        if (search) {
+            // search by interestedUser name or email
+            query.$or = [
+                { "interestedUserId.name": { $regex: search, $options: "i" } },
+                { "interestedUserId.email": { $regex: search, $options: "i" } }
+            ];
+        }
+
+        const total = await ListingInterestSchema.countDocuments(query);
+
+        const interests = await ListingInterestSchema.find(query)
+            .populate('adId') // populate ad details
+            .populate('interestedUserId', 'name phone') // interested user info
+            .populate('adUserId', 'name phone') // ad owner info
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .sort({ createdAt: -1 }); // latest first
+
+        res.status(200).json({
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+            interests
+        });
+
+    } catch (error) {
         console.error('Error fetching all interests:', error);
         res.status(500).json({ message: 'Server error' });
     }
