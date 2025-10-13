@@ -47,6 +47,8 @@ import locationdata from './Route/State_county_city/location.js'
 import SallerRoute from './Route/SaleRoute/commonsaller.js'
 import listing from './Route/ListingRoute/ListingRoute.js'
 import ListingManage from './Route/ListingRoute/ListingManagement.js'
+
+import interested from './Route/InterestedRoute/InterestedRoute.js'
 const app = express();
 
 // ---------------------------
@@ -171,6 +173,10 @@ app.use('/api/v1/sallerroute', SallerRoute)
 app.use('/api/v1/listing', listing)
 
 app.use('/api/v1/listing_managment', ListingManage)
+
+// Interested Routes
+app.use('/api/v1/interested', interested)
+
 // 🧱 Error Handlers
 // ---------------------------
 app.use(notFound);

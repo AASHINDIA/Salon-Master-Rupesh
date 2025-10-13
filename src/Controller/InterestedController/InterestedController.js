@@ -1,15 +1,16 @@
 import ListingInterestSchema from "../../Modal/InterstedSchema/ListingInterestSchema.js";
 import mongoose from "mongoose";
-import User from "../../Modal/UserSchema/User.js";
+
 import FranchiseList from "../../Modal/franchise/FranchiseList.js";
-import TraningList from "../../Modal/training/TraningList.js";
+
+import TraningList from "../../Modal/traininginstitute/TraningList.js";
 import SellerListing from "../../Modal/sales/SellerListing.js";
 
 
 // Function to express interest in a listing
 export const expressInterest = async (req, res) => {
     const { category, adId } = req.body;
-    const interestedUserId = req.user._id;
+    const interestedUserId = req.user.id;
     try {
         // Validate category
         const validCategories = ['FranchiseList', 'TraningList', 'SellerListing'];
