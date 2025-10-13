@@ -68,7 +68,7 @@ export const getUserInterests = async (req, res) => {
     try {
         const interests = await ListingInterestSchema.find({
             interestedUserId
-        }).populate('adId').populate('adUserId', 'name phone'); // Populate ad details and ad owner details
+        }).populate('adId').populate('adUserId', 'name whatsapp_numbe'); // Populate ad details and ad owner details
         res.status(200).json(interests);
     }
     catch (error) {
@@ -87,7 +87,7 @@ export const getUserInterests = async (req, res) => {
 //         const {
 //             page = 1,
 //             limit = 10,
-//             search = "",   // optional: search by interested user's name or phone
+//             search = "",   // optional: search by interested user's name or whatsapp_numbe
 //         } = req.query;
 
 //         const skip = (page - 1) * limit;
@@ -99,10 +99,10 @@ export const getUserInterests = async (req, res) => {
 //         if (search) {
 //             filter = {
 //                 ...filter,
-//                 // Using regex for partial match on name or phone
+//                 // Using regex for partial match on name or whatsapp_numbe
 //                 $or: [
 //                     { 'interestedUserId.name': { $regex: search, $options: 'i' } },
-//                     { 'interestedUserId.phone': { $regex: search, $options: 'i' } }
+//                     { 'interestedUserId.whatsapp_numbe': { $regex: search, $options: 'i' } }
 //                 ]
 //             };
 //         }
@@ -113,7 +113,7 @@ export const getUserInterests = async (req, res) => {
 //         // Fetch interests with populate, pagination, and sort by latest first
 //         const interests = await ListingInterestSchema.find({ adUserId, adId })
 //             .populate('adId')
-//             .populate('interestedUserId', 'name phone')
+//             .populate('interestedUserId', 'name whatsapp_numbe')
 //             .sort({ createdAt: -1 }) // latest first
 //             .skip(parseInt(skip))
 //             .limit(parseInt(limit));
@@ -134,16 +134,17 @@ export const getUserInterests = async (req, res) => {
 
 
 export const getInterestsForUserListings = async (req, res) => {
-
     const adUserId = req.user.id;
-    const { adId } = req.params; // optional filter by adId
+    const { adId } = req.params;
+    const { page = 1, limit = 10, search = "" } = req.query;
 
     try {
-        const {
-            page = 1,
-            limit = 10,
-            search = "",
-        } = req.query;
+        if (!mongoose.Types.ObjectId.isValid(adUserId)) {
+            return res.status(400).json({ message: 'Invalid adUserId' });
+        }
+        if (adId && !mongoose.Types.ObjectId.isValid(adId)) {
+            return res.status(400).json({ message: 'Invalid adId' });
+        }
 
         const skip = (page - 1) * limit;
 
@@ -153,8 +154,8 @@ export const getInterestsForUserListings = async (req, res) => {
             ...(adId && { adId: new mongoose.Types.ObjectId(adId) })
         };
 
-        // Aggregation pipeline
-        const pipeline = [
+        // Base pipeline
+        let pipeline = [
             { $match: matchStage },
             {
                 $lookup: {
@@ -173,61 +174,66 @@ export const getInterestsForUserListings = async (req, res) => {
                 $match: {
                     $or: [
                         { 'interestedUser.name': { $regex: search, $options: 'i' } },
-                        { 'interestedUser.phone': { $regex: search, $options: 'i' } }
+                        { 'interestedUser.whatsapp_numbe': { $regex: search, $options: 'i' } }
                     ]
                 }
             });
         }
 
-        // Count total after filters
-        const totalCountPipeline = [...pipeline, { $count: 'total' }];
-        const totalResult = await ListingInterestSchema.aggregate(totalCountPipeline);
-        const total = totalResult[0]?.total || 0;
+        // Get unique categories
+        const categories = await ListingInterestSchema.distinct('category', matchStage);
 
-        // Add dynamic ad lookup based on category
-        pipeline.push(
-            {
-                $addFields: {
-                    adCollection: {
-                        $switch: {
-                            branches: [
-                                { case: { $eq: ['$category', 'FranchiseList'] }, then: 'franchiselists' },
-                                { case: { $eq: ['$category', 'TraningList'] }, then: 'traninglists' },
-                                { case: { $eq: ['$category', 'SellerListing'] }, then: 'sellerlistings' }
-                            ],
-                            default: null
-                        }
+        let interests = [];
+        for (const category of categories) {
+            let collectionName;
+            switch (category) {
+                case 'FranchiseList':
+                    collectionName = 'franchiselists';
+                    break;
+                case 'TraningList':
+                    collectionName = 'traninglists';
+                    break;
+                case 'SellerListing':
+                    collectionName = 'sellerlistings';
+                    break;
+                default:
+                    continue; // Skip invalid categories
+            }
+
+            const categoryPipeline = [
+                ...pipeline,
+                { $match: { category } },
+                {
+                    $lookup: {
+                        from: collectionName,
+                        localField: 'adId',
+                        foreignField: '_id',
+                        as: 'adDetails'
                     }
-                }
+                },
+                { $unwind: { path: '$adDetails', preserveNullAndEmptyArrays: true } }
+            ];
 
-            },
-            {
-                $lookup: {
-                    from: { $toString: '$adCollection' }, // Dynamic collection name
-                    localField: 'adId',
-                    foreignField: '_id',
-                    as: 'adDetails'
-                }
-            },
-            { $unwind: { path: '$adDetails', preserveNullAndEmptyArrays: true } },
-            { $sort: { createdAt: -1 } },
-            { $skip: parseInt(skip) },
-            { $limit: parseInt(limit) }
-        );
+            const categoryInterests = await ListingInterestSchema.aggregate(categoryPipeline);
+            interests = interests.concat(categoryInterests);
+        }
 
-        const interests = await ListingInterestSchema.aggregate(pipeline);
+        // Sort and paginate
+        interests.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        const total = interests.length;
+        const paginatedInterests = interests.slice(skip, skip + parseInt(limit));
 
         res.status(200).json({
             page: parseInt(page),
             limit: parseInt(limit),
             total,
             totalPages: Math.ceil(total / limit),
-            data: interests
+            data: paginatedInterests
         });
 
     } catch (error) {
-        console.error('Error fetching interests for user listings:', error);
-        res.status(500).json({ message: 'Server error' });
+        console.error('Error fetching interests for user listings:', error.stack);
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
 
