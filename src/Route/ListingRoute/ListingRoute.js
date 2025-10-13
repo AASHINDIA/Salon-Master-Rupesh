@@ -5,7 +5,10 @@ import {
     createOrUpdatefranchise,
     createOrUpdatetraininginstitute,
     gettraininginstituteProfile,
-    getfranchiseProfile
+    getfranchiseProfile,
+    gettraininginstituteListingsByUser,
+    getfranchiseListingsByUser
+
 } from '../../Controller/Listing/Listing.js';
 import multer from 'multer';
 import { uploadToCloudinary } from '../../Utils/imageUpload.js';
@@ -30,4 +33,8 @@ router.post('/training-institute', protect, upload.single('profileImage'), creat
 router.post('/franchise', protect, upload.single('profileImage'), createOrUpdatefranchise);
 router.get('/gettraininginstituteProfile', protect, gettraininginstituteProfile)
 router.get('/getfranchiseProfile', protect, getfranchiseProfile)
+
+
+router.get('/getfranchiseListingsByUser', protect, getfranchiseListingsByUser)
+router.get('/gettraininginstituteListingsByUser', protect, gettraininginstituteListingsByUser)
 export default router;

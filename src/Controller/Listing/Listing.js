@@ -6,6 +6,8 @@ import traininginstitute from "../../Modal/traininginstitute/training_institute.
 import franchise from "../../Modal/franchise/franchise.js";
 import { uploadToCloudinary } from "../../Utils/imageUpload.js";
 
+
+// creating Listing For
 export const createTraningList = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -161,6 +163,7 @@ export const createFranchiseList = async (req, res) => {
 };
 
 
+// creating and Updating Profile of Listers
 
 export const createOrUpdatetraininginstitute = async (req, res) => {
     try {
@@ -324,6 +327,8 @@ export const createOrUpdatefranchise = async (req, res) => {
 };
 
 
+// get profile of the listers
+
 export const gettraininginstituteProfile = async (req, res) => {
     try {
         const userId = req.user?.id;
@@ -393,3 +398,88 @@ export const getfranchiseProfile = async (req, res) => {
     }
 };
 
+
+
+
+
+// get The Priclur User Listing
+
+
+// Utility function for filtering, search, pagination, and sorting
+const getFilteredListings = async (Model, userId, SellerModel, req, res) => {
+  try {
+    const { search = "", fromDate, toDate, page = 1, limit = 10, sort = "latest" } = req.query;
+
+    // Find seller by user ID
+    const commonSeller = await SellerModel.findOne({ userId });
+    if (!commonSeller) {
+      return res.status(404).json({
+        success: false,
+        message: "Seller profile not found",
+      });
+    }
+
+    // Base filter
+    const filter = { commonSellerId: commonSeller._id };
+
+    // Date filter (from–to)
+    if (fromDate && toDate) {
+      filter.createdAt = { $gte: new Date(fromDate), $lte: new Date(toDate) };
+    } else if (fromDate) {
+      filter.createdAt = { $gte: new Date(fromDate) };
+    } else if (toDate) {
+      filter.createdAt = { $lte: new Date(toDate) };
+    }
+
+    // Search filter (optional: modify fields like title, description, etc.)
+    if (search.trim()) {
+      filter.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Pagination setup
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // Sorting
+    const sortOrder = sort === "old" ? 1 : -1; // latest = descending
+
+    // Fetch data
+    const listings = await Model.find(filter)
+      .sort({ createdAt: sortOrder })
+      .skip(skip)
+      .limit(Number(limit));
+
+    // Count total for pagination
+    const total = await Model.countDocuments(filter);
+
+    return res.status(200).json({
+      success: true,
+      count: listings.length,
+      total,
+      currentPage: Number(page),
+      totalPages: Math.ceil(total / Number(limit)),
+      data: listings,
+    });
+  } catch (error) {
+    console.error("Error fetching listings:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// Training institute listings
+export const gettraininginstituteListingsByUser = async (req, res) => {
+  const userId = req.user.id;
+  await getFilteredListings(TraningList, userId, traininginstitute, req, res);
+};
+
+// Franchise listings
+export const getfranchiseListingsByUser = async (req, res) => {
+  const userId = req.user.id;
+  await getFilteredListings(FranchiseList, userId, franchise, req, res);
+};

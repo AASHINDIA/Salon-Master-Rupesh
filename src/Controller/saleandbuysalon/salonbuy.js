@@ -372,32 +372,71 @@ export const createSellerListing = async (req, res) => {
  * @route GET /api/seller-listing/my-listings
  * @access Private
  */
+
 export const getSellerListingsByUser = async (req, res) => {
-    try {
-        const userId = req.user.id; // from JWT auth
+  try {
+    const userId = req.user.id; // from JWT auth
+    const { search = "", fromDate, toDate, page = 1, limit = 10, sort = "latest" } = req.query;
 
-        // Get CommonSeller document for this user
-        const commonSeller = await CommonSeller.findOne({ userId });
-        if (!commonSeller) {
-            return res.status(404).json({
-                success: false,
-                message: "Seller profile not found",
-            });
-        }
-
-        const listings = await SellerListing.find({ commonSellerId: commonSeller._id }).sort({ createdAt: -1 });
-
-        return res.status(200).json({
-            success: true,
-            count: listings.length,
-            data: listings,
-        });
-    } catch (error) {
-        console.error("Error fetching seller listings:", error);
-        return res.status(500).json({
-            success: false,
-            message: "Server error",
-            error: error.message,
-        });
+    // Step 1: Find Common Seller by userId
+    const commonSeller = await CommonSeller.findOne({ userId });
+    if (!commonSeller) {
+      return res.status(404).json({
+        success: false,
+        message: "Seller profile not found",
+      });
     }
+
+    // Step 2: Build filter object
+    const filter = { commonSellerId: commonSeller._id };
+
+    // Add Date filter (from / to)
+    if (fromDate && toDate) {
+      filter.createdAt = { $gte: new Date(fromDate), $lte: new Date(toDate) };
+    } else if (fromDate) {
+      filter.createdAt = { $gte: new Date(fromDate) };
+    } else if (toDate) {
+      filter.createdAt = { $lte: new Date(toDate) };
+    }
+
+    // Add Search filter (adjust fields based on your schema)
+    if (search.trim()) {
+      filter.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Step 3: Pagination setup
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // Step 4: Sorting setup
+    const sortOrder = sort === "old" ? 1 : -1; // "latest" = descending, "old" = ascending
+
+    // Step 5: Fetch filtered data
+    const listings = await SellerListing.find(filter)
+      .sort({ createdAt: sortOrder })
+      .skip(skip)
+      .limit(Number(limit));
+
+    // Step 6: Count total for pagination info
+    const total = await SellerListing.countDocuments(filter);
+
+    // Step 7: Send response
+    return res.status(200).json({
+      success: true,
+      count: listings.length,
+      total,
+      currentPage: Number(page),
+      totalPages: Math.ceil(total / Number(limit)),
+      data: listings,
+    });
+  } catch (error) {
+    console.error("Error fetching seller listings:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
 };
