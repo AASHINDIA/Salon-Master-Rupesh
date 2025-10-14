@@ -2,7 +2,9 @@ import User from '../../Modal/Users/User.js'
 import Candidate from '../../Modal/Candidate/Candidate.js'
 import Compony from '../../Modal/Compony/ComponyModal.js'
 import Salon from '../../Modal/Salon/Salon.js'
-
+import CommonSeller from '../../Modal/sales/commonseller.js'
+import traininginstitute from '../../Modal/traininginstitute/training_institute.js'
+import franchise from '../../Modal/franchise/franchise.js'
 
 export const getAllUsers = async (req, res) => {
   try {
@@ -12,11 +14,11 @@ export const getAllUsers = async (req, res) => {
     // search filter
     const searchFilter = search
       ? {
-          $or: [
-            { name: { $regex: search, $options: "i" } }, // case-insensitive
-            { whatsapp_number: { $regex: search, $options: "i" } },
-          ],
-        }
+        $or: [
+          { name: { $regex: search, $options: "i" } }, // case-insensitive
+          { whatsapp_number: { $regex: search, $options: "i" } },
+        ],
+      }
       : {};
 
     // fetch users with pagination
@@ -76,6 +78,16 @@ export const getUserProfileById = async (req, res) => {
       profile = await Compony.findOne({ user_id: user._id });
     } else if (user.domain_type === "salon") {
       profile = await Salon.findOne({ user_id: user._id });
+    }
+    else if (user.domain_type === "sales") {
+      profile = await CommonSeller.findOne({ userId: user._id });
+    }
+    else if (user.domain_type === "training") {
+      profile = await traininginstitute.findOne({ userId: user._id });
+    }
+
+    else if (user.domain_type === "franchise") {
+      profile = await franchise.findOne({ userId: user._id });
     }
 
     res.status(200).json({
