@@ -405,11 +405,37 @@ export const resendOtp = async (req, res) => {
 };
 
 
-export const getUserSubDomain= async (req, res) => {
+export const getUserSubDomain = async (req, res) => {
     try {
 
         const userId = req.user._id;
         const user = await User.findById(userId).select('sub_domain_type');
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: user
+        });
+    } catch (error) {
+        console.error('Get user profile error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+export const getBuyerProfile = async (req, res) => {
+    try {
+
+        const userId = req.user._id;
+        const user = await User.findById(userId).select(' sub_domain_type , whatsapp_number , name , email , domain_type , createdAt');
         if (!user) {
             return res.status(404).json({
                 success: false,
