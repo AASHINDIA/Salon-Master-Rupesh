@@ -78,59 +78,6 @@ export const getUserInterests = async (req, res) => {
 };
 
 
-// Function to get all interests for listings owned by the logged-in user   
-// export const getInterestsForUserListings = async (req, res) => {
-//     const adUserId = req.user._id;
-//     const { adId } = req.body
-//     try {
-//         // Query params for pagination & filtering
-//         const {
-//             page = 1,
-//             limit = 10,
-//             search = "",   // optional: search by interested user's name or whatsapp_numbe
-//         } = req.query;
-
-//         const skip = (page - 1) * limit;
-
-//         // Build filter object
-//         let filter = { adUserId };
-
-//         // Optional search filter on interested user
-//         if (search) {
-//             filter = {
-//                 ...filter,
-//                 // Using regex for partial match on name or whatsapp_numbe
-//                 $or: [
-//                     { 'interestedUserId.name': { $regex: search, $options: 'i' } },
-//                     { 'interestedUserId.whatsapp_numbe': { $regex: search, $options: 'i' } }
-//                 ]
-//             };
-//         }
-
-//         // Fetch total count for pagination info
-//         const total = await ListingInterestSchema.countDocuments({ adUserId });
-
-//         // Fetch interests with populate, pagination, and sort by latest first
-//         const interests = await ListingInterestSchema.find({ adUserId, adId })
-//             .populate('adId')
-//             .populate('interestedUserId', 'name whatsapp_numbe')
-//             .sort({ createdAt: -1 }) // latest first
-//             .skip(parseInt(skip))
-//             .limit(parseInt(limit));
-
-//         res.status(200).json({
-//             page: parseInt(page),
-//             limit: parseInt(limit),
-//             total,
-//             totalPages: Math.ceil(total / limit),
-//             data: interests
-//         });
-//     } catch (error) {
-//         console.error('Error fetching interests for user listings:', error);
-//         res.status(500).json({ message: 'Server error' });
-//     }
-// };
-
 
 
 export const getInterestsForUserListings = async (req, res) => {
