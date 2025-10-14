@@ -6,13 +6,17 @@ import {
     requestPasswordReset,
     resetPassword,
     refreshToken,
-    resendOtp
+    resendOtp,
+    getUserSubDomain
 } from '../../Controller/AuthController/authController.js';
 import { addUser } from '../../Controller/AddUser/AddUser.js';
+import { protect } from '../../Middlewares/authMiddleware/auth.js';
 const router = express.Router();
 
 // Public routes
 router.post('/register-salonmaster', register);
+
+router.get('/getUserSubDomain', protect, getUserSubDomain);
 
 router.post('/addUser', addUser);
 router.post('/verify-otp-salonmaster', verifyOtp);

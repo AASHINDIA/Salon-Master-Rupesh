@@ -38,8 +38,8 @@ const UserSchema = new mongoose.Schema({
     },
     sub_domain_type: {
         type: String,
-        enum: ['buyer', 'seller'],
-        default: null
+        enum: ['buyer', 'seller', 'other'],
+        default: 'other'
     },
     whatsapp_number: {
         type: String,

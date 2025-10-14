@@ -24,7 +24,6 @@ export const register = async (req, res) => {
     try {
         const { name, password, domain_type, whatsapp_number } = req.body;
 
-        console.log("Registration attempt for:", { name, whatsapp_number });
 
         // Check if user exists
         const existingUser = await User.findOne(
@@ -47,17 +46,12 @@ export const register = async (req, res) => {
 
 
         if (!otpResponse.success) {
-            // console.error("WhatsApp OTP failed. Response:", otpResponse);
-
-
+            // console.error("WhatsApp OTP failed. Response:", otpResponse)
             return res.status(400).json({
                 success: false,
                 message: "Otp Varification Filed",
 
             });
-
-
-
         }
 
         // Safely extract and handle UID
@@ -66,7 +60,7 @@ export const register = async (req, res) => {
         // Create user with WhatsApp UID
         const newUser = new User({
             name,
-            
+
             password,
             domain_type,
             whatsapp_number,
@@ -161,7 +155,7 @@ export const verifyOtp = async (req, res) => {
 
         // Verify OTP with WhatsApp service
         const verificationResponse = await verifyWhatsAppOtp(user.whatsapp_uid, otp);
-        console.log("verificationResponse", verificationResponse)
+
 
         if (!verificationResponse.success) {
             // Increment OTP attempts
@@ -205,7 +199,6 @@ export const verifyOtp = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("OTP verification error:", error?.response?.data || error.message);
         return res.status(500).json({
             success: false,
             message: "OTP verification failed",
@@ -411,6 +404,32 @@ export const resendOtp = async (req, res) => {
     }
 };
 
+
+export const getUserSubDomain= async (req, res) => {
+    try {
+
+        const userId = req.user._id;
+        const user = await User.findById(userId).select('sub_domain_type');
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: user
+        });
+    } catch (error) {
+        console.error('Get user profile error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
 
 // Login user
 export const login = async (req, res) => {
