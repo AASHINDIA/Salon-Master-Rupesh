@@ -496,43 +496,31 @@ export const getfranchiseListingsByUser = async (req, res) => {
 
 // More optimized version using aggregation
 export const getPublicFranchiseListings = async (Model, req, res) => {
-    // Debug ID for tracking this request
-    const debugId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    console.log(`\n🔍 [${debugId}] === STARTING FRANCHISE LISTINGS REQUEST ===`);
-    console.log(`[${debugId}] Model:`, Model.modelName);
-    console.log(`[${debugId}] User ID:`, req.user?.id || 'No user');
-    console.log(`[${debugId}] Query:`, req.query);
-
     try {
         const {
-            search = "",        // text search
+            search = "",
             fromDate,
             toDate,
             city,
             state,
             page = 1,
             limit = 10,
-            sort = "latest",    // latest | old
+            sort = "latest",
         } = req.query;
 
-        const filter = {};
-        const userId = req.user.id;
-
-        console.log(`[${debugId}] Parsed params:`, {
-            search, fromDate, toDate, city, state, page, limit, sort, userId
-        });
-
-        // 🔹 Show only ACTIVE + NON-EXPIRED listings
         const now = new Date();
-        filter.status = "active";
-        filter.expiredAt = { $gte: now };
+        const skip = (Number(page) - 1) * Number(limit);
+        const sortOrder = sort === "old" ? 1 : -1;
 
-        console.log(`[${debugId}] Base filter:`, filter);
+        // 🔹 Build match conditions
+        const matchStage = {
+            status: "active",
+            expiredAt: { $gte: now },
+        };
 
-        // 🔹 Search filter
+        // 🔹 Search filters
         if (search.trim()) {
-            filter.$or = [
+            matchStage.$or = [
                 { heading: { $regex: search, $options: "i" } },
                 { shopName: { $regex: search, $options: "i" } },
                 { description: { $regex: search, $options: "i" } },
@@ -540,164 +528,91 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
                 { advertisementDetails: { $regex: search, $options: "i" } },
                 { address: { $regex: search, $options: "i" } },
             ];
-            console.log(`[${debugId}] Search filter added for: "${search}"`);
         }
 
-        // 🔹 Date range filter (createdAt)
+        // 🔹 Date filters
         if (fromDate && toDate) {
-            filter.createdAt = { $gte: new Date(fromDate), $lte: new Date(toDate) };
-            console.log(`[${debugId}] Date range filter: ${fromDate} to ${toDate}`);
-        } else if (fromDate) {
-            filter.createdAt = { $gte: new Date(fromDate) };
-            console.log(`[${debugId}] From date filter: ${fromDate}`);
-        } else if (toDate) {
-            filter.createdAt = { $lte: new Date(toDate) };
-            console.log(`[${debugId}] To date filter: ${toDate}`);
-        }
-
-        // 🔹 City/state match (address contains)
-        if (city) {
-            filter.address = { $regex: city, $options: "i" };
-            console.log(`[${debugId}] City filter: ${city}`);
-        }
-        if (state) {
-            filter.address = { $regex: state, $options: "i" };
-            console.log(`[${debugId}] State filter: ${state}`);
-        }
-
-        // 🔹 Pagination setup
-        const skip = (Number(page) - 1) * Number(limit);
-        console.log(`[${debugId}] Pagination - page: ${page}, limit: ${limit}, skip: ${skip}`);
-
-        // 🔹 Sort by created date
-        const sortOrder = sort === "old" ? 1 : -1;
-        console.log(`[${debugId}] Sort order: ${sort} (${sortOrder})`);
-
-        // 🔹 Get user's interested ad IDs if user is logged in
-        let interestedAdIds = [];
-        if (userId) {
-            console.log(`[${debugId}] Fetching user interests for user: ${userId}`);
-
-            const startTime = Date.now();
-            const interests = await ListingInterestSchema.find({
-                interestedUserId: userId,
-                category: Model.modelName
-            });
-            const interestTime = Date.now() - startTime;
-
-            interestedAdIds = interests.map(interest => interest.adId.toString());
-
-            console.log(`[${debugId}] User interests found:`, {
-                count: interests.length,
-                interestedAdIds: interestedAdIds,
-                queryTime: `${interestTime}ms`
-            });
-
-            // Uncomment if you want to exclude interested ads
-            // filter._id = { $nin: interestedAdIds };
-            // console.log(`[${debugId}] Excluding interested ads from results`);
-        } else {
-            console.log(`[${debugId}] No user ID - skipping interest check`);
-        }
-
-        console.log(`[${debugId}] Final filter before query:`, JSON.stringify(filter, null, 2));
-
-        // 🔹 Fetch listings
-        console.log(`[${debugId}] Starting database query...`);
-        const queryStartTime = Date.now();
-
-        const listings = await Model.find(filter)
-            .sort({ createdAt: sortOrder })
-            .skip(skip)
-            .limit(Number(limit))
-            .lean();
-
-        const queryTime = Date.now() - queryStartTime;
-        console.log(`[${debugId}] Database query completed:`, {
-            documentsFound: listings.length,
-            queryTime: `${queryTime}ms`,
-            firstFewIds: listings.slice(0, 3).map(l => l._id)
-        });
-
-        // 🔹 Add interest status to each listing
-        console.log(`[${debugId}] Adding interest status to listings...`);
-        const listingsWithInterest = listings.map(listing => {
-            const listingId = listing._id.toString();
-            const isInterested = userId ? interestedAdIds.includes(listingId) : false;
-
-            const result = {
-                ...listing,
-                isInterested,
-                interestStatus: isInterested ? 'interested' : 'not_interested'
+            matchStage.createdAt = {
+                $gte: new Date(fromDate),
+                $lte: new Date(toDate),
             };
+        } else if (fromDate) {
+            matchStage.createdAt = { $gte: new Date(fromDate) };
+        } else if (toDate) {
+            matchStage.createdAt = { $lte: new Date(toDate) };
+        }
 
-            // Debug individual listing interest status
-            if (userId) {
-                console.log(`[${debugId}] Listing ${listingId}: isInterested = ${isInterested}`);
-            }
+        // 🔹 City/state filters
+        if (city) matchStage.address = { $regex: city, $options: "i" };
+        if (state) matchStage.address = { $regex: state, $options: "i" };
 
-            return result;
-        });
+        // 🔹 Aggregation pipeline (efficient pagination + total count)
+        const pipeline = [
+            { $match: matchStage },
+            { $sort: { createdAt: sortOrder } },
+            {
+                $facet: {
+                    metadata: [{ $count: "total" }],
+                    data: [{ $skip: skip }, { $limit: Number(limit) }],
+                },
+            },
+            { $addFields: { total: { $arrayElemAt: ["$metadata.total", 0] } } },
+        ];
 
-        // 🔹 Total count
-        console.log(`[${debugId}] Counting total documents...`);
-        const countStartTime = Date.now();
-        const total = await Model.countDocuments(filter);
-        const countTime = Date.now() - countStartTime;
-        console.log(`[${debugId}] Total count: ${total} (took ${countTime}ms)`);
+        const result = await Model.aggregate(pipeline);
+        const listings = result[0]?.data || [];
+        const total = result[0]?.total || 0;
 
-        // Calculate final statistics
-        const interestedCount = listingsWithInterest.filter(l => l.isInterested).length;
-        const notInterestedCount = listingsWithInterest.length - interestedCount;
+        let listingsWithInterest = listings;
 
-        console.log(`[${debugId}] Final statistics:`, {
-            totalListings: total,
-            currentPageResults: listingsWithInterest.length,
-            interestedInCurrentPage: interestedCount,
-            notInterestedInCurrentPage: notInterestedCount,
-            userTotalInterested: interestedAdIds.length
-        });
+        // 🔹 If user logged in → join with interest data
+        if (req.user?.id) {
+            const userId = new mongoose.Types.ObjectId(req.user.id);
+            const listingType = Model.modelName;
 
-        // ✅ Response
-        console.log(`[${debugId}] ✅ Sending successful response`);
+            const interestData = await ListingInterestSchema.aggregate([
+                {
+                    $match: {
+                        userId,
+                        listingType,
+                        listingId: { $in: listings.map((l) => l._id) },
+                    },
+                },
+                { $project: { listingId: 1, status: 1 } },
+            ]);
 
-        const response = {
+            const interestMap = new Map(
+                interestData.map((i) => [i.listingId.toString(), i.status])
+            );
+
+            listingsWithInterest = listings.map((l) => ({
+                ...l,
+                isUserInterested: interestMap.get(l._id.toString()) === "interested",
+            }));
+        } else {
+            // 🔹 Guest user (not logged in)
+            listingsWithInterest = listings.map((l) => ({
+                ...l,
+                isUserInterested: false,
+            }));
+        }
+
+        // ✅ Final Response
+        return res.status(200).json({
             success: true,
             total,
             count: listingsWithInterest.length,
             currentPage: Number(page),
             totalPages: Math.ceil(total / Number(limit)),
-            userInterestedCount: interestedAdIds.length,
-            debug: {
-                requestId: debugId,
-                queryTime: `${queryTime}ms`,
-                totalCountTime: `${countTime}ms`,
-                filtersApplied: Object.keys(filter),
-                interestStats: {
-                    interestedInPage: interestedCount,
-                    notInterestedInPage: notInterestedCount
-                }
-            },
+            filtersApplied: matchStage,
             data: listingsWithInterest,
-        };
-
-        console.log(`[${debugId}] === REQUEST COMPLETED SUCCESSFULLY ===\n`);
-        return res.status(200).json(response);
-
+        });
     } catch (error) {
-        console.error(`\n❌ [${debugId}] === ERROR IN FRANCHISE LISTINGS REQUEST ===`);
-        console.error(`[${debugId}] Error:`, error.message);
-        console.error(`[${debugId}] Stack:`, error.stack);
-        console.error(`[${debugId}] === REQUEST FAILED ===\n`);
-
+        console.error("Error fetching franchise listings:", error);
         return res.status(500).json({
             success: false,
             message: "Server error while fetching listings",
             error: error.message,
-            debug: {
-                requestId: debugId,
-                timestamp: new Date().toISOString()
-            }
         });
     }
 };
