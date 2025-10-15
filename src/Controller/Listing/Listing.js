@@ -598,6 +598,7 @@ export const getFranchiseListings = (req, res) => {
     return getPublicFranchiseListings(FranchiseList, req, res);
 };
 
+
 // For brand listings
 export const getTraningListListings = (req, res) => {
     return getPublicFranchiseListings(TraningList, req, res);
