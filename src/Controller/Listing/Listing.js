@@ -517,7 +517,7 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
         } = req.query;
 
         const filter = {};
-        const userId = req.user?.id;
+        const userId = req.user.id;
 
         console.log(`[${debugId}] Parsed params:`, {
             search, fromDate, toDate, city, state, page, limit, sort, userId
