@@ -497,18 +497,28 @@ export const getfranchiseListingsByUser = async (req, res) => {
 // More optimized version using aggregation
 export const getPublicFranchiseListings = async (Model, req, res) => {
     try {
-        const { search = "", fromDate, toDate, city, state, page = 1, limit = 10, sort = "latest" } = req.query;
-        const userId = req.user?.id;
+        const {
+            search = "",        // text search
+            fromDate,
+            toDate,
+            city,
+            state,
+            page = 1,
+            limit = 10,
+            sort = "latest",    // latest | old
+        } = req.query;
 
-        // Build match 
-        const matchStage = {
-            status: "active",
-            expiredAt: { $gte: new Date() }
-        };
+        const filter = {};
+        const userId = req.user?.id; // Get user ID if available
 
-        // Add search conditions
+        // 🔹 Show only ACTIVE + NON-EXPIRED listings
+        const now = new Date();
+        filter.status = "active";
+        filter.expiredAt = { $gte: now };
+
+        // 🔹 Search filter
         if (search.trim()) {
-            matchStage.$or = [
+            filter.$or = [
                 { heading: { $regex: search, $options: "i" } },
                 { shopName: { $regex: search, $options: "i" } },
                 { description: { $regex: search, $options: "i" } },
@@ -518,69 +528,72 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
             ];
         }
 
-        // Date range
+        // 🔹 Date range filter (createdAt)
         if (fromDate && toDate) {
-            matchStage.createdAt = { $gte: new Date(fromDate), $lte: new Date(toDate) };
+            filter.createdAt = { $gte: new Date(fromDate), $lte: new Date(toDate) };
         } else if (fromDate) {
-            matchStage.createdAt = { $gte: new Date(fromDate) };
+            filter.createdAt = { $gte: new Date(fromDate) };
         } else if (toDate) {
-            matchStage.createdAt = { $lte: new Date(toDate) };
+            filter.createdAt = { $lte: new Date(toDate) };
         }
 
-        // City/state
-        if (city) matchStage.address = { $regex: city, $options: "i" };
-        if (state) matchStage.address = { $regex: state, $options: "i" };
+        // 🔹 City/state match (address contains)
+        if (city) {
+            filter.address = { $regex: city, $options: "i" };
+        }
+        if (state) {
+            filter.address = { $regex: state, $options: "i" };
+        }
 
-        const pipeline = [
-            { $match: matchStage },
-            {
-                $lookup: {
-                    from: 'listinginterests', // your collection name
-                    let: { listingId: '$_id' },
-                    pipeline: [
-                        {
-                            $match: {
-                                $expr: {
-                                    $and: [
-                                        { $eq: ['$adId', '$$listingId'] },
-                                        { $eq: ['$interestedUserId', userId] },
-                                        { $eq: ['$category', Model.modelName] }
-                                    ]
-                                }
-                            }
-                        }
-                    ],
-                    as: 'userInterest'
-                }
-            },
-            {
-                $addFields: {
-                    isInterested: { $gt: [{ $size: '$userInterest' }, 0] },
-                    interestStatus: {
-                        $cond: {
-                            if: { $gt: [{ $size: '$userInterest' }, 0] },
-                            then: 'interested',
-                            else: 'not_interested'
-                        }
-                    }
-                }
-            },
-            { $sort: { createdAt: sort === "old" ? 1 : -1 } },
-            { $skip: (Number(page) - 1) * Number(limit) },
-            { $limit: Number(limit) },
-            { $project: { userInterest: 0 } } // Remove the temporary field
-        ];
+        // 🔹 Pagination setup
+        const skip = (Number(page) - 1) * Number(limit);
 
-        const listings = await Model.aggregate(pipeline);
-        const total = await Model.countDocuments(matchStage);
+        // 🔹 Sort by created date
+        const sortOrder = sort === "old" ? 1 : -1;
 
+        // 🔹 Get user's interested ad IDs if user is logged in
+        let interestedAdIds = [];
+        if (userId) {
+            const interests = await ListingInterestSchema.find({
+                interestedUserId: userId,
+                category: Model.modelName
+            });
+            interestedAdIds = interests.map(interest => interest.adId.toString());
+
+            // Exclude interested ads from results if needed
+            // filter._id = { $nin: interestedAdIds };
+        }
+
+        // 🔹 Fetch listings
+        const listings = await Model.find(filter)
+            .sort({ createdAt: sortOrder })
+            .skip(skip)
+            .limit(Number(limit))
+            .lean();
+
+        // 🔹 Add interest status to each listing
+        const listingsWithInterest = listings.map(listing => {
+            const isInterested = userId ? interestedAdIds.includes(listing._id.toString()) : false;
+
+            return {
+                ...listing,
+                isInterested, // true/false
+                interestStatus: isInterested ? 'interested' : 'not_interested'
+            };
+        });
+
+        // 🔹 Total count
+        const total = await Model.countDocuments(filter);
+
+        // ✅ Response
         return res.status(200).json({
             success: true,
             total,
-            count: listings.length,
+            count: listingsWithInterest.length,
             currentPage: Number(page),
             totalPages: Math.ceil(total / Number(limit)),
-            data: listings,
+            userInterestedCount: interestedAdIds.length, // Total interested ads by user
+            data: listingsWithInterest,
         });
     } catch (error) {
         console.error("Error fetching franchise listings:", error);
