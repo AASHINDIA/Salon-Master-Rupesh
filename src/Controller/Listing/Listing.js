@@ -500,7 +500,7 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
         const { search = "", fromDate, toDate, city, state, page = 1, limit = 10, sort = "latest" } = req.query;
         const userId = req.user?.id;
 
-        // Build match stage
+        // Build match 
         const matchStage = {
             status: "active",
             expiredAt: { $gte: new Date() }
