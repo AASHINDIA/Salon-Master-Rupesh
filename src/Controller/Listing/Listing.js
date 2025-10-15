@@ -416,7 +416,7 @@ const getFilteredListings = async (Model, userId, SellerModel, req, res) => {
 
         // Find seller by user ID
         const commonSeller = await SellerModel.findOne({ userId });
-   
+
         if (!commonSeller) {
             return res.status(404).json({
                 success: false,
@@ -426,8 +426,8 @@ const getFilteredListings = async (Model, userId, SellerModel, req, res) => {
 
         // Base filter
         const filter = { userId: commonSeller.userId };
-        
-        
+
+
         // Date filter (from–to)
         if (fromDate && toDate) {
             filter.createdAt = { $gte: new Date(fromDate), $lte: new Date(toDate) };
@@ -436,8 +436,8 @@ const getFilteredListings = async (Model, userId, SellerModel, req, res) => {
         } else if (toDate) {
             filter.createdAt = { $lte: new Date(toDate) };
         }
-       
-        
+
+
         // Search filter (optional: modify fields like title, description, etc.)
         if (search.trim()) {
             filter.$or = [
@@ -458,7 +458,7 @@ const getFilteredListings = async (Model, userId, SellerModel, req, res) => {
             .skip(skip)
             .limit(Number(limit));
 
-            console.log("listings",listings);
+        console.log("listings", listings);
         // Count total for pagination
         const total = await Model.countDocuments(filter);
 
@@ -496,127 +496,107 @@ export const getfranchiseListingsByUser = async (req, res) => {
 
 
 export const getPublicFranchiseListings = async (Model, req, res) => {
-  try {
-    const {
-      search = "",
-      fromDate,
-      toDate,
-      city,
-      state,
-      page = 1,
-      limit = 10,
-      sort = "latest",
-    } = req.query;
+    try {
+        const {
+            search = "",
+            fromDate,
+            toDate,
+            city,
+            state,
+            page = 1,
+            limit = 10,
+            sort = "latest",
+        } = req.query;
 
-    const now = new Date();
-    const skip = (Number(page) - 1) * Number(limit);
-    const sortOrder = sort === "old" ? 1 : -1;
+        const now = new Date();
+        const skip = (Number(page) - 1) * Number(limit);
+        const sortOrder = sort === "old" ? 1 : -1;
 
-    // 🔹 Build match conditions
-    const matchStage = {
-      status: "active",
-      expiredAt: { $gte: now },
-    };
+        // 🔹 Build match filters
+        const matchStage = { status: "active", expiredAt: { $gte: now } };
 
-    // 🔹 Search filters
-    if (search.trim()) {
-      matchStage.$or = [
-        { heading: { $regex: search, $options: "i" } },
-        { shopName: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { short_description: { $regex: search, $options: "i" } },
-        { advertisementDetails: { $regex: search, $options: "i" } },
-        { address: { $regex: search, $options: "i" } },
-      ];
+        if (search.trim()) {
+            matchStage.$or = [
+                { heading: { $regex: search, $options: "i" } },
+                { shopName: { $regex: search, $options: "i" } },
+                { description: { $regex: search, $options: "i" } },
+                { short_description: { $regex: search, $options: "i" } },
+                { advertisementDetails: { $regex: search, $options: "i" } },
+                { address: { $regex: search, $options: "i" } },
+            ];
+        }
+
+        if (fromDate && toDate) matchStage.createdAt = { $gte: new Date(fromDate), $lte: new Date(toDate) };
+        else if (fromDate) matchStage.createdAt = { $gte: new Date(fromDate) };
+        else if (toDate) matchStage.createdAt = { $lte: new Date(toDate) };
+
+        if (city) matchStage.address = { $regex: city, $options: "i" };
+        if (state) matchStage.address = { $regex: state, $options: "i" };
+
+        // 🔹 Aggregation pipeline
+        const pipeline = [
+            { $match: matchStage },
+            { $sort: { createdAt: sortOrder } },
+            {
+                $facet: {
+                    metadata: [{ $count: "total" }],
+                    data: [{ $skip: skip }, { $limit: Number(limit) }],
+                },
+            },
+            { $addFields: { total: { $arrayElemAt: ["$metadata.total", 0] } } },
+        ];
+
+        const result = await Model.aggregate(pipeline);
+        const listings = result[0]?.data || [];
+        const total = result[0]?.total || 0;
+
+        // 🔹 Map interest status correctly
+        let listingsWithInterest = listings.map((l) => ({
+            ...l,
+            isUserInterested: false, // default false
+        }));
+
+        if (req.user?.id) {
+            const userId = req.user.id; // your logged-in user
+            const category = Model.modelName; // "SellerListing" etc.
+
+            // Find all interests of this user for these listings
+            const interestData = await ListingInterestSchema.find({
+                interestedUserId: userId,
+                category,
+                adId: { $in: listings.map((l) => l._id) },
+                status: "interested",
+            }).lean();
+
+            const interestMap = new Map(
+                interestData.map((i) => [i.adId.toString(), true])
+            );
+
+            listingsWithInterest = listingsWithInterest.map((l) => ({
+                ...l,
+                isUserInterested: interestMap.get(l._id.toString()) || false,
+            }));
+        }
+
+        return res.status(200).json({
+            success: true,
+            total,
+            count: listingsWithInterest.length,
+            currentPage: Number(page),
+            totalPages: Math.ceil(total / Number(limit)),
+            filtersApplied: matchStage,
+            data: listingsWithInterest,
+        });
+
+    } catch (error) {
+        console.error("Error fetching listings:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Server error while fetching listings",
+            error: error.message,
+        });
     }
-
-    // 🔹 Date filters
-    if (fromDate && toDate) {
-      matchStage.createdAt = {
-        $gte: new Date(fromDate),
-        $lte: new Date(toDate),
-      };
-    } else if (fromDate) {
-      matchStage.createdAt = { $gte: new Date(fromDate) };
-    } else if (toDate) {
-      matchStage.createdAt = { $lte: new Date(toDate) };
-    }
-
-    // 🔹 City/state filters
-    if (city) matchStage.address = { $regex: city, $options: "i" };
-    if (state) matchStage.address = { $regex: state, $options: "i" };
-
-    // 🔹 Aggregation pipeline (efficient pagination + total count)
-    const pipeline = [
-      { $match: matchStage },
-      { $sort: { createdAt: sortOrder } },
-      {
-        $facet: {
-          metadata: [{ $count: "total" }],
-          data: [{ $skip: skip }, { $limit: Number(limit) }],
-        },
-      },
-      { $addFields: { total: { $arrayElemAt: ["$metadata.total", 0] } } },
-    ];
-
-    const result = await Model.aggregate(pipeline);
-    const listings = result[0]?.data || [];
-    const total = result[0]?.total || 0;
-
-    let listingsWithInterest = listings;
-
-    // 🔹 If user logged in → join with interest data
-    if (req.user?.id) {
-      const userId = new mongoose.Types.ObjectId(req.user.id);
-      const listingType = Model.modelName;
-
-      const interestData = await ListingInterestSchema.aggregate([
-        {
-          $match: {
-            userId,
-            listingType,
-            listingId: { $in: listings.map((l) => l._id) },
-          },
-        },
-        { $project: { listingId: 1, status: 1 } },
-      ]);
-
-      const interestMap = new Map(
-        interestData.map((i) => [i.listingId.toString(), i.status])
-      );
-
-      listingsWithInterest = listings.map((l) => ({
-        ...l,
-        isUserInterested: interestMap.get(l._id.toString()) === "interested",
-      }));
-    } else {
-      // 🔹 Guest user (not logged in)
-      listingsWithInterest = listings.map((l) => ({
-        ...l,
-        isUserInterested: false,
-      }));
-    }
-
-    // ✅ Final Response
-    return res.status(200).json({
-      success: true,
-      total,
-      count: listingsWithInterest.length,
-      currentPage: Number(page),
-      totalPages: Math.ceil(total / Number(limit)),
-      filtersApplied: matchStage,
-      data: listingsWithInterest,
-    });
-  } catch (error) {
-    console.error("Error fetching franchise listings:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Server error while fetching listings",
-      error: error.message,
-    });
-  }
 };
-
 
 
 // For franchise listings
