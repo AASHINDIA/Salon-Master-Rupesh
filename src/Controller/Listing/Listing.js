@@ -640,16 +640,7 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
             currentPage: Number(page),
             totalPages: Math.ceil(total / Number(limit)),
             userInterestedCount: interestedAdIds.length,
-            debug: {
-                requestId: debugId,
-                queryTime: `${queryTime}ms`,
-                totalCountTime: `${countTime}ms`,
-                filtersApplied: Object.keys(filter),
-                interestStats: {
-                    interestedInPage: interestedCount,
-                    notInterestedInPage: notInterestedCount
-                }
-            },
+           
             data: listingsWithInterest,
         };
 
@@ -662,10 +653,7 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
             success: false,
             message: "Server error while fetching listings",
             error: error.message,
-            debug: {
-                requestId: debugId,
-                timestamp: new Date().toISOString()
-            }
+            
         });
     }
 };
