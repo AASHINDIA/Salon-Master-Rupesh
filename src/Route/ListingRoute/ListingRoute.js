@@ -16,6 +16,7 @@ import {
 import multer from 'multer';
 import { uploadToCloudinary } from '../../Utils/imageUpload.js';
 import { protect } from '../../Middlewares/authMiddleware/auth.js';
+import { authMiddleware1 } from '../../Middlewares/authMiddleware/auth.js';
 const router = express.Router();
 
 // Configur``e multer for file uploads
@@ -40,9 +41,9 @@ router.get('/getfranchiseProfile', protect, getfranchiseProfile)
 router.get('/getfranchiseListingsByUser', protect, getfranchiseListingsByUser)
 router.get('/gettraininginstituteListingsByUser', protect, gettraininginstituteListingsByUser)
 
-router.get('/getFranchiseListings', protect, getFranchiseListings)
-router.get('/getTraningListListings', protect, getTraningListListings)
-router.get('/getSellerListing', protect, getSellerListing)
+router.get('/getFranchiseListings', authMiddleware1, getFranchiseListings)
+router.get('/getTraningListListings', authMiddleware1, getTraningListListings)
+router.get('/getSellerListing', authMiddleware1, getSellerListing)
 
 
 
