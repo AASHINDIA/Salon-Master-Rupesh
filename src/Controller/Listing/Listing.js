@@ -496,6 +496,14 @@ export const getfranchiseListingsByUser = async (req, res) => {
 
 // More optimized version using aggregation
 export const getPublicFranchiseListings = async (Model, req, res) => {
+    // Debug ID for tracking this request
+    const debugId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    console.log(`\n🔍 [${debugId}] === STARTING FRANCHISE LISTINGS REQUEST ===`);
+    console.log(`[${debugId}] Model:`, Model.modelName);
+    console.log(`[${debugId}] User ID:`, req.user?.id || 'No user');
+    console.log(`[${debugId}] Query:`, req.query);
+
     try {
         const {
             search = "",        // text search
@@ -509,12 +517,18 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
         } = req.query;
 
         const filter = {};
-        const userId = req.user?.id; // Get user ID if available
+        const userId = req.user?.id;
+
+        console.log(`[${debugId}] Parsed params:`, {
+            search, fromDate, toDate, city, state, page, limit, sort, userId
+        });
 
         // 🔹 Show only ACTIVE + NON-EXPIRED listings
         const now = new Date();
         filter.status = "active";
         filter.expiredAt = { $gte: now };
+
+        console.log(`[${debugId}] Base filter:`, filter);
 
         // 🔹 Search filter
         if (search.trim()) {
@@ -526,85 +540,167 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
                 { advertisementDetails: { $regex: search, $options: "i" } },
                 { address: { $regex: search, $options: "i" } },
             ];
+            console.log(`[${debugId}] Search filter added for: "${search}"`);
         }
 
         // 🔹 Date range filter (createdAt)
         if (fromDate && toDate) {
             filter.createdAt = { $gte: new Date(fromDate), $lte: new Date(toDate) };
+            console.log(`[${debugId}] Date range filter: ${fromDate} to ${toDate}`);
         } else if (fromDate) {
             filter.createdAt = { $gte: new Date(fromDate) };
+            console.log(`[${debugId}] From date filter: ${fromDate}`);
         } else if (toDate) {
             filter.createdAt = { $lte: new Date(toDate) };
+            console.log(`[${debugId}] To date filter: ${toDate}`);
         }
 
         // 🔹 City/state match (address contains)
         if (city) {
             filter.address = { $regex: city, $options: "i" };
+            console.log(`[${debugId}] City filter: ${city}`);
         }
         if (state) {
             filter.address = { $regex: state, $options: "i" };
+            console.log(`[${debugId}] State filter: ${state}`);
         }
 
         // 🔹 Pagination setup
         const skip = (Number(page) - 1) * Number(limit);
+        console.log(`[${debugId}] Pagination - page: ${page}, limit: ${limit}, skip: ${skip}`);
 
         // 🔹 Sort by created date
         const sortOrder = sort === "old" ? 1 : -1;
+        console.log(`[${debugId}] Sort order: ${sort} (${sortOrder})`);
 
         // 🔹 Get user's interested ad IDs if user is logged in
         let interestedAdIds = [];
         if (userId) {
+            console.log(`[${debugId}] Fetching user interests for user: ${userId}`);
+
+            const startTime = Date.now();
             const interests = await ListingInterestSchema.find({
                 interestedUserId: userId,
                 category: Model.modelName
             });
+            const interestTime = Date.now() - startTime;
+
             interestedAdIds = interests.map(interest => interest.adId.toString());
 
-            // Exclude interested ads from results if needed
+            console.log(`[${debugId}] User interests found:`, {
+                count: interests.length,
+                interestedAdIds: interestedAdIds,
+                queryTime: `${interestTime}ms`
+            });
+
+            // Uncomment if you want to exclude interested ads
             // filter._id = { $nin: interestedAdIds };
+            // console.log(`[${debugId}] Excluding interested ads from results`);
+        } else {
+            console.log(`[${debugId}] No user ID - skipping interest check`);
         }
 
+        console.log(`[${debugId}] Final filter before query:`, JSON.stringify(filter, null, 2));
+
         // 🔹 Fetch listings
+        console.log(`[${debugId}] Starting database query...`);
+        const queryStartTime = Date.now();
+
         const listings = await Model.find(filter)
             .sort({ createdAt: sortOrder })
             .skip(skip)
             .limit(Number(limit))
             .lean();
 
-        // 🔹 Add interest status to each listing
-        const listingsWithInterest = listings.map(listing => {
-            const isInterested = userId ? interestedAdIds.includes(listing._id.toString()) : false;
+        const queryTime = Date.now() - queryStartTime;
+        console.log(`[${debugId}] Database query completed:`, {
+            documentsFound: listings.length,
+            queryTime: `${queryTime}ms`,
+            firstFewIds: listings.slice(0, 3).map(l => l._id)
+        });
 
-            return {
+        // 🔹 Add interest status to each listing
+        console.log(`[${debugId}] Adding interest status to listings...`);
+        const listingsWithInterest = listings.map(listing => {
+            const listingId = listing._id.toString();
+            const isInterested = userId ? interestedAdIds.includes(listingId) : false;
+
+            const result = {
                 ...listing,
-                isInterested, // true/false
+                isInterested,
                 interestStatus: isInterested ? 'interested' : 'not_interested'
             };
+
+            // Debug individual listing interest status
+            if (userId) {
+                console.log(`[${debugId}] Listing ${listingId}: isInterested = ${isInterested}`);
+            }
+
+            return result;
         });
 
         // 🔹 Total count
+        console.log(`[${debugId}] Counting total documents...`);
+        const countStartTime = Date.now();
         const total = await Model.countDocuments(filter);
+        const countTime = Date.now() - countStartTime;
+        console.log(`[${debugId}] Total count: ${total} (took ${countTime}ms)`);
+
+        // Calculate final statistics
+        const interestedCount = listingsWithInterest.filter(l => l.isInterested).length;
+        const notInterestedCount = listingsWithInterest.length - interestedCount;
+
+        console.log(`[${debugId}] Final statistics:`, {
+            totalListings: total,
+            currentPageResults: listingsWithInterest.length,
+            interestedInCurrentPage: interestedCount,
+            notInterestedInCurrentPage: notInterestedCount,
+            userTotalInterested: interestedAdIds.length
+        });
 
         // ✅ Response
-        return res.status(200).json({
+        console.log(`[${debugId}] ✅ Sending successful response`);
+
+        const response = {
             success: true,
             total,
             count: listingsWithInterest.length,
             currentPage: Number(page),
             totalPages: Math.ceil(total / Number(limit)),
-            userInterestedCount: interestedAdIds.length, // Total interested ads by user
+            userInterestedCount: interestedAdIds.length,
+            debug: {
+                requestId: debugId,
+                queryTime: `${queryTime}ms`,
+                totalCountTime: `${countTime}ms`,
+                filtersApplied: Object.keys(filter),
+                interestStats: {
+                    interestedInPage: interestedCount,
+                    notInterestedInPage: notInterestedCount
+                }
+            },
             data: listingsWithInterest,
-        });
+        };
+
+        console.log(`[${debugId}] === REQUEST COMPLETED SUCCESSFULLY ===\n`);
+        return res.status(200).json(response);
+
     } catch (error) {
-        console.error("Error fetching franchise listings:", error);
+        console.error(`\n❌ [${debugId}] === ERROR IN FRANCHISE LISTINGS REQUEST ===`);
+        console.error(`[${debugId}] Error:`, error.message);
+        console.error(`[${debugId}] Stack:`, error.stack);
+        console.error(`[${debugId}] === REQUEST FAILED ===\n`);
+
         return res.status(500).json({
             success: false,
             message: "Server error while fetching listings",
             error: error.message,
+            debug: {
+                requestId: debugId,
+                timestamp: new Date().toISOString()
+            }
         });
     }
 };
-
 
 // For franchise listings
 export const getFranchiseListings = (req, res) => {
