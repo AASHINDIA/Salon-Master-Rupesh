@@ -498,7 +498,7 @@ export const getfranchiseListingsByUser = async (req, res) => {
 export const getPublicFranchiseListings = async (Model, req, res) => {
     // Debug ID for tracking this request
 
-
+    const debugId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     try {
         const {
             search = "",        // text search
@@ -514,7 +514,7 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
         const filter = {};
         const userId = req.user?.id;
 
-      ;
+        ;
 
         // 🔹 Show only ACTIVE + NON-EXPIRED listings
         const now = new Date();
@@ -533,53 +533,53 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
                 { advertisementDetails: { $regex: search, $options: "i" } },
                 { address: { $regex: search, $options: "i" } },
             ];
-          
+
         }
 
         // 🔹 Date range filter (createdAt)
         if (fromDate && toDate) {
             filter.createdAt = { $gte: new Date(fromDate), $lte: new Date(toDate) };
-          
+
         } else if (fromDate) {
             filter.createdAt = { $gte: new Date(fromDate) };
-         
+
         } else if (toDate) {
             filter.createdAt = { $lte: new Date(toDate) };
-  
+
         }
 
         // 🔹 City/state match (address contains)
         if (city) {
             filter.address = { $regex: city, $options: "i" };
-           
+
         }
         if (state) {
             filter.address = { $regex: state, $options: "i" };
-         
+
         }
 
         // 🔹 Pagination setup
         const skip = (Number(page) - 1) * Number(limit);
-     
+
 
         // 🔹 Sort by created date
         const sortOrder = sort === "old" ? 1 : -1;
-    
+
         // 🔹 Get user's interested ad IDs if user is logged in
         let interestedAdIds = [];
         if (userId) {
-           
-            
+
+
             const startTime = Date.now();
-            const interests = await ListingInterestSchema.find({ 
-                interestedUserId: userId, 
-                category: Model.modelName 
+            const interests = await ListingInterestSchema.find({
+                interestedUserId: userId,
+                category: Model.modelName
             });
             const interestTime = Date.now() - startTime;
-            
+
             interestedAdIds = interests.map(interest => interest.adId.toString());
-            
-           
+
+
             // Uncomment if you want to exclude interested ads
             // filter._id = { $nin: interestedAdIds };
             // console.log(`[${debugId}] Excluding interested ads from results`);
@@ -592,7 +592,7 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
         // 🔹 Fetch listings
         // console.log(`[${debugId}] Starting database query...`);
         const queryStartTime = Date.now();
-        
+
         const listings = await Model.find(filter)
             .sort({ createdAt: sortOrder })
             .skip(skip)
@@ -600,39 +600,39 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
             .lean();
 
         const queryTime = Date.now() - queryStartTime;
-      
+
 
         // 🔹 Add interest status to each listing
         const listingsWithInterest = listings.map(listing => {
             const listingId = listing._id.toString();
             const isInterested = userId ? interestedAdIds.includes(listingId) : false;
-            
+
             const result = {
                 ...listing,
                 isInterested,
                 interestStatus: isInterested ? 'interested' : 'not_interested'
             };
-            
+
             // Debug individual listing interest status
-            
-            
+
+
             return result;
         });
 
-     
+
         const countStartTime = Date.now();
         const total = await Model.countDocuments(filter);
         const countTime = Date.now() - countStartTime;
-    
+
 
         // Calculate final statistics
         const interestedCount = listingsWithInterest.filter(l => l.isInterested).length;
         const notInterestedCount = listingsWithInterest.length - interestedCount;
-        
-    
+
+
         // ✅ Response
- 
-        
+
+
         const response = {
             success: true,
             total,
@@ -653,11 +653,11 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
             data: listingsWithInterest,
         };
 
-    
+
         return res.status(200).json(response);
 
     } catch (error) {
-      
+
         return res.status(500).json({
             success: false,
             message: "Server error while fetching listings",
