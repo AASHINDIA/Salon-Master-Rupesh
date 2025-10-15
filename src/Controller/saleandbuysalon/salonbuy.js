@@ -7,7 +7,7 @@ import traininginstitute from "../../Modal/traininginstitute/training_institute.
 import franchise from "../../Modal/franchise/franchise.js";
 import SellerListing from "../../Modal/sales/SellerListing.js";
 import { uploadToCloudinary } from "../../Utils/imageUpload.js";
-
+import ListingInterestSchema from "../../Modal/InterstedSchema/ListingInterestSchema.js";
 
 export const getDetails = async (req, res) => {
     try {
