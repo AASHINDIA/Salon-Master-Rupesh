@@ -40,9 +40,9 @@ router.get('/getfranchiseProfile', protect, getfranchiseProfile)
 router.get('/getfranchiseListingsByUser', protect, getfranchiseListingsByUser)
 router.get('/gettraininginstituteListingsByUser', protect, gettraininginstituteListingsByUser)
 
-router.get('/getFranchiseListings', getFranchiseListings)
-router.get('/getTraningListListings', getTraningListListings)
-router.get('/getSellerListing', getSellerListing)
+router.get('/getFranchiseListings', protect, getFranchiseListings)
+router.get('/getTraningListListings', protect, getTraningListListings)
+router.get('/getSellerListing', protect, getSellerListing)
 
 
 
