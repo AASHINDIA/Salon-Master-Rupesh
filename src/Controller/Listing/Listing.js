@@ -559,7 +559,7 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
         if (req.user?.id) {
             const userId = req.user.id; // your logged-in user
             const category = Model.modelName; // "SellerListing" etc.
-
+            console.log("category", category);
             // Find all interests of this user for these listings
             const interestData = await ListingInterestSchema.find({
                 interestedUserId: userId,
@@ -567,7 +567,7 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
                 adId: { $in: listings.map((l) => l._id) },
                 status: "interested",
             }).lean();
-
+            console.log("interestData", interestData);
             const interestMap = new Map(
                 interestData.map((i) => [i.adId.toString(), true])
             );
@@ -576,6 +576,7 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
                 ...l,
                 isUserInterested: interestMap.get(l._id.toString()) || false,
             }));
+            console.log("listingsWithInterest", listingsWithInterest);
         }
 
         return res.status(200).json({
