@@ -17,6 +17,12 @@ const ListingInterestSchema = new Schema({
         required: true,
         refPath: 'category' // Dynamically reference based on category
     },
+    status: {
+        type: String,
+        enum: ['interested', 'not_interested'],
+        default: 'interested'
+    },
+    // The user who posted the ad   
     adUserId: {
         type: Schema.Types.ObjectId,
         ref: 'User',

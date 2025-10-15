@@ -8,7 +8,7 @@ import mongoose from "mongoose";
 import traininginstitute from "../../Modal/traininginstitute/training_institute.js";
 import franchise from "../../Modal/franchise/franchise.js";
 import { uploadToCloudinary } from "../../Utils/imageUpload.js";
-
+import ListingInterestSchema from "../../Modal/InterstedSchema/ListingInterestSchema.js";
 
 // creating Listing For
 export const createTraningList = async (req, res) => {
@@ -496,90 +496,125 @@ export const getfranchiseListingsByUser = async (req, res) => {
 
 
 export const getPublicFranchiseListings = async (Model, req, res) => {
-    try {
-        const {
-            search = "",        // text search
-            fromDate,
-            toDate,
-            city,
-            state,
-            page = 1,
-            limit = 10,
-            sort = "latest",    // latest | old
-        } = req.query;
+  try {
+    const {
+      search = "",
+      fromDate,
+      toDate,
+      city,
+      state,
+      page = 1,
+      limit = 10,
+      sort = "latest",
+    } = req.query;
 
-        const filter = {};
+    const now = new Date();
+    const skip = (Number(page) - 1) * Number(limit);
+    const sortOrder = sort === "old" ? 1 : -1;
 
-        // 🔹 Show only ACTIVE + NON-EXPIRED listings
-        const now = new Date();
-        filter.status = "active";
-        filter.expiredAt = { $gte: now };
+    // 🔹 Build match conditions
+    const matchStage = {
+      status: "active",
+      expiredAt: { $gte: now },
+    };
 
-        // 🔹 Search filter
-        if (search.trim()) {
-            filter.$or = [
-
-                { heading: { $regex: search, $options: "i" } },
-                { shopName: { $regex: search, $options: "i" } },
-
-                { description: { $regex: search, $options: "i" } },
-                { short_description: { $regex: search, $options: "i" } },
-                { advertisementDetails: { $regex: search, $options: "i" } },
-                { address: { $regex: search, $options: "i" } },
-            ];
-        }
-
-        // 🔹 Date range filter (createdAt)
-        if (fromDate && toDate) {
-            filter.createdAt = { $gte: new Date(fromDate), $lte: new Date(toDate) };
-        } else if (fromDate) {
-            filter.createdAt = { $gte: new Date(fromDate) };
-        } else if (toDate) {
-            filter.createdAt = { $lte: new Date(toDate) };
-        }
-
-        // 🔹 City/state match (address contains)
-        if (city) {
-            filter.address = { $regex: city, $options: "i" };
-        }
-        if (state) {
-            filter.address = { $regex: state, $options: "i" };
-        }
-
-        // 🔹 Pagination setup
-        const skip = (Number(page) - 1) * Number(limit);
-
-        // 🔹 Sort by created date
-        const sortOrder = sort === "old" ? 1 : -1;
-
-        // 🔹 Fetch listings
-        const listings = await Model.find(filter)
-            .sort({ createdAt: sortOrder })
-            .skip(skip)
-            .limit(Number(limit))
-            .lean();
-
-        // 🔹 Total count
-        const total = await Model.countDocuments(filter);
-
-        // ✅ Response
-        return res.status(200).json({
-            success: true,
-            total,
-            count: listings.length,
-            currentPage: Number(page),
-            totalPages: Math.ceil(total / Number(limit)),
-            filtersApplied: filter,
-            data: listings,
-        });
-    } catch (error) {
-        console.error("Error fetching franchise listings:", error);
-        return res.status(500).json({
-            success: false,
-            message: "Server error while fetching listings",
-            error: error.message,
-        });
+    // 🔹 Search filters
+    if (search.trim()) {
+      matchStage.$or = [
+        { heading: { $regex: search, $options: "i" } },
+        { shopName: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { short_description: { $regex: search, $options: "i" } },
+        { advertisementDetails: { $regex: search, $options: "i" } },
+        { address: { $regex: search, $options: "i" } },
+      ];
     }
+
+    // 🔹 Date filters
+    if (fromDate && toDate) {
+      matchStage.createdAt = {
+        $gte: new Date(fromDate),
+        $lte: new Date(toDate),
+      };
+    } else if (fromDate) {
+      matchStage.createdAt = { $gte: new Date(fromDate) };
+    } else if (toDate) {
+      matchStage.createdAt = { $lte: new Date(toDate) };
+    }
+
+    // 🔹 City/state filters
+    if (city) matchStage.address = { $regex: city, $options: "i" };
+    if (state) matchStage.address = { $regex: state, $options: "i" };
+
+    // 🔹 Aggregation pipeline (efficient pagination + total count)
+    const pipeline = [
+      { $match: matchStage },
+      { $sort: { createdAt: sortOrder } },
+      {
+        $facet: {
+          metadata: [{ $count: "total" }],
+          data: [{ $skip: skip }, { $limit: Number(limit) }],
+        },
+      },
+      { $addFields: { total: { $arrayElemAt: ["$metadata.total", 0] } } },
+    ];
+
+    const result = await Model.aggregate(pipeline);
+    const listings = result[0]?.data || [];
+    const total = result[0]?.total || 0;
+
+    let listingsWithInterest = listings;
+
+    // 🔹 If user logged in → join with interest data
+    if (req.user?.id) {
+      const userId = new mongoose.Types.ObjectId(req.user.id);
+      const listingType = Model.modelName;
+
+      const interestData = await ListingInterestSchema.aggregate([
+        {
+          $match: {
+            userId,
+            listingType,
+            listingId: { $in: listings.map((l) => l._id) },
+          },
+        },
+        { $project: { listingId: 1, status: 1 } },
+      ]);
+
+      const interestMap = new Map(
+        interestData.map((i) => [i.listingId.toString(), i.status])
+      );
+
+      listingsWithInterest = listings.map((l) => ({
+        ...l,
+        isUserInterested: interestMap.get(l._id.toString()) === "interested",
+      }));
+    } else {
+      // 🔹 Guest user (not logged in)
+      listingsWithInterest = listings.map((l) => ({
+        ...l,
+        isUserInterested: false,
+      }));
+    }
+
+    // ✅ Final Response
+    return res.status(200).json({
+      success: true,
+      total,
+      count: listingsWithInterest.length,
+      currentPage: Number(page),
+      totalPages: Math.ceil(total / Number(limit)),
+      filtersApplied: matchStage,
+      data: listingsWithInterest,
+    });
+  } catch (error) {
+    console.error("Error fetching franchise listings:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching listings",
+      error: error.message,
+    });
+  }
 };
 
 
