@@ -20,11 +20,11 @@ router.post(
         const { title, body, data = {} } = req.body;
 
         // Input validation
-        if (!title || !body || typeof title !== 'string' || typeof body !== 'string') {
-            return res.status(400).json({
-                message: 'Invalid input: title and body are required and must be strings',
-            });
-        }
+        // if (!title || !body || typeof title !== 'string' || typeof body !== 'string') {
+        //     return res.status(400).json({
+        //         message: 'Invalid input: title and body are required and must be strings',
+        //     });
+        // }
 
         // Optional: Validate data payload
         if (data && typeof data !== 'object') {
