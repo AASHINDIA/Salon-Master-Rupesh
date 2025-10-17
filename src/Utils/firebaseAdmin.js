@@ -13,6 +13,7 @@ serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
-// console.log("Firebase Admin SDK initialized with service account");
+
+console.log("Firebase Admin SDK initialized with service account");
 
 export default admin;

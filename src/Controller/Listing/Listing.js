@@ -499,6 +499,7 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
     // Debug ID for tracking this request
 
     const debugId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
     try {
         const {
             search = "",        // text search
@@ -640,7 +641,7 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
             currentPage: Number(page),
             totalPages: Math.ceil(total / Number(limit)),
             userInterestedCount: interestedAdIds.length,
-           
+
             data: listingsWithInterest,
         };
 
@@ -653,7 +654,7 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
             success: false,
             message: "Server error while fetching listings",
             error: error.message,
-            
+
         });
     }
 };
