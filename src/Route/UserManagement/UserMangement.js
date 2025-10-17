@@ -15,7 +15,7 @@ const router = express.Router();
 // Route to send notifications to all users
 router.post(
     '/sendNotificationToAll',
-    protect, // Assumes protect middleware verifies JWT and sets req.user
+
     async (req, res) => {
         const { title, body, data = {} } = req.body;
 
