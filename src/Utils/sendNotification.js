@@ -163,10 +163,11 @@ export const sendNotificationsToAllUsers = async (notification, data = {}) => {
         $ne: null,
         $ne: ""
       },
-      isSuspended: false,
-      isActive: true // Assuming you have an isActive field
+      
+      otp_verified: true // Assuming you have an isActive field
     }).select("devicetoken _id");
 
+    console.log(`👥 Found ${users.length} users with device tokens`);
     if (users.length === 0) {
       console.warn("No users with device tokens found");
       return {
