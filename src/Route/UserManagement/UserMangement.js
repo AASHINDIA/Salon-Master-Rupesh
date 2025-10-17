@@ -51,7 +51,7 @@ router.post(
                 },
             });
         } catch (error) {
-            console.error(`Error in /sendNotificationToAll by user ${req.user.id}:`, error);
+            // console.error(`Error in /sendNotificationToAll by user ${req.user.id}:`, error);
             return res.status(500).json({
                 success: false,
                 message: 'Failed to send notifications',
