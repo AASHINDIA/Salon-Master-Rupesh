@@ -366,7 +366,7 @@ export const getAllCandidates = async (req, res) => {
         // Mask name & contact
         candidates = candidates.map(c => ({
             ...c._doc,
-            name: maskName(c.name),
+            name: c.name,
             contact_no: maskNumber(c.contact_no)
         }));
 

@@ -240,7 +240,7 @@ export const getAllSalon = async (req, res) => {
         // Apply masking
         salons = salons.map(salon => ({
             ...salon._doc,
-            salon_name: maskName(salon.salon_name) || maskName('No Name'),
+            salon_name: salon.salon_name || 'No Name',
             whatsapp_number: maskNumber(salon.whatsapp_number)
         }));
 
