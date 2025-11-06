@@ -7,6 +7,11 @@ const salonSchema = new mongoose.Schema({
   brand_name: {
     type: String,
   },
+
+  isProfileCompleted: {
+    type: Boolean,
+    default: false,
+  },
   unique_name: {
     type: String,
 

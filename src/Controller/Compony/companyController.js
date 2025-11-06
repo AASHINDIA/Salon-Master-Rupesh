@@ -36,7 +36,9 @@ export const getAllCompanies = async (req, res) => {
         limit = parseInt(limit);
 
         // Build query object
-        let query = {};
+        let query = {
+            isProfileCompleted: true // ✅ Only salons with completed profiles
+        };
 
         // Search by company_name or brand (case-insensitive)
         if (search) {

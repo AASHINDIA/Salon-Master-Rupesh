@@ -54,6 +54,10 @@ const candidateSchema = new mongoose.Schema({
         front_image: { type: String, trim: true }, // URL or file path for front
         back_image: { type: String, trim: true }   // URL or file path for back
     },
+    isProfileCompleted: {
+        type: Boolean,
+        default: false,
+    },
     education: {
         type: [{
             degree: String,

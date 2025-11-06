@@ -30,6 +30,10 @@ const companySchema = new mongoose.Schema({
         type: String,
         trim: true
     },
+    isProfileCompleted: {
+        type: Boolean,
+        default: false,
+    },
     cin: {
         type: String,
         trim: true
@@ -38,12 +42,12 @@ const companySchema = new mongoose.Schema({
         country: {
             type: String,
             trim: true,
-            
+
         },
         state: {
             type: String,
             trim: true,
-            
+
         },
         city: {
             type: String,
@@ -52,7 +56,7 @@ const companySchema = new mongoose.Schema({
         pincode: {
             type: String,
             trim: true,
-            
+
         },
         countryIsoCode: {
             type: String,

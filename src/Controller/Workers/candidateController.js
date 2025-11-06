@@ -331,7 +331,9 @@ export const getAllCandidates = async (req, res) => {
         limit = parseInt(limit);
 
         // Build query object
-        let query = {};
+        let query = {
+            isProfileCompleted: true // ✅ Only salons with completed profiles
+        };
 
         // Search by candidate name or location
         if (search) {

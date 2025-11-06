@@ -210,7 +210,9 @@ export const getAllSalon = async (req, res) => {
         limit = parseInt(limit);
 
         // Build query object
-        let query = {};
+         let query = {
+            isProfileCompleted: true // ✅ Only salons with completed profiles
+        };
 
         // Search by salon_name or brand_name (case-insensitive)
         if (search) {
@@ -220,6 +222,7 @@ export const getAllSalon = async (req, res) => {
             ];
         }
 
+    
         // Filters
         if (country) query["address.country"] = country;
         if (state) query["address.state"] = state;
