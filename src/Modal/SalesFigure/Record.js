@@ -25,4 +25,9 @@ const recordSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
+
+recordSchema.index({ createdAt: -1 });
+recordSchema.index({ "products.name": "text", "services.name": "text" });
+recordSchema.index({ userId: 1 });
+
 export default mongoose.model("Record", recordSchema);
