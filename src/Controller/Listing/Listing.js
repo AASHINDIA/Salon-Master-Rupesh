@@ -519,8 +519,8 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
 
         // 🔹 Show only ACTIVE + NON-EXPIRED listings
         const now = new Date();
-        filter.status = "active";
-        filter.expiredAt = { $gte: now };
+        // filter.status = "active";
+        // filter.expiredAt = { $gte: now };
 
 
 

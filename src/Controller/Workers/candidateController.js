@@ -332,7 +332,7 @@ export const getAllCandidates = async (req, res) => {
 
         // Build query object
         let query = {
-            isProfileCompleted: true // ✅ Only salons with completed profiles
+            // isProfileCompleted: true // ✅ Only salons with completed profiles
         };
 
         // Search by candidate name or location

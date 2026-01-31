@@ -211,7 +211,7 @@ export const getAllSalon = async (req, res) => {
 
         // Build query object
          let query = {
-            isProfileCompleted: true // ✅ Only salons with completed profiles
+            // isProfileCompleted: true // Example filter to get only completed profiles
         };
 
         // Search by salon_name or brand_name (case-insensitive)
