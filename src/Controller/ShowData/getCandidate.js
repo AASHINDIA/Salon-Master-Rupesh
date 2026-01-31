@@ -89,7 +89,8 @@ export const getJobPostings = async (req, res) => {
     page = parseInt(page);
     limit = parseInt(limit);
 
-    const filter = { is_active: true };
+    const filter = { };
+    // const filter = { is_active: true };
 
     // Count total jobs
     const totalJobs = await JobPosting.countDocuments(filter);
