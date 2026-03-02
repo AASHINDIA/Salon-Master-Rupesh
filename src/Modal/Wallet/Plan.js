@@ -1,75 +1,103 @@
 import mongoose from "mongoose";
 
-const PlanSchema = new mongoose.Schema({
+const { Schema } = mongoose;
+
+const FeatureSchema = new Schema({
     name: {
         type: String,
-        required: [true, "Plan name is required"],
+        required: true,
         trim: true,
-        maxLength: [50, "Plan name cannot exceed 50 characters"]
+        maxlength: 120
     },
-    description: {
-        type: String,
-        required: [true, "Plan description is required"],
-        maxLength: [200, "Description cannot exceed 200 characters"]
-    },
-    price: {
-        type: Number,
-        required: [true, "Price is required"],
-        min: [0, "Price cannot be negative"]
-    },
-    currency: {
-        type: String,
-        default: "INR",
-        enum: ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "INR"] // Add more as needed
-    },
-    token: {
-        type: Number,
-        required: [true, "Token amount is required"],
-        min: [0, "Token amount cannot be negative"]
-    },
-    discount: {
-        type: Number,
-        default: 0,
-        min: [0, "Discount cannot be negative"],
-        max: [100, "Discount cannot exceed 100%"]
-    },
-    isActive: {
+    included: {
         type: Boolean,
         default: true
     },
-    features: [{
-        name: {
-            type: String,
-            required: true
-        },
-        included: {
-            type: Boolean,
-            default: true
-        },
-        description: String
-    }],
+    description: {
+        type: String,
+        maxlength: 300
+    }
+}, { _id: false });
+
+const PlanSchema = new Schema({
+    name: {
+        type: String,
+        required: true,
+        trim: true,
+        unique: true,
+        maxlength: 120
+    },
+
+    slug: {
+        type: String,
+        required: true,
+        unique: true,
+        lowercase: true
+    },
+
+    description: {
+        type: String,
+        required: true,
+        maxlength: 2000
+    },
+
+    price: {
+        type: Number,
+        required: true,
+        min: 0
+    },
+
+    currency: {
+        type: String,
+        enum: ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "INR"],
+        default: "INR"
+    },
+
+    token: {
+        type: Number,
+        required: true,
+        min: 0
+    },
+
+    discount: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100
+    },
+
+    isActive: {
+        type: Boolean,
+        default: true,
+        index: true
+    },
+
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
+
+    features: [FeatureSchema],
 
     priority: {
         type: Number,
-        default: 0 // Higher number means higher priority in listing
-    },
+        default: 0,
+        index: true
+    }
 
 }, {
-    timestamps: true // Adds createdAt and updatedAt automatically
+    timestamps: true,
+    versionKey: false
 });
 
-// Virtual for discounted price
-PlanSchema.virtual('discountedPrice').get(function () {
-    return this.price * (1 - (this.discount / 100));
+/* Virtual */
+PlanSchema.virtual("discountedPrice").get(function () {
+    const final = this.price - (this.price * this.discount / 100);
+    return Number(final.toFixed(2));
 });
 
-// Index for better query performance
+/* Compound index */
 PlanSchema.index({ isActive: 1, priority: -1 });
+PlanSchema.index({ slug: 1 });
 
-// Method to check if plan is currently available
-PlanSchema.methods.isAvailable = function () {
-    return this.isActive;
-};
-
-const Plan = mongoose.model("Plan", PlanSchema);
-export default Plan;
+export default mongoose.model("Plan", PlanSchema);

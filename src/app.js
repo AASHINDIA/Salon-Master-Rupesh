@@ -13,7 +13,7 @@ import './Controller/Cronjob/cronJobs.js'
 import notFound from './Middlewares/notFound.js';
 import { errorHandler } from './Middlewares/errorHandler.js';
 //import  Router
-
+import TraningV from './Route/Trangin/Trangin.js'
 import authRout from './Route/authRoute/authRoute.js'
 import CategoryRuoute from './Route/Compony/Category.js'
 import ProductRuoute from './Route/Compony/ProductRoute.js'
@@ -107,6 +107,7 @@ app.get('/', (req, res) => {
 // authRoutes
 // --------------------------------
 app.use('/api/v1/auth', authRout);
+app.use('/api/v1/tranging', TraningV);
 app.use('/api/v1/permission', PremissionRoute);
 // ----------------------------------------
 // Product Routes

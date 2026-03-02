@@ -1,94 +1,116 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-// TrendingVideo Schema (fixed spelling from "Tranging" to "Trending")
-const TrendingVideoSchema = new Schema({
+const TrainingVideoSchema = new Schema({
+
     title: {
         type: String,
-        required: [true, 'Video title is required'],
+        required: true,
         trim: true,
-        maxlength: [100, 'Title cannot exceed 100 characters']
+        maxlength: 150,
     },
+
     description: {
         type: String,
-        required: [true, 'Video description is required'],
-        trim: true,
-        maxlength: [500, 'Description cannot exceed 500 characters']
+        required: true,
+        maxlength: 1000,
     },
-    user_id:{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+
+    instructor: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
     },
-    link: {
+
+    // FREE PREVIEW (public video id)
+    previewVideoId: {
         type: String,
-        required: [true, 'Video link is required'],
-      
+        trim: true,
     },
-    duration: {
-        type: Number, // in seconds
-        required: [true, 'Duration is required'],
-        min: [1, 'Duration must be at least 1 second']
+
+    // MAIN YOUTUBE VIDEO
+    youtubeVideoId: {
+        type: String,
+        required: true,
+        trim: true,
     },
-    categories: {
-        type: [String],
-        default: ['general'],
-        validate: {
-            validator: function(v) {
-                return v.length <= 5; // Maximum 5 categories per video
-            },
-            message: 'Cannot have more than 5 categories'
-        }
+
+    youtubePrivacy: {
+        type: String,
+        enum: ["public", "unlisted", "private"],
+        default: "unlisted",
     },
+
+    accessType: {
+        type: String,
+        enum: ["free", "paid", "trial"],
+        default: "paid",
+    },
+
+    trialDurationInDays: {
+        type: Number,
+        default: 0,
+    },
+
+    plan: {
+        type: Schema.Types.ObjectId,
+        ref: "Plan",
+    },
+
+    durationInMinutes: {
+        type: Number,
+        required: true,
+    },
+
+    price: {
+        type: Number,
+        default: 0,
+    },
+
+    currency: {
+        type: String,
+        default: "INR",
+    },
+
     isActive: {
         type: Boolean,
-        default: true
+        default: true,
     },
-    // Removed duplicate createdAt and updatedAt since we're using timestamps
-}, {
-    timestamps: true, // Auto-manage createdAt and updatedAt
-    toJSON: { 
-        virtuals: true,
-        transform: function(doc, ret) {
-            delete ret._id;
-            delete ret.__v;
-            return ret;
-        }
+
+
+    // Add inside TrainingVideoSchema
+
+    views: {
+        type: Number,
+        default: 0,
+        index: true
     },
-    toObject: { 
-        virtuals: true,
-        transform: function(doc, ret) {
-            delete ret._id;
-            delete ret.__v;
-            return ret;
-        }
+
+    likes: {
+        type: Number,
+        default: 0
+    },
+
+    purchasesCount: {
+        type: Number,
+        default: 0
+    },
+
+    trendingScore: {
+        type: Number,
+        default: 0,
+        index: true
     }
-});
+    ,
+    isDeleted: {
+        type: Boolean,
+        default: false,
+    }
 
-// Add a virtual property for formatted duration (e.g., "5:30")
-TrendingVideoSchema.virtual('formattedDuration').get(function() {
-    const minutes = Math.floor(this.duration / 60);
-    const seconds = this.duration % 60;
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-});
+}, { timestamps: true });
 
-// Indexes for better query performance
-TrendingVideoSchema.index({ title: 'text', description: 'text' });
-TrendingVideoSchema.index({ duration: 1 });
-TrendingVideoSchema.index({ categories: 1 });
-TrendingVideoSchema.index({ isActive: 1 });
+TrainingVideoSchema.index({ title: "text", description: "text" });
+TrainingVideoSchema.index({ accessType: 1, isActive: 1 });
 
-// Middleware to update the updatedAt field before saving
-TrendingVideoSchema.pre('save', function(next) {
-    this.updatedAt = Date.now();
-    next();
-});
-
-// Add a query helper for active videos
-TrendingVideoSchema.query.active = function() {
-    return this.where({ isActive: true });
-};
-
-const TrendingVideo = mongoose.model('TrendingVideo', TrendingVideoSchema);
-
-export default TrendingVideo;
+export default mongoose.model("TrainingVideo", TrainingVideoSchema);
