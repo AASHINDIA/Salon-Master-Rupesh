@@ -4,12 +4,20 @@ import Plan from "../../Modal/Wallet/Plan.js";
 
 import slugify from "slugify";
 
-
 export const createPlanService = async (payload) => {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
+
+        /* ================================
+           STEP 1: Defensive Validation
+        ================================= */
+
+        if (!payload || typeof payload !== "object") {
+            throw new Error("Invalid payload");
+        }
+
         const {
             name,
             description,
@@ -21,11 +29,39 @@ export const createPlanService = async (payload) => {
             priority = 0
         } = payload;
 
-        const slug = slugify(String(name), {
+        if (!name || typeof name !== "string") {
+            throw new Error("Plan name must be a valid string");
+        }
+
+        if (!description || typeof description !== "string") {
+            throw new Error("Description must be a valid string");
+        }
+
+        if (typeof price !== "number") {
+            throw new Error("Price must be a number");
+        }
+
+        if (typeof token !== "number") {
+            throw new Error("Token must be a number");
+        }
+
+        /* ================================
+           STEP 2: Slug Generation
+        ================================= */
+
+        const slug = slugify(name.trim(), {
             lower: true,
             strict: true,
             trim: true
         });
+
+        if (!slug) {
+            throw new Error("Invalid slug generated");
+        }
+
+        /* ================================
+           STEP 3: Unique Slug Check
+        ================================= */
 
         const existing = await Plan.findOne({
             slug,
@@ -35,6 +71,10 @@ export const createPlanService = async (payload) => {
         if (existing) {
             throw new Error("Plan already exists");
         }
+
+        /* ================================
+           STEP 4: Create Plan
+        ================================= */
 
         const plan = new Plan({
             name: name.trim(),
