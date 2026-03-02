@@ -100,6 +100,24 @@ export const createPlanService = async (payload) => {
         session.endSession();
     }
 };
+
+export const createPlan = async (req, res) => {
+    try {
+        const plan = await createPlanService(req.body);
+
+        res.status(201).json({
+            success: true,
+            message: 'Plan created successfully',
+            data: plan
+        });
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: error.message || 'Failed to create plan'
+        });
+    }
+};
+
 /**
  * @desc    Get all plans (Paginated + Filtered + Sorted)
  * @route   GET /api/v1/plans
