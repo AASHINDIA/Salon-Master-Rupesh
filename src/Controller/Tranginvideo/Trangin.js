@@ -7,31 +7,81 @@ import * as videoService from './trainingVideo.service.js'
 
 export const createtrendingVideo = async (req, res) => {
     try {
-        const { title, description, youtubeVideoId, youtubePrivacy, accessType, trialDurationInDays, planId, durationInMinutes, price, currency } = req.body;
-
-        // Validate required fields
-        if (!title || !description || !youtubeVideoId || !accessType || !durationInMinutes) {
-            return res.status(400).json({ message: "Missing required fields" });
-        }
-
-        // If accessType is "paid", planId must be provided
-        if (accessType === "paid" && !planId) {
-            return res.status(400).json({ message: "planId is required for paid videos" });
-        }
-
-        // If planId is provided, validate it
-        let plan = null;
-
-        if (planId) {
-            if (!mongoose.Types.ObjectId.isValid(planId)) {
-                return res.status(400).json({ message: "Invalid planId" });
-            }
-            plan = await Plan.findById(planId);
-        }
-
-        const newTrainingVideo = new TrainingVideo({
+        const {
             title,
             description,
+            youtubeVideoId,
+            youtubePrivacy = "private",
+            accessType,
+            trialDurationInDays = 0,
+            planId,
+            durationInMinutes,
+            price,
+            currency = "INR"
+        } = req.body;
+
+        /* ===============================
+           1. Basic Validation
+        =============================== */
+
+        if (!title || !description || !youtubeVideoId || !accessType || !durationInMinutes) {
+            return res.status(400).json({
+                success: false,
+                message: "title, description, youtubeVideoId, accessType, durationInMinutes are required"
+            });
+        }
+
+        if (!["free", "paid", "trial"].includes(accessType)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid accessType"
+            });
+        }
+
+        /* ===============================
+           2. Paid Validation
+        =============================== */
+
+        let plan = null;
+
+        if (accessType === "paid") {
+            if (!planId) {
+                return res.status(400).json({
+                    success: false,
+                    message: "planId is required for paid videos"
+                });
+            }
+
+            if (!mongoose.Types.ObjectId.isValid(planId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid planId"
+                });
+            }
+
+            plan = await Plan.findById(planId);
+            if (!plan) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Plan not found"
+                });
+            }
+
+            if (!price || price <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Valid price is required for paid videos"
+                });
+            }
+        }
+
+        /* ===============================
+           3. Create Video
+        =============================== */
+
+        const newTrainingVideo = new TrainingVideo({
+            title: title.trim(),
+            description: description.trim(),
             youtubeVideoId,
             youtubePrivacy,
             accessType,
@@ -42,14 +92,22 @@ export const createtrendingVideo = async (req, res) => {
             currency: accessType === "paid" ? currency : null
         });
 
-        const savedTrainingVideo = await newTraining.save();
-        res.status(201).json(savedTrainingVideo);
+        const savedTrainingVideo = await newTrainingVideo.save();
+
+        return res.status(201).json({
+            success: true,
+            data: savedTrainingVideo
+        });
+
     } catch (error) {
         console.error("Error creating training video:", error);
-        res.status(500).json({ message: "Internal server error" });
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error"
+        });
     }
 };
-
 
 
 export const getAllTrendingVideos = async (req, res) => {
