@@ -21,30 +21,6 @@ export const createPlanService = async (payload) => {
             priority = 0
         } = payload;
 
-        /* =============================
-           ENTERPRISE LEVEL VALIDATION
-        ============================= */
-
-        if (!name || typeof name !== "string") {
-            throw new Error("Plan name must be a valid string");
-        }
-
-        if (!description || typeof description !== "string") {
-            throw new Error("Description must be a valid string");
-        }
-
-        if (typeof price !== "number") {
-            throw new Error("Price must be a number");
-        }
-
-        if (typeof token !== "number") {
-            throw new Error("Token must be a number");
-        }
-
-        if (discount > 100) {
-            throw new Error("Discount cannot exceed 100%");
-        }
-
         const slug = slugify(String(name), {
             lower: true,
             strict: true,
