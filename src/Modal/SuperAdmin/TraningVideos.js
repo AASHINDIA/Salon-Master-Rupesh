@@ -20,7 +20,6 @@ const TrainingVideoSchema = new Schema({
     instructor: {
         type: Schema.Types.ObjectId,
         ref: "User",
-        required: true,
     },
 
     // FREE PREVIEW (public video id)
