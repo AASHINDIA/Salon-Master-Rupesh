@@ -26,7 +26,7 @@ router.patch("/trending-videos/:id/toggle-active", protect, toggleVideoActive);
 router.delete("/trending-videos/:id", protect, softDeleteVideo);
 router.patch("/trending-videos/:id/update-youtube-privacy", protect, updateYoutubePrivacy);
 router.patch("/trending-videos/:id/update-access-type", protect, updateAccessType);
-router.get("/training-videos", getAllTrainingVideos);
+router.get("/training", getAllTrainingVideos);
 
 
 export default router;
