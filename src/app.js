@@ -48,7 +48,7 @@ import SallerRoute from './Route/SaleRoute/commonsaller.js'
 import listing from './Route/ListingRoute/ListingRoute.js'
 import ListingManage from './Route/ListingRoute/ListingManagement.js'
 import Planroute from './Route/Trangin/plan.js'
-
+import paymentroute  from './Route/Trangin/Payment.js'
 import interested from './Route/InterestedRoute/InterestedRoute.js'
 const app = express();
 
@@ -109,6 +109,7 @@ app.get('/', (req, res) => {
 // --------------------------------
 app.use('/api/v1/auth', authRout);
 app.use('/api/v1/tranging', TraningV);
+app.use('/api/v1/paymentroute', paymentroute);
 
 app.use('/api/v1/permission', PremissionRoute);
 app.use('/api/v1/plan', Planroute);
