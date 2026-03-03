@@ -519,7 +519,7 @@ export const updateAccessType = async (req, res) => {
 
 
 
-export const getAllTrainingVideos = async (req, res) => {
+export const getAllVideos = async (req, res) => {
     try {
         let {
             page = 1,

@@ -11,13 +11,14 @@ import {
     softDeleteVideo,
     updateYoutubePrivacy,
     updateAccessType,
-    getAllTrainingVideos
+    getAllVideos
 } from "../../Controller/Tranginvideo/Trangin.js";
 const router = express.Router();
 
 
 router.post("/trending-videos", protect, createtrendingVideo);
 router.get("/trending-videos", protect, getAllTrendingVideos);
+router.get("/getAll/Videos", getAllVideos);
 router.get("/trending-videos/:id", getTrainingVideoById);
 router.post("/trending-videos/:id/increment-view", incrementView);
 router.post("/trending-videos/:id/like", protect, likeVideo);
@@ -26,7 +27,6 @@ router.patch("/trending-videos/:id/toggle-active", protect, toggleVideoActive);
 router.delete("/trending-videos/:id", protect, softDeleteVideo);
 router.patch("/trending-videos/:id/update-youtube-privacy", protect, updateYoutubePrivacy);
 router.patch("/trending-videos/:id/update-access-type", protect, updateAccessType);
-router.get("/getAllTrainingVideos", getAllTrainingVideos);
 
 
 export default router;
