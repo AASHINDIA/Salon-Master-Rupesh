@@ -46,6 +46,7 @@ export const createTrainingOrder = async (req, res) => {
         };
 
         const order = await razorpay.orders.create(options);
+        logger.info(`Created Razorpay order: ${order.id} for training: ${trainingId} by user: ${userId}`);
 
         return res.json({
             success: true,
