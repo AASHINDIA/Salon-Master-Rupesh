@@ -10,8 +10,6 @@ const razorpay = new Razorpay({
     key_secret: process.env.RAZORPAY_API_SECRET,
 });
 
-
-
 export const createTrainingOrder = async (req, res) => {
     try {
         const { trainingId } = req.body;
