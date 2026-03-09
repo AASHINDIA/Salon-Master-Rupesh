@@ -4,6 +4,7 @@ import TrainingVideo from "../../Modal/SuperAdmin/TraningVideos.js";
 import TrainingPurchase from "../../Modal/SuperAdmin/BuyTraning.js";
 import mongoose from "mongoose";
 import Razorpay from "razorpay";
+import crypto from "crypto";
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_API_KEY,
@@ -26,13 +27,18 @@ export const createTrainingOrder = async (req, res) => {
         }
 
         if (video.accessType === "free") {
-            return res.status(400).json({ message: "Free training does not require payment" });
+            return res.status(400).json({
+                message: "Free training does not require payment"
+            });
         }
 
+        // Razorpay receipt must be <= 40 chars
+        const receipt = `tr_${trainingId.toString().slice(-8)}_${Date.now().toString().slice(-6)}`;
+
         const options = {
-            amount: video.price * 100, // Razorpay uses paise
+            amount: video.price * 100,
             currency: video.currency || "INR",
-            receipt: `training_${trainingId}_${Date.now()}`,
+            receipt: receipt,
             notes: {
                 userId: userId.toString(),
                 trainingId: trainingId.toString(),
@@ -46,15 +52,16 @@ export const createTrainingOrder = async (req, res) => {
             orderId: order.id,
             amount: order.amount,
             currency: order.currency,
-            key: process.env.RAZORPAY_KEY_ID,
+            key: process.env.RAZORPAY_API_KEY
         });
 
     } catch (error) {
         console.error("Create order error:", error);
-        res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({
+            message: "Internal server error"
+        });
     }
 };
-
 
 
 export const verifyTrainingPayment = async (req, res) => {
