@@ -5,7 +5,6 @@ import TrainingPurchase from "../../Modal/SuperAdmin/BuyTraning.js";
 import mongoose from "mongoose";
 import Razorpay from "razorpay";
 import crypto from "crypto";
-
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_API_KEY,
     key_secret: process.env.RAZORPAY_API_SECRET,
@@ -46,7 +45,7 @@ export const createTrainingOrder = async (req, res) => {
         };
 
         const order = await razorpay.orders.create(options);
-        logger.info(`Created Razorpay order: ${order.id} for training: ${trainingId} by user: ${userId}`);
+       console.log(`Created Razorpay order: ${order.id} for training: ${trainingId} by user: ${userId}`);
 
         return res.json({
             success: true,
