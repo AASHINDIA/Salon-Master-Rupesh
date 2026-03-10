@@ -4,7 +4,7 @@ import TrainingVideo from "../../Modal/SuperAdmin/TraningVideos.js";
 import TrainingPurchase from "../../Modal/SuperAdmin/BuyTraning.js";
 import mongoose from "mongoose";
 import * as videoService from './trainingVideo.service.js'
-import videoLike from "../../Modal/videoLike.js";
+import VideoLike from "../../Modal/videoLike.js";
 export const calculateTrendingScore = (video) => {
 
     const likesWeight = 2;
