@@ -21,7 +21,7 @@ router.get("/trending-videos", protect, getAllTrendingVideos);
 router.get("/getAll/Videos", getAllVideos);
 router.get("/trending-videos/:id", getTrainingVideoById);
 router.post("/trending-videos/:id/increment-view", incrementView);
-router.post("/trending-videos/:id/like", protect, likeVideo);
+router.post("/trending-videos/:videoId/like", protect, likeVideo);
 router.put("/trending-videos/:id", protect, updateVideo);
 router.patch("/trending-videos/:id/toggle-active", protect, toggleVideoActive);
 router.delete("/trending-videos/:id", protect, softDeleteVideo);
