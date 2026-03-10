@@ -4,7 +4,19 @@ import TrainingVideo from "../../Modal/SuperAdmin/TraningVideos.js";
 import TrainingPurchase from "../../Modal/SuperAdmin/BuyTraning.js";
 import mongoose from "mongoose";
 import * as videoService from './trainingVideo.service.js'
+export const calculateTrendingScore = (video) => {
 
+    const likesWeight = 2;
+    const viewsWeight = 1;
+    const purchaseWeight = 5;
+
+    const score =
+        (video.likes * likesWeight) +
+        (video.views * viewsWeight) +
+        (video.purchasesCount * purchaseWeight);
+
+    return score;
+};
 export const createtrendingVideo = async (req, res) => {
     try {
         const {
@@ -373,21 +385,44 @@ export const incrementView = async (req, res) => {
 
 
 
+
+
 export const likeVideo = async (req, res) => {
     try {
+
         const { videoId } = req.params;
 
-        const video = await TrainingVideo.findOneAndUpdate(
-            { _id: videoId, isDeleted: false },
-            { $inc: { likes: 1 } },
-            { new: true }
-        );
-
-        if (!video) {
-            return res.status(404).json({ success: false });
-
+        // 1️⃣ Validate ObjectId
+        if (!mongoose.Types.ObjectId.isValid(videoId)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid videoId"
+            });
         }
 
+        // 2️⃣ Increment Like Count
+        const video = await TrainingVideo.findOneAndUpdate(
+            {
+                _id: videoId,
+                isDeleted: false
+            },
+            {
+                $inc: { likes: 1 }
+            },
+            {
+                new: true
+            }
+        );
+
+        // 3️⃣ If video not found
+        if (!video) {
+            return res.status(404).json({
+                success: false,
+                message: "Video not found"
+            });
+        }
+
+        // 4️⃣ Recalculate Trending Score
         const newScore = calculateTrendingScore(video);
 
         video.trendingScore = newScore;
@@ -395,11 +430,18 @@ export const likeVideo = async (req, res) => {
 
         return res.status(200).json({
             success: true,
+            message: "Video liked successfully",
             trendingScore: newScore
         });
 
     } catch (error) {
-        return res.status(500).json({ success: false });
+
+        console.error("Like Video Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error"
+        });
     }
 };
 
