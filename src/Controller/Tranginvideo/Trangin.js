@@ -4,6 +4,7 @@ import TrainingVideo from "../../Modal/SuperAdmin/TraningVideos.js";
 import TrainingPurchase from "../../Modal/SuperAdmin/BuyTraning.js";
 import mongoose from "mongoose";
 import * as videoService from './trainingVideo.service.js'
+import videoLike from "../../Modal/videoLike.js";
 export const calculateTrendingScore = (video) => {
 
     const likesWeight = 2;
@@ -387,10 +388,12 @@ export const incrementView = async (req, res) => {
 
 
 
+
+
 export const likeVideo = async (req, res) => {
     try {
-
         const { videoId } = req.params;
+        const userId = req.user._id; // Assuming user is authenticated
 
         // 1️⃣ Validate ObjectId
         if (!mongoose.Types.ObjectId.isValid(videoId)) {
@@ -400,21 +403,12 @@ export const likeVideo = async (req, res) => {
             });
         }
 
-        // 2️⃣ Increment Like Count
-        const video = await TrainingVideo.findOneAndUpdate(
-            {
-                _id: videoId,
-                isDeleted: false
-            },
-            {
-                $inc: { likes: 1 }
-            },
-            {
-                new: true
-            }
-        );
+        // 2️⃣ Check if video exists and is not deleted
+        const video = await TrainingVideo.findOne({
+            _id: videoId,
+            isDeleted: false
+        });
 
-        // 3️⃣ If video not found
         if (!video) {
             return res.status(404).json({
                 success: false,
@@ -422,21 +416,54 @@ export const likeVideo = async (req, res) => {
             });
         }
 
-        // 4️⃣ Recalculate Trending Score
-        const newScore = calculateTrendingScore(video);
+        // 3️⃣ Check if user already liked the video
+        const existingLike = await VideoLike.findOne({
+            user: userId,
+            video: videoId
+        });
 
-        video.trendingScore = newScore;
+        let message;
+        let liked;
+
+        if (existingLike) {
+            // 4️⃣ Unlike: Remove like and decrement count
+            await VideoLike.findByIdAndDelete(existingLike._id);
+            video.likes -= 1;
+            message = "Video unliked successfully";
+            liked = false;
+        } else {
+            // 5️⃣ Like: Add like and increment count
+            await VideoLike.create({
+                user: userId,
+                video: videoId
+            });
+            video.likes += 1;
+            message = "Video liked successfully";
+            liked = true;
+        }
+
+        // 6️⃣ Recalculate Trending Score
+        video.trendingScore = calculateTrendingScore(video);
         await video.save();
 
         return res.status(200).json({
             success: true,
-            message: "Video liked successfully",
-            trendingScore: newScore
+            message,
+            liked,
+            likesCount: video.likes,
+            trendingScore: video.trendingScore
         });
 
     } catch (error) {
+        console.error("Toggle Video Like Error:", error);
 
-        console.error("Like Video Error:", error);
+        // Handle duplicate key error (rare race condition)
+        if (error.code === 11000) {
+            return res.status(400).json({
+                success: false,
+                message: "Operation failed due to concurrent request"
+            });
+        }
 
         return res.status(500).json({
             success: false,
@@ -444,8 +471,6 @@ export const likeVideo = async (req, res) => {
         });
     }
 };
-
-
 
 
 export const updateVideo = async (req, res) => {
