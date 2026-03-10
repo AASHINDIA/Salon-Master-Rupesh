@@ -19,14 +19,14 @@ const router = express.Router();
 router.post("/trending-videos", protect, createtrendingVideo);
 router.get("/trending-videos", protect, getAllTrendingVideos);
 router.get("/getAll/Videos", getAllVideos);
-router.get("/trending-videos/:id", getTrainingVideoById);
-router.post("/trending-videos/:id/increment-view", incrementView);
+router.get("/trending-videos/:videoId", getTrainingVideoById);
+router.post("/trending-videos/:videoId/increment-view", incrementView);
 router.post("/trending-videos/:videoId/like", protect, likeVideo);
-router.put("/trending-videos/:id", protect, updateVideo);
-router.patch("/trending-videos/:id/toggle-active", protect, toggleVideoActive);
-router.delete("/trending-videos/:id", protect, softDeleteVideo);
-router.patch("/trending-videos/:id/update-youtube-privacy", protect, updateYoutubePrivacy);
-router.patch("/trending-videos/:id/update-access-type", protect, updateAccessType);
+router.put("/trending-videos/:videoId", protect, updateVideo);
+router.patch("/trending-videos/:videoId/toggle-active", protect, toggleVideoActive);
+router.delete("/trending-videos/:videoId", protect, softDeleteVideo);
+router.patch("/trending-videos/:videoId/update-youtube-privacy", protect, updateYoutubePrivacy);
+router.patch("/trending-videos/:videoId/update-access-type", protect, updateAccessType);
 
 
 export default router;
