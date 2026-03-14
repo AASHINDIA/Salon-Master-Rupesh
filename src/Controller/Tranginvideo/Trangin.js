@@ -271,7 +271,7 @@ export const getAllTrendingVideos = async (req, res) => {
 
 export const getTrainingVideoById = async (req, res) => {
     try {
-        const userId = req.user?._id || req.user?.id; // from auth middleware
+        const userId = req.user?.id; // from auth middleware
         const { id } = req.params;
 
         const video = await TrainingVideo.findById(id);
