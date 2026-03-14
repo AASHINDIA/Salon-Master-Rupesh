@@ -19,7 +19,7 @@ const router = express.Router();
 router.post("/trending-videos", protect, createtrendingVideo);
 router.get("/trending-videos", protect, getAllTrendingVideos);
 router.get("/getAll/Videos", getAllVideos);
-router.get("/trending-videos/:videoId", getTrainingVideoById);
+router.get("/trending-videos/:id", getTrainingVideoById);
 router.post("/trending-videos/:videoId/increment-view", incrementView);
 router.post("/trending-videos/:videoId/like", protect, likeVideo);
 router.put("/trending-videos/:videoId", protect, updateVideo);

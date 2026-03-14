@@ -273,13 +273,13 @@ export const getTrainingVideoById = async (req, res) => {
     try {
         const userId = req.user?._id; // from auth middleware
         const { id } = req.params;
-
+        console.log("id",id);
         const video = await TrainingVideo.findOne({
             _id: id,
             isDeleted: false,
             isActive: true,
         }).lean();
-
+        console.log("video",video);
         if (!video) {
             return res.status(404).json({ message: "Video not found" });
         }
