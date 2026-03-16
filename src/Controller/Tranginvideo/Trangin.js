@@ -335,8 +335,7 @@ export const getAllTrendingVideos = async (req, res) => {
 };
 
 
-import TrainingPurchase from "../models/TrainingPurchase.js";
-import mongoose from "mongoose";
+
 
 export const getPurchasedTrainingVideos = async (req, res) => {
     try {
