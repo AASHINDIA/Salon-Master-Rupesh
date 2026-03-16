@@ -6,6 +6,8 @@ import mongoose from "mongoose";
 import * as videoService from './trainingVideo.service.js'
 import VideoLike from "../../Modal/videoLike.js";
 import { uploadToCloudinary } from "../../Utils/imageUpload.js";
+import multer from 'multer';
+
 export const calculateTrendingScore = (video) => {
 
     const likesWeight = 2;
