@@ -138,10 +138,10 @@ export const verifyTrainingPayment = async (req, res) => {
         } = req.body;
 
         const body = razorpay_order_id + "|" + razorpay_payment_id;
-        console.log("process.env.RAZORPAY_KEY_SECRET", process.env.RAZORPAY_KEY_SECRET)
+        console.log("process.env.RAZORPAY_KEY_SECRET", process.env.RAZORPAY_API_SECRET)
         console.log("body", body)
         const expectedSignature = crypto
-            .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+            .createHmac("sha256", process.env.RAZORPAY_API_SECRET)
             .update(body)
             .digest("hex");
 
