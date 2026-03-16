@@ -262,6 +262,7 @@ export const getAllTrendingVideos = async (req, res) => {
                 durationInMinutes: 1,
                 accessType: 1,
                 price: 1,
+                thumbnail: 1,
                 currency: 1,
                 views: 1,
                 likes: 1,
@@ -444,7 +445,7 @@ export const getTrainingVideoById = async (req, res) => {
             previewVideoId: video.previewVideoId,
             durationInMinutes: video.durationInMinutes,
             accessType: video.accessType,
-
+            thumbnail: video.thumbnail,
             price: video.plan ? video.plan.price : video.price,
             currency: video.plan ? video.plan.currency : video.currency,
 
