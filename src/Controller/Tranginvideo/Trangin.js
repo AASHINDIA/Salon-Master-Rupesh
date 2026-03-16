@@ -292,79 +292,180 @@ export const getAllTrendingVideos = async (req, res) => {
 };
 
 
+// export const getTrainingVideoById = async (req, res) => {
+//     try {
+//         const userId = req.user?.id; // from auth middleware
+//         const { id } = req.params;
+
+//         const video = await TrainingVideo.findById(id);
+
+//         if (!video) {
+//             return res.status(404).json({ message: "Video not found" });
+//         }
+
+//         let canAccess = false;
+
+//         // 1️⃣ Free Video
+//         if (video.accessType === "free") {
+//             canAccess = true;
+//         }
+
+//         // 2️⃣ Paid Video
+//         if (video.accessType === "paid") {
+//             if (!userId) {
+//                 return res.status(401).json({ message: "Login required" });
+//             }
+
+//             const purchase = await TrainingPurchase.findOne({
+//                 user: userId,
+//                 training: video._id,
+//                 paymentStatus: "completed",
+//                 isActive: true,
+//             });
+
+//             if (
+//                 purchase &&
+//                 (!purchase.accessExpiresAt ||
+//                     purchase.accessExpiresAt > new Date())
+//             ) {
+//                 canAccess = true;
+//             }
+//         }
+
+//         // 3️⃣ Trial Video
+//         if (video.accessType === "trial") {
+//             const purchase = await TrainingPurchase.findOne({
+//                 user: userId,
+//                 training: video._id,
+//                 paymentStatus: "completed",
+//                 isActive: true,
+//             });
+
+//             if (
+//                 purchase &&
+//                 purchase.accessExpiresAt &&
+//                 purchase.accessExpiresAt > new Date()
+//             ) {
+//                 canAccess = true;
+//             }
+//         }
+
+//         // Response shaping
+//         return res.json({
+//             _id: video._id,
+//             title: video.title,
+//             description: video.description,
+//             previewVideoId: video.previewVideoId,
+//             durationInMinutes: video.durationInMinutes,
+//             accessType: video.accessType,
+//             youtubeVideoId: canAccess ? video.youtubeVideoId : null,
+//             locked: !canAccess,
+//         });
+
+//     } catch (error) {
+//         console.error("Video access error:", error);
+//         res.status(500).json({ message: "Internal server error" });
+//     }
+// };
+
+
+import TrainingVideo from "../models/TrainingVideo.js";
+import TrainingPurchase from "../models/TrainingPurchase.js";
+
 export const getTrainingVideoById = async (req, res) => {
     try {
-        const userId = req.user?.id; // from auth middleware
+        const userId = req.user?.id;
         const { id } = req.params;
 
-        const video = await TrainingVideo.findById(id);
+        /* ===============================
+           1. Fetch Video + Plan
+        =============================== */
+
+        const video = await TrainingVideo.findById(id)
+            .populate({
+                path: "plan",
+                select: "name price discount discountedPrice currency features"
+            })
+            .lean();
 
         if (!video) {
-            return res.status(404).json({ message: "Video not found" });
+            return res.status(404).json({
+                success: false,
+                message: "Training video not found"
+            });
         }
 
         let canAccess = false;
 
-        // 1️⃣ Free Video
+        /* ===============================
+           2. Access Control Logic
+        =============================== */
+
         if (video.accessType === "free") {
             canAccess = true;
         }
 
-        // 2️⃣ Paid Video
-        if (video.accessType === "paid") {
+        if (video.accessType === "paid" || video.accessType === "trial") {
+
             if (!userId) {
-                return res.status(401).json({ message: "Login required" });
+                return res.status(401).json({
+                    success: false,
+                    message: "Authentication required"
+                });
             }
 
             const purchase = await TrainingPurchase.findOne({
                 user: userId,
                 training: video._id,
                 paymentStatus: "completed",
-                isActive: true,
-            });
+                isActive: true
+            }).lean();
 
-            if (
-                purchase &&
-                (!purchase.accessExpiresAt ||
-                    purchase.accessExpiresAt > new Date())
-            ) {
-                canAccess = true;
+            if (purchase) {
+
+                if (!purchase.accessExpiresAt) {
+                    canAccess = true;
+                }
+
+                if (purchase.accessExpiresAt > new Date()) {
+                    canAccess = true;
+                }
             }
         }
 
-        // 3️⃣ Trial Video
-        if (video.accessType === "trial") {
-            const purchase = await TrainingPurchase.findOne({
-                user: userId,
-                training: video._id,
-                paymentStatus: "completed",
-                isActive: true,
-            });
+        /* ===============================
+           3. Response DTO
+        =============================== */
 
-            if (
-                purchase &&
-                purchase.accessExpiresAt &&
-                purchase.accessExpiresAt > new Date()
-            ) {
-                canAccess = true;
-            }
-        }
-
-        // Response shaping
-        return res.json({
-            _id: video._id,
+        const response = {
+            id: video._id,
             title: video.title,
             description: video.description,
             previewVideoId: video.previewVideoId,
             durationInMinutes: video.durationInMinutes,
             accessType: video.accessType,
+
+            price: video.plan ? video.plan.price : video.price,
+            currency: video.plan ? video.plan.currency : video.currency,
+
+            plan: video.plan || null,
+
             youtubeVideoId: canAccess ? video.youtubeVideoId : null,
-            locked: !canAccess,
+            locked: !canAccess
+        };
+
+        return res.status(200).json({
+            success: true,
+            data: response
         });
 
     } catch (error) {
         console.error("Video access error:", error);
-        res.status(500).json({ message: "Internal server error" });
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error"
+        });
     }
 };
 
