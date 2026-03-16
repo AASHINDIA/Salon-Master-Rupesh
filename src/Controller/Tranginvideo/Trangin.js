@@ -335,6 +335,141 @@ export const getAllTrendingVideos = async (req, res) => {
 };
 
 
+import TrainingPurchase from "../models/TrainingPurchase.js";
+import mongoose from "mongoose";
+
+export const getPurchasedTrainingVideos = async (req, res) => {
+    try {
+
+        const userId = req.user.id;
+
+        let { page = 1, limit = 10 } = req.query;
+
+        page = parseInt(page);
+        limit = parseInt(limit);
+
+        const skip = (page - 1) * limit;
+
+        const now = new Date();
+
+        const purchases = await TrainingPurchase.aggregate([
+
+            {
+                $match: {
+                    user: new mongoose.Types.ObjectId(userId),
+                    paymentStatus: "completed",
+                    isActive: true
+                }
+            },
+
+            {
+                $lookup: {
+                    from: "trainingvideos",
+                    localField: "training",
+                    foreignField: "_id",
+                    as: "training"
+                }
+            },
+
+            {
+                $unwind: "$training"
+            },
+
+            {
+                $lookup: {
+                    from: "plans",
+                    localField: "plan",
+                    foreignField: "_id",
+                    as: "plan"
+                }
+            },
+
+            {
+                $unwind: {
+                    path: "$plan",
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+
+            {
+                $addFields: {
+                    isExpired: {
+                        $cond: [
+                            { $ifNull: ["$accessExpiresAt", false] },
+                            { $lt: ["$accessExpiresAt", now] },
+                            false
+                        ]
+                    }
+                }
+            },
+
+            {
+                $project: {
+                    transactionId: 1,
+                    paymentStatus: 1,
+                    accessExpiresAt: 1,
+                    createdAt: 1,
+
+                    training: {
+                        _id: "$training._id",
+                        title: "$training.title",
+                        description: "$training.description",
+                        durationInMinutes: "$training.durationInMinutes",
+                        previewVideoId: "$training.previewVideoId",
+                        youtubeVideoId: "$training.youtubeVideoId",
+                        accessType: "$training.accessType"
+                    },
+
+                    plan: {
+                        _id: "$plan._id",
+                        name: "$plan.name",
+                        price: "$plan.price",
+                        currency: "$plan.currency",
+                        duration: "$plan.duration"
+                    },
+
+                    isExpired: 1
+                }
+            },
+
+            { $sort: { createdAt: -1 } },
+
+            { $skip: skip },
+
+            { $limit: limit }
+
+        ]);
+
+        const total = await TrainingPurchase.countDocuments({
+            user: userId,
+            paymentStatus: "completed",
+            isActive: true
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Purchased trainings fetched successfully",
+            data: purchases,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+
+    } catch (error) {
+
+        console.error("Get purchased trainings error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error"
+        });
+
+    }
+};
+
 // export const getTrainingVideoById = async (req, res) => {
 //     try {
 //         const userId = req.user?.id; // from auth middleware
@@ -488,9 +623,9 @@ export const getTrainingVideoById = async (req, res) => {
             thumbnail: video.thumbnail,
             price: video.plan ? video.plan.price : video.price,
             currency: video.plan ? video.plan.currency : video.currency,
-            likes:video.likes,
-            views:video.views,
-            purchasesCount:video.purchasesCount,
+            likes: video.likes,
+            views: video.views,
+            purchasesCount: video.purchasesCount,
             plan: video.plan || null,
 
             youtubeVideoId: canAccess ? video.youtubeVideoId : null,

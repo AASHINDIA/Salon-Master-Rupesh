@@ -3,6 +3,7 @@ import { protect } from "../../Middlewares/authMiddleware/auth.js";
 import {
     createtrendingVideo,
     getAllTrendingVideos,
+    getPurchasedTrainingVideos,
     getTrainingVideoById,
     incrementView,
     likeVideo,
@@ -29,6 +30,7 @@ router.post("/trending-videos", protect, upload.single("thumbnail"), createtrend
 router.get("/trending-videos", getAllTrendingVideos);
 router.get("/getAll/Videos", getAllVideos);
 router.get("/trending-videos/:id", protect, getTrainingVideoById);
+router.get("/getPurchasedTrainingVideos", protect, getPurchasedTrainingVideos);
 router.post("/trending-videos/:videoId/increment-view", incrementView);
 router.post("/trending-videos/:videoId/like", protect, likeVideo);
 router.put("/trending-videos/:videoId", protect, updateVideo);
