@@ -488,7 +488,9 @@ export const getTrainingVideoById = async (req, res) => {
             thumbnail: video.thumbnail,
             price: video.plan ? video.plan.price : video.price,
             currency: video.plan ? video.plan.currency : video.currency,
-
+            likes:video.likes,
+            views:video.views,
+            purchasesCount:video.purchasesCount,
             plan: video.plan || null,
 
             youtubeVideoId: canAccess ? video.youtubeVideoId : null,
