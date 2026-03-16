@@ -27,11 +27,7 @@ export const createTrainingOrder = async (req, res) => {
          * STEP 1
          * Get training video
          */
-        const video = await TrainingVideo.findOne({
-            _id: trainingId,
-            isActive: true,
-            isDeleted: false
-        }).lean();
+        const video = await TrainingVideo.findById(trainingId).lean();
 
         if (!video) {
             return res.status(404).json({
