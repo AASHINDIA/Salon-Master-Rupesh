@@ -369,8 +369,6 @@ export const getAllTrendingVideos = async (req, res) => {
 // };
 
 
-import TrainingVideo from "../models/TrainingVideo.js";
-import TrainingPurchase from "../models/TrainingPurchase.js";
 
 export const getTrainingVideoById = async (req, res) => {
     try {
