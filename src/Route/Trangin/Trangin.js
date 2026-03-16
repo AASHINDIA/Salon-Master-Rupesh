@@ -25,7 +25,7 @@ export const upload = multer({
         fileSize: 5 * 1024 * 1024 // 5MB
     }
 });
-router.post("/trending-videos", protect, createtrendingVideo);
+router.post("/trending-videos", protect, upload.single("thumbnail"), createtrendingVideo);
 router.get("/trending-videos", protect, getAllTrendingVideos);
 router.get("/getAll/Videos", getAllVideos);
 router.get("/trending-videos/:id", protect, getTrainingVideoById);
