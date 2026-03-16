@@ -26,7 +26,7 @@ export const upload = multer({
     }
 });
 router.post("/trending-videos", protect, upload.single("thumbnail"), createtrendingVideo);
-router.get("/trending-videos", protect, getAllTrendingVideos);
+router.get("/trending-videos", getAllTrendingVideos);
 router.get("/getAll/Videos", getAllVideos);
 router.get("/trending-videos/:id", protect, getTrainingVideoById);
 router.post("/trending-videos/:videoId/increment-view", incrementView);
