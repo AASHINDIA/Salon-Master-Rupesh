@@ -150,6 +150,7 @@ export const createtrendingVideo = async (req, res) => {
 
 export const getAllTrendingVideos = async (req, res) => {
     try {
+
         let {
             page = 1,
             limit = 10,
@@ -172,40 +173,64 @@ export const getAllTrendingVideos = async (req, res) => {
             isActive: true
         };
 
-        // 🔎 Search (Text Index)
+        /* ---------------- SEARCH FILTER ---------------- */
+
         if (search) {
             matchStage.$text = { $search: search };
         }
 
-        // 🎯 Access Type Filter
         if (accessType) {
             matchStage.accessType = accessType;
         }
 
-        // 👨‍🏫 Instructor Filter
         if (instructor) {
             matchStage.instructor = instructor;
         }
 
-        // 💰 Price Filter
+        /* ---------------- PRICE FILTER ---------------- */
+
         if (minPrice || maxPrice) {
             matchStage.price = {};
+
             if (minPrice) matchStage.price.$gte = Number(minPrice);
             if (maxPrice) matchStage.price.$lte = Number(maxPrice);
         }
 
-        // 📅 Date Filter
+        /* ---------------- DATE FILTER ---------------- */
+
         if (startDate || endDate) {
             matchStage.createdAt = {};
+
             if (startDate) matchStage.createdAt.$gte = new Date(startDate);
             if (endDate) matchStage.createdAt.$lte = new Date(endDate);
         }
 
-        // 📊 Aggregation Pipeline
+        /* ---------------- PIPELINE ---------------- */
+
         const pipeline = [
+
             { $match: matchStage },
 
-            // Calculate Age in Days
+            /* PLAN JOIN */
+
+            {
+                $lookup: {
+                    from: "plans",
+                    localField: "plan",
+                    foreignField: "_id",
+                    as: "plan"
+                }
+            },
+
+            {
+                $unwind: {
+                    path: "$plan",
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+
+            /* AGE CALCULATION */
+
             {
                 $addFields: {
                     ageInDays: {
@@ -217,7 +242,8 @@ export const getAllTrendingVideos = async (req, res) => {
                 }
             },
 
-            // Real Trending Score Formula
+            /* TRENDING SCORE */
+
             {
                 $addFields: {
                     computedTrendingScore: {
@@ -236,7 +262,8 @@ export const getAllTrendingVideos = async (req, res) => {
             }
         ];
 
-        // 🏆 Sorting Logic
+        /* ---------------- SORT ---------------- */
+
         let sortStage = {};
 
         if (sortBy === "trending") {
@@ -247,13 +274,15 @@ export const getAllTrendingVideos = async (req, res) => {
 
         pipeline.push({ $sort: sortStage });
 
-        // Pagination
+        /* ---------------- PAGINATION ---------------- */
+
         pipeline.push(
             { $skip: (page - 1) * limit },
             { $limit: limit }
         );
 
-        // Final Projection (Hide Internal Fields)
+        /* ---------------- RESPONSE SHAPE ---------------- */
+
         pipeline.push({
             $project: {
                 title: 1,
@@ -261,14 +290,23 @@ export const getAllTrendingVideos = async (req, res) => {
                 previewVideoId: 1,
                 durationInMinutes: 1,
                 accessType: 1,
-                price: 1,
                 thumbnail: 1,
                 currency: 1,
                 views: 1,
                 likes: 1,
                 purchasesCount: 1,
                 computedTrendingScore: 1,
-                createdAt: 1
+                createdAt: 1,
+
+                /* PLAN DATA */
+
+                plan: {
+                    _id: "$plan._id",
+                    name: "$plan.name",
+                    price: "$plan.price",
+                    currency: "$plan.currency",
+                    discount: "$plan.discount"
+                }
             }
         });
 
@@ -286,7 +324,9 @@ export const getAllTrendingVideos = async (req, res) => {
         });
 
     } catch (error) {
+
         console.error("Trending fetch error:", error);
+
         return res.status(500).json({
             success: false,
             message: "Internal server error"
