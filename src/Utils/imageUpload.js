@@ -1,6 +1,9 @@
 // utils/imageUpload.js
 import { v2 as cloudinary } from 'cloudinary';
 import streamifier from 'streamifier';
+// config/env.js
+import dotenv from "dotenv";
+dotenv.config();
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
