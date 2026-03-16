@@ -13,13 +13,22 @@ import {
     updateAccessType,
     getAllVideos
 } from "../../Controller/Tranginvideo/Trangin.js";
+import multer from "multer";
+
 const router = express.Router();
 
 
+const storage = multer.memoryStorage();
+export const upload = multer({
+    storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB
+    }
+});
 router.post("/trending-videos", protect, createtrendingVideo);
 router.get("/trending-videos", protect, getAllTrendingVideos);
 router.get("/getAll/Videos", getAllVideos);
-router.get("/trending-videos/:id", protect,getTrainingVideoById);
+router.get("/trending-videos/:id", protect, getTrainingVideoById);
 router.post("/trending-videos/:videoId/increment-view", incrementView);
 router.post("/trending-videos/:videoId/like", protect, likeVideo);
 router.put("/trending-videos/:videoId", protect, updateVideo);

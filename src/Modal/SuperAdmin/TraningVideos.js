@@ -90,6 +90,11 @@ const TrainingVideoSchema = new Schema({
         type: Number,
         default: 0
     },
+    thumbnail: {
+        type: String,
+        trim: true,
+        default: null
+    },
 
     purchasesCount: {
         type: Number,

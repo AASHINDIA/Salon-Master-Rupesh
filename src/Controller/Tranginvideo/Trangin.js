@@ -5,6 +5,7 @@ import TrainingPurchase from "../../Modal/SuperAdmin/BuyTraning.js";
 import mongoose from "mongoose";
 import * as videoService from './trainingVideo.service.js'
 import VideoLike from "../../Modal/videoLike.js";
+import { uploadToCloudinary } from "../../Utils/imageUpload.js";
 export const calculateTrendingScore = (video) => {
 
     const likesWeight = 2;
@@ -20,9 +21,11 @@ export const calculateTrendingScore = (video) => {
 };
 export const createtrendingVideo = async (req, res) => {
     try {
+
         const {
             title,
             description,
+            previewVideoId,
             youtubeVideoId,
             youtubePrivacy = "private",
             accessType,
@@ -58,10 +61,11 @@ export const createtrendingVideo = async (req, res) => {
         let plan = null;
 
         if (accessType === "paid") {
+
             if (!planId) {
                 return res.status(400).json({
                     success: false,
-                    message: "planId is required for paid videos"
+                    message: "planId required for paid videos"
                 });
             }
 
@@ -73,6 +77,7 @@ export const createtrendingVideo = async (req, res) => {
             }
 
             plan = await Plan.findById(planId);
+
             if (!plan) {
                 return res.status(404).json({
                     success: false,
@@ -83,13 +88,28 @@ export const createtrendingVideo = async (req, res) => {
             if (!price || price <= 0) {
                 return res.status(400).json({
                     success: false,
-                    message: "Valid price is required for paid videos"
+                    message: "Valid price required"
                 });
             }
         }
 
         /* ===============================
-           3. Create Video
+           3. Upload Thumbnail
+        =============================== */
+
+        let thumbnailUrl = null;
+
+        if (req.file) {
+            const uploadResult = await uploadToCloudinary(
+                req.file.buffer,
+                "training-thumbnails"
+            );
+
+            thumbnailUrl = uploadResult.secure_url;
+        }
+
+        /* ===============================
+           4. Create Video
         =============================== */
 
         const newTrainingVideo = new TrainingVideo({
@@ -97,12 +117,14 @@ export const createtrendingVideo = async (req, res) => {
             description: description.trim(),
             youtubeVideoId,
             youtubePrivacy,
+            previewVideoId,
             accessType,
             trialDurationInDays,
-            planId: plan ? plan._id : null,
+            plan: plan ? plan._id : null,
             durationInMinutes,
             price: accessType === "paid" ? price : null,
-            currency: accessType === "paid" ? currency : null
+            currency: accessType === "paid" ? currency : null,
+            thumbnail: thumbnailUrl
         });
 
         const savedTrainingVideo = await newTrainingVideo.save();
@@ -113,15 +135,16 @@ export const createtrendingVideo = async (req, res) => {
         });
 
     } catch (error) {
+
         console.error("Error creating training video:", error);
 
         return res.status(500).json({
             success: false,
             message: "Internal server error"
         });
+
     }
 };
-
 
 export const getAllTrendingVideos = async (req, res) => {
     try {
