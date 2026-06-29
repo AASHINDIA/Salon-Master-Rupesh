@@ -292,11 +292,7 @@ export const checkPurchaseVideo = async (req, res) => {
             user: userId,
             training: videoId,
             paymentStatus: "completed",
-            isActive: true,
-            $or: [
-                { accessExpiresAt: { $exists: false } },
-                { accessExpiresAt: { $gt: new Date() } }
-            ]
+          
         })
             .select("transactionId plan accessExpiresAt createdAt")
             .populate("plan", "name duration")
