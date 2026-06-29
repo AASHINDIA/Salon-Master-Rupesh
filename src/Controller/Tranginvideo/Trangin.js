@@ -227,7 +227,6 @@ export const getVideoById = async (req, res) => {
             // Example:
             const hasAccess = await checkUserPurchase(userId, video._id);
 
-            const hasAccess = true; // Replace with real logic
 
             if (!hasAccess) {
                 return res.status(403).json({
