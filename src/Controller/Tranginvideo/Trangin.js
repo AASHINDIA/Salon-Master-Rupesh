@@ -287,32 +287,26 @@ export const checkPurchaseVideo = async (req, res) => {
             });
         }
 
-        // Check if user has a valid purchase
-        const hasAccess = await checkUserPurchase(userId, videoId);
-
-        // Also get purchase details if needed
-        let purchaseDetails = null;
-        if (hasAccess) {
-            purchaseDetails = await TrainingPurchase.findOne({
-                user: userId,
-                training: videoId,
-                paymentStatus: "completed",
-                isActive: true,
-                $or: [
-                    { accessExpiresAt: { $exists: false } },
-                    { accessExpiresAt: { $gt: new Date() } }
-                ]
-            })
-                .select("transactionId plan accessExpiresAt createdAt")
-                .populate("plan", "name duration")
-                .lean();
-        }
+        // Single query to get both access status and purchase details
+        const purchase = await TrainingPurchase.findOne({
+            user: userId,
+            training: videoId,
+            paymentStatus: "completed",
+            isActive: true,
+            $or: [
+                { accessExpiresAt: { $exists: false } },
+                { accessExpiresAt: { $gt: new Date() } }
+            ]
+        })
+            .select("transactionId plan accessExpiresAt createdAt")
+            .populate("plan", "name duration")
+            .lean();
 
         return res.status(200).json({
             success: true,
             data: {
-                hasAccess: hasAccess,
-                purchaseDetails: purchaseDetails,
+                hasAccess: purchase !== null,
+                purchaseDetails: purchase || null,
                 userId: userId,
                 videoId: videoId
             }
@@ -326,6 +320,8 @@ export const checkPurchaseVideo = async (req, res) => {
         });
     }
 };
+
+
 export const getAllTrendingVideos = async (req, res) => {
     try {
 
