@@ -148,6 +148,28 @@ export const createtrendingVideo = async (req, res) => {
     }
 };
 
+
+export const checkUserPurchase = async (userId, videoId) => {
+    try {
+        if (!userId) return false;
+
+        const purchase = await TrainingPurchase.findOne({
+            user: userId,
+            training: videoId,
+            paymentStatus: "completed",
+            isActive: true,
+            $or: [
+                { accessExpiresAt: { $exists: false } },
+                { accessExpiresAt: { $gt: new Date() } }
+            ]
+        });
+
+        return purchase !== null;
+    } catch (error) {
+        console.error("checkUserPurchase error:", error);
+        return false;
+    }
+};
 /**
  * @desc Get Training Video By ID (Enterprise Level)
  * @route GET /api/training-video/:id
@@ -203,7 +225,7 @@ export const getVideoById = async (req, res) => {
         if (video.accessType === "paid") {
             // TODO: Check if user purchased
             // Example:
-            // const hasAccess = await checkUserPurchase(userId, video._id);
+            const hasAccess = await checkUserPurchase(userId, video._id);
 
             const hasAccess = true; // Replace with real logic
 
