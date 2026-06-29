@@ -433,7 +433,7 @@ export const getAllTrendingVideos = async (req, res) => {
 export const getPurchasedTrainingVideos = async (req, res) => {
     try {
 
-        const userId = req.user.id||req.user._id;
+        const userId = req.user.id || req.user._id;
 
         let { page = 1, limit = 10 } = req.query;
 
