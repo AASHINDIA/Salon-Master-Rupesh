@@ -31,6 +31,7 @@ router.post("/trending-videos", protect, upload.single("thumbnail"), createtrend
 router.get("/trending-videos", getAllTrendingVideos);
 router.get("/getAll/Videos", getAllVideos);
 router.get("/trending-videos/:id", protect, getTrainingVideoById);
+router.get("/getAllTrendingVideos/:id", protect, getAllTrendingVideos);
 router.get("/getVideoById/:id", protect, getVideoById);
 router.get("/getPurchasedTrainingVideos", protect, getPurchasedTrainingVideos);
 router.post("/trending-videos/:videoId/increment-view", incrementView);

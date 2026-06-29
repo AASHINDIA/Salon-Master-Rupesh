@@ -170,6 +170,8 @@ export const checkUserPurchase = async (userId, videoId) => {
         return false;
     }
 };
+
+
 /**
  * @desc Get Training Video By ID (Enterprise Level)
  * @route GET /api/training-video/:id
@@ -259,6 +261,68 @@ export const getVideoById = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: "Internal server error"
+        });
+    }
+};
+
+
+export const checkPurchaseVideo = async (req, res) => {
+    try {
+        const { videoId } = req.params;
+        const userId = req.user?._id || req.user?.id;
+
+        // Validate user authentication
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "User not authenticated"
+            });
+        }
+
+        // Validate video ID
+        if (!mongoose.Types.ObjectId.isValid(videoId)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid video ID format"
+            });
+        }
+
+        // Check if user has a valid purchase
+        const hasAccess = await checkUserPurchase(userId, videoId);
+
+        // Also get purchase details if needed
+        let purchaseDetails = null;
+        if (hasAccess) {
+            purchaseDetails = await TrainingPurchase.findOne({
+                user: userId,
+                training: videoId,
+                paymentStatus: "completed",
+                isActive: true,
+                $or: [
+                    { accessExpiresAt: { $exists: false } },
+                    { accessExpiresAt: { $gt: new Date() } }
+                ]
+            })
+                .select("transactionId plan accessExpiresAt createdAt")
+                .populate("plan", "name duration")
+                .lean();
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                hasAccess: hasAccess,
+                purchaseDetails: purchaseDetails,
+                userId: userId,
+                videoId: videoId
+            }
+        });
+
+    } catch (error) {
+        console.error("CHECK_PURCHASE_ERROR:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error while checking purchase"
         });
     }
 };
