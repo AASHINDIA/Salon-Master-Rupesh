@@ -33,7 +33,7 @@ router.get("/trending-videos", getAllTrendingVideos);
 router.get("/getAll/Videos", getAllVideos);
 router.get("/trending-videos/:id", protect, getTrainingVideoById);
 router.get("/getVideoById/:id", protect, getVideoById);
-router.get("/checkPurchaseVideo/:id", protect, checkPurchaseVideo);
+router.get("/checkPurchaseVideo/:videoId", protect, checkPurchaseVideo);
 router.get("/getPurchasedTrainingVideos", protect, getPurchasedTrainingVideos);
 router.post("/trending-videos/:videoId/increment-view", incrementView);
 router.post("/trending-videos/:videoId/like", protect, likeVideo);
