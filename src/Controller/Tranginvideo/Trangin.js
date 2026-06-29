@@ -148,6 +148,99 @@ export const createtrendingVideo = async (req, res) => {
     }
 };
 
+/**
+ * @desc Get Training Video By ID (Enterprise Level)
+ * @route GET /api/training-video/:id
+ * @access Private/Public (based on accessType)
+ */
+export const getVideoById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user?._id || null;
+
+        /* ---------------------------------------------
+           1. Validate ObjectId
+        ---------------------------------------------- */
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid video ID"
+            });
+        }
+
+        /* ---------------------------------------------
+           2. Fetch Video (Lean + Projection)
+        ---------------------------------------------- */
+        const video = await TrainingVideo.findOne({
+            _id: id,
+            isDeleted: false,
+            isActive: true
+        })
+            .select(`
+                title description instructor
+                previewVideoId youtubeVideoId youtubePrivacy
+                accessType trialDurationInDays plan
+                durationInMinutes price currency
+                views likes thumbnail purchasesCount trendingScore
+                createdAt
+            `)
+            .populate({
+                path: "instructor",
+                select: "name email"
+            })
+            .lean();
+
+        if (!video) {
+            return res.status(404).json({
+                success: false,
+                message: "Training video not found"
+            });
+        }
+
+        /* ---------------------------------------------
+           3. Access Control (Netflix-style gating)
+        ---------------------------------------------- */
+        if (video.accessType === "paid") {
+            // TODO: Check if user purchased
+            // Example:
+            // const hasAccess = await checkUserPurchase(userId, video._id);
+
+            const hasAccess = true; // Replace with real logic
+
+            if (!hasAccess) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Access denied. Please purchase this video.",
+                    previewVideoId: video.previewVideoId
+                });
+            }
+        }
+
+        /* ---------------------------------------------
+           4. Increment Views (Atomic)
+        ---------------------------------------------- */
+        await TrainingVideo.updateOne(
+            { _id: id },
+            { $inc: { views: 1 } }
+        );
+
+        /* ---------------------------------------------
+           5. Response (Clean DTO)
+        ---------------------------------------------- */
+        return res.status(200).json({
+            success: true,
+            data: video
+        });
+
+    } catch (error) {
+        console.error("GET_VIDEO_ERROR:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error"
+        });
+    }
+};
 export const getAllTrendingVideos = async (req, res) => {
     try {
 
@@ -340,7 +433,7 @@ export const getAllTrendingVideos = async (req, res) => {
 export const getPurchasedTrainingVideos = async (req, res) => {
     try {
 
-        const userId = req.user.id;
+        const userId = req.user.id||req.user._id;
 
         let { page = 1, limit = 10 } = req.query;
 
