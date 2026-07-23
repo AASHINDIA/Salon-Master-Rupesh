@@ -177,7 +177,7 @@ export const createOrUpdateCommonSeller = async (req, res) => {
         const { fullName, phoneNumber, email, panNumber } = req.body;
 
         // Validate required fields
-        if (!userId || !fullName || !phoneNumber || !email || !panNumber) {
+        if (!userId || !fullName ) {
             return res.status(400).json({
                 success: false,
                 message:

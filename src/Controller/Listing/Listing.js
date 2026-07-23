@@ -30,7 +30,7 @@ export const createTraningList = async (req, res) => {
         } = req.body;
 
         // Validate required fields
-        if (!fullName || !idDetails || !phoneNumber || !email || !shopName || !status || !heading || !termsAccepted) {
+        if (!fullName || !idDetails || !phoneNumber  || !shopName || !status || !heading || !termsAccepted) {
             return res.status(400).json({
                 success: false,
                 message: "Required fields are missing or terms not accepted",
@@ -107,7 +107,7 @@ export const createFranchiseList = async (req, res) => {
         } = req.body;
 
         // Validate required fields
-        if (!fullName || !idDetails || !phoneNumber || !email || !shopName || !status || !heading || !termsAccepted) {
+        if (!fullName || !idDetails || !phoneNumber  || !shopName || !status || !heading || !termsAccepted) {
             return res.status(400).json({
                 success: false,
                 message: "Required fields are missing or terms not accepted",
