@@ -25,8 +25,8 @@ const jobPostingDummySchema = new mongoose.Schema({
     },
     job_description: {
         type: String,
-        required: true,
-        maxlength: 500
+       
+
     },
     gender_preference: {
         type: String,
@@ -74,16 +74,16 @@ const jobPostingDummySchema = new mongoose.Schema({
         default: Date.now
     },
     address: {
-        country: { type: String, trim: true, required: true },
-        state: { type: String, trim: true, required: true },
-        city: { type: String, trim: true, required: true },
+        country: { type: String, trim: true, },
+        state: { type: String, trim: true, },
+        city: { type: String, trim: true, },
         pincode: { type: String, trim: true },
         countryIsoCode: { type: String, trim: true },
         stateIsoCode: { type: String, trim: true }
     },
     location: {
         type: String,
-        required: true
+       
     },
     contact_person: {
         name: String,

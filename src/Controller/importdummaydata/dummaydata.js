@@ -13,117 +13,103 @@ export const uploadJobPostingCSV = async (req, res) => {
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
     const results = [];
-    fs.createReadStream(req.file.path)
-      .pipe(csv())
-      .on("data", (row) => {
-        results.push({
-          salon_id: {
-            name: row.salon_name,
-            brand_name: row.brand_name,
-            contact_no: row.contact_no,
-          },
-          job_title: row.job_title || "Hair Stylist",
-          required_skills: row.required_skills
-            ? row.required_skills.split(",").map((s) => s.trim())
-            : [],
-          custom_job_title: row.custom_job_title || "",
-          job_description: row.job_description,
-          gender_preference: row.gender_preference || "Any",
-          required_experience: row.required_experience || "Fresher",
-          salary_type: row.salary_type || "Fixed",
-          salary_range: {
-            min: Number(row.salary_min || 0),
-            max: Number(row.salary_max || 0),
-          },
-          job_type: row.job_type || "Full-time",
-          work_timings: {
-            start: row.start_time,
-            end: row.end_time,
-          },
-          working_days: row.working_days
-            ? row.working_days.split(",").map((d) => d.trim())
-            : ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-          benefits: row.benefits
-            ? row.benefits.split(",").map((b) => b.trim())
-            : [],
-          vacancy_count: Number(row.vacancy_count || 1),
-          address: {
-            country: row.country,
-            state: row.state,
-            city: row.city,
-            pincode: row.pincode,
-            countryIsoCode: row.countryIsoCode,
-            stateIsoCode: row.stateIsoCode,
-          },
-          location: row.location,
-          contact_person: {
-            name: row.contact_name,
-            phone: row.contact_phone,
-            email: row.contact_email,
-          },
-        });
-      })
-      .on("end", async () => {
-        await JobPostingDummy.insertMany(results);
-        fs.unlinkSync(req.file.path); // cleanup
-        res.json({
-          message: "Job postings uploaded successfully",
-          count: results.length,
-        });
+    const errors = [];
+
+    await new Promise((resolve, reject) => {
+      fs.createReadStream(req.file.path)
+        .pipe(csv())
+        .on("data", (row) => {
+          if (!row.salon_name || !row.job_title) {
+            errors.push({ row: row.job_title || "unknown", error: "salon_name and job_title are required" });
+            return;
+          }
+
+          let genderPref = "Any";
+          if (row.gender_preference) {
+            const g = row.gender_preference.trim();
+            if (["Male", "Female", "Any"].includes(g)) genderPref = g;
+          }
+
+          const entry = {
+            salon_id: {
+              name: row.salon_name,
+              brand_name: row.brand_name || "",
+              contact_no: row.contact_no || "",
+            },
+            job_title: row.job_title,
+            required_skills: row.required_skills
+              ? row.required_skills.split(",").map((s) => s.trim())
+              : [],
+            custom_job_title: row.custom_job_title || "",
+            job_description: row.job_description || "",
+            gender_preference: genderPref,
+            required_experience: row.required_experience || "Fresher",
+            salary_range: {
+              min: row.salary_min ? Number(row.salary_min) : undefined,
+              max: row.salary_max ? Number(row.salary_max) : undefined,
+            },
+            job_type: row.job_type || "Full-time",
+            work_timings: {
+              start: row.start_time || "",
+              end: row.end_time || "",
+            },
+            benefits: row.benefits
+              ? row.benefits.split(",").map((b) => b.trim())
+              : [],
+            address: {
+              country: row.country || "",
+              state: row.state || "",
+              city: row.city || "",
+              pincode: row.pincode || "",
+              countryIsoCode: row.countryIsoCode || "",
+              stateIsoCode: row.stateIsoCode || "",
+            },
+            location: row.location || "",
+            contact_person: {
+              name: row.contact_name || "",
+              phone: row.contact_phone || "",
+              email: row.contact_email || "",
+            },
+          };
+
+          if (row.is_Preuime) entry.is_Preuime = row.is_Preuime.toLowerCase() === "true";
+          if (row.salary_type) entry.salary_type = row.salary_type;
+          if (row.working_days) entry.working_days = row.working_days.split(",").map((d) => d.trim());
+          if (row.vacancy_count) entry.vacancy_count = Number(row.vacancy_count);
+          if (row.is_active) entry.is_active = row.is_active.toLowerCase() === "true";
+          if (row.posted_date) {
+            const pd = moment(row.posted_date, ["YYYY-MM-DD", "DD-MM-YYYY", "MM/DD/YYYY"], true);
+            if (pd.isValid()) entry.posted_date = pd.toDate();
+          }
+
+          results.push(entry);
+        })
+        .on("end", resolve)
+        .on("error", reject);
+    });
+
+    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+
+    if (results.length === 0) {
+      return res.status(400).json({
+        message: "No valid rows to insert",
+        errors: errors.length > 0 ? errors : undefined,
       });
+    }
+
+    await JobPostingDummy.insertMany(results);
+    res.json({
+      message: "Job postings uploaded successfully",
+      count: results.length,
+      errors: errors.length > 0 ? errors : undefined,
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Error uploading job postings" });
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    res.status(500).json({ message: "Error uploading job postings", error: err.message });
   }
 };
 
-
-// export const uploadEmpCSV = async (req, res) => {
-//   try {
-//     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-
-//     const results = [];
-//     fs.createReadStream(req.file.path)
-//       .pipe(csv())
-//       .on("data", (row) => {
-//         results.push({
-//           user_id: {
-//             name: row.user_name,
-//             contact_no: row.user_contact_no,
-//           },
-//           name: row.name,
-//           date_of_birth: row.date_of_birth ? new Date(row.date_of_birth) : null,
-//           gender: row.gender,
-//           skills: row.skills
-//             ? row.skills.split(",").map((s) => s.trim())
-//             : [],
-//           available_for_join: row.available_for_join
-//             ? row.available_for_join.toLowerCase() === "true"
-//             : true,
-//           joining_date: row.joining_date ? new Date(row.joining_date) : null,
-//           expected_salary: {
-//             min: Number(row.salary_min || 0),
-//             max: Number(row.salary_max || 0),
-//           },
-//           looking_job_location: row.looking_job_location || "india",
-//           preferred_locations: row.preferred_locations
-//             ? row.preferred_locations.split(",").map((l) => l.trim())
-//             : [],
-//         });
-//       })
-//       .on("end", async () => {
-//         await Emp.insertMany(results);
-//         fs.unlinkSync(req.file.path); // cleanup
-//         res.json({
-//           message: "Employees uploaded successfully",
-//           count: results.length,
-//         });
-//       });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: "Error uploading employees" });
-//   }
-// };
 
 
 
@@ -133,80 +119,88 @@ export const uploadEmpCSV = async (req, res) => {
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
     const results = [];
-    fs.createReadStream(req.file.path)
-      .pipe(csv())
-      .on("data", (row) => {
-        // ✅ date_of_birth parse
-        let dob = null;
-        if (row.date_of_birth) {
-          const parsed = moment(row.date_of_birth, [
-            "YYYY-MM-DD",
-            "DD-MM-YYYY",
-            "MM/DD/YYYY",
-          ], true);
-          dob = parsed.isValid() ? parsed.toDate() : null;
-        }
+    const errors = [];
 
-        // ✅ joining_date parse
-        let joiningDate = null;
-        if (row.joining_date) {
-          const parsed = moment(row.joining_date, [
-            "YYYY-MM-DD",
-            "DD-MM-YYYY",
-            "MM/DD/YYYY",
-          ], true);
-          joiningDate = parsed.isValid() ? parsed.toDate() : null;
-        }
-
-        // ✅ gender validation (only male/female)
-        let gender = null;
-        if (row.gender) {
-          const g = row.gender.trim().toLowerCase();
-          gender = ["male", "female"].includes(g) ? g : null;
-        }
-
-        results.push({
-          user_id: {
-            name: row.user_name || "",
-            contact_no: row.user_contact_no || "",
-          },
-          name: row.name || "",
-          date_of_birth: dob,
-          gender: gender,
-          skills: row.skills
-            ? row.skills.split(",").map((s) => s.trim())
-            : [],
-          available_for_join: row.available_for_join
-            ? row.available_for_join.toLowerCase() === "true"
-            : true,
-          joining_date: joiningDate,
-          expected_salary: {
-            min: Number(row.salary_min || 0),
-            max: Number(row.salary_max || 0),
-          },
-          looking_job_location: row.looking_job_location || "india",
-          preferred_locations: row.preferred_locations
-            ? row.preferred_locations.split(",").map((l) => l.trim())
-            : [],
-        });
-      })
-      .on("end", async () => {
-        try {
-          if (results.length > 0) {
-            await Emp.insertMany(results, { ordered: false }); // ordered:false → bad rows skip हो जाई
+    await new Promise((resolve, reject) => {
+      fs.createReadStream(req.file.path)
+        .pipe(csv())
+        .on("data", (row) => {
+          if (!row.user_name || !row.user_contact_no) {
+            errors.push({ row: row.name || "unknown", error: "user_name and user_contact_no are required" });
+            return;
           }
-          fs.unlinkSync(req.file.path); // cleanup
-          res.json({
-            message: "Employees uploaded successfully",
-            count: results.length,
-          });
-        } catch (dbErr) {
-          console.error("DB Insert Error:", dbErr);
-          res.status(500).json({ message: "Database insert error", error: dbErr.message });
-        }
+
+          let dob = null;
+          if (row.date_of_birth) {
+            const parsed = moment(row.date_of_birth, [
+              "YYYY-MM-DD", "DD-MM-YYYY", "MM/DD/YYYY",
+            ], true);
+            dob = parsed.isValid() ? parsed.toDate() : null;
+          }
+
+          let joiningDate = null;
+          if (row.joining_date) {
+            const parsed = moment(row.joining_date, [
+              "YYYY-MM-DD", "DD-MM-YYYY", "MM/DD/YYYY",
+            ], true);
+            joiningDate = parsed.isValid() ? parsed.toDate() : null;
+          }
+
+          let gender = null;
+          if (row.gender) {
+            const g = row.gender.trim().toLowerCase();
+            gender = ["male", "female", "other"].includes(g) ? g : null;
+          }
+
+          const entry = {
+            user_id: {
+              name: row.user_name,
+              contact_no: row.user_contact_no,
+            },
+            name: row.name || "",
+            date_of_birth: dob,
+            gender: gender,
+            skills: row.skills
+              ? row.skills.split(",").map((s) => s.trim())
+              : [],
+            joining_date: joiningDate,
+            expected_salary: {
+              min: row.salary_min ? Number(row.salary_min) : undefined,
+              max: row.salary_max ? Number(row.salary_max) : undefined,
+            },
+            looking_job_location: row.looking_job_location || "india",
+            preferred_locations: row.preferred_locations
+              ? row.preferred_locations.split(",").map((l) => l.trim())
+              : [],
+          };
+
+          if (row.is_Preuime) entry.is_Preuime = row.is_Preuime.toLowerCase() === "true";
+          if (row.available_for_join) entry.available_for_join = row.available_for_join.toLowerCase() === "true";
+
+          results.push(entry);
+        })
+        .on("end", resolve)
+        .on("error", reject);
+    });
+
+    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+
+    if (results.length === 0) {
+      return res.status(400).json({
+        message: "No valid rows to insert",
+        errors: errors.length > 0 ? errors : undefined,
       });
+    }
+
+    await Emp.insertMany(results, { ordered: false });
+    res.json({
+      message: "Employees uploaded successfully",
+      count: results.length,
+      errors: errors.length > 0 ? errors : undefined,
+    });
   } catch (err) {
     console.error("Upload CSV Error:", err);
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     res.status(500).json({ message: "Error uploading employees", error: err.message });
   }
 };
