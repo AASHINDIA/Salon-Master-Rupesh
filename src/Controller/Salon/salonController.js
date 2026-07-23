@@ -244,7 +244,7 @@ export const getAllSalon = async (req, res) => {
         salons = salons.map(salon => ({
             ...salon._doc,
             salon_name: salon.salon_name || 'No Name',
-            whatsapp_number: maskNumber(salon.whatsapp_number)
+            whatsapp_number: salon.whatsapp_number
         }));
 
         // Total count for pagination

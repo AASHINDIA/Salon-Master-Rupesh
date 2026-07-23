@@ -112,9 +112,9 @@ export const getJobPostings = async (req, res) => {
 
       // Salon details (masked)
       salon: {
-        name: maskString(job.salon_id?.salon_name),
-        year_of_start: maskString(job.salon_id?.year_of_start?.toString()),
-        contact_number: maskContact(job.salon_id?.contact_number),
+        name: job.salon_id?.salon_name,
+        year_of_start: job.salon_id?.year_of_start?.toString(),
+        contact_number: job.salon_id?.contact_number,
       },
     }));
 
