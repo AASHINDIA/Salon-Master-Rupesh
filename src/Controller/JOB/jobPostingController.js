@@ -742,16 +742,14 @@ export const getAllJobPost = async () => {
 // =======================
 // Utility functions
 // =======================
-const maskName = (name) => {
-    if (!name) return "";
-    if (name.length <= 2) return name[0] + "*".repeat(name.length - 1);
-    return name.slice(0, 2) + "*".repeat(name.length - 2);
-};
-
 const maskNumber = (number) => {
     if (!number) return "";
-    if (number.length < 4) return "*".repeat(number.length);
-    return number.slice(0, 2) + "*".repeat(number.length - 4) + number.slice(-2);
+    return number.toString();
+};
+
+export const maskName = (name) => {
+    if (!name) return "";
+    return name;
 };
 
 // =======================
