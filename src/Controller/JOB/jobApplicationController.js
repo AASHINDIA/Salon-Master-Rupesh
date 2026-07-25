@@ -87,19 +87,12 @@ export const applyForJob = async (req, res) => {
 // Get Job Applications (Salon View)
 const maskNumber = (number) => {
     if (!number) return "";
-    const str = number.toString();
-    if (str.length <= 4) return "*".repeat(str.length); // too short
-    const last4 = str.slice(-4);
-    return "*".repeat(str.length - 4) + last4;
+    return number.toString();
 };
 
 export const maskName = (name) => {
     if (!name) return "";
-    if (name.length <= 2) return name[0] + "*"; // short names
-    const firstLetter = name[0];
-    const lastLetter = name.length > 2 ? name[name.length - 1] : "";
-    const middleMask = "*".repeat(name.length - 2);
-    return `${firstLetter}${middleMask}${lastLetter}`;
+    return name;
 };
 
 // ---------------- Salon View ----------------
