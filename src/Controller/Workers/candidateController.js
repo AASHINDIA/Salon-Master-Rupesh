@@ -369,7 +369,7 @@ export const getAllCandidates = async (req, res) => {
         candidates = candidates.map(c => ({
             ...c._doc,
             name: c.name,
-            contact_no: maskNumber(c.contact_no)
+            contact_no: c.contact_no
         }));
 
         // Count total
