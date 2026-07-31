@@ -55,7 +55,7 @@ export const register = async (req, res) => {
         }
 
         // Safely extract and handle UID
-        const whatsappUid = otpResponse.data;
+        const whatsappUid = otpResponse.uid;
 
         // Create user with WhatsApp UID
         const newUser = new User({
@@ -243,7 +243,7 @@ export const requestPasswordReset = async (req, res) => {
         }
 
         // Safely extract and handle UID
-        const whatsappUid = otpResponse.data;
+        const whatsappUid = otpResponse.uid;
 
         // Update user with new WhatsApp UID and OTP info
         user.whatsapp_uid = whatsappUid;
@@ -363,14 +363,9 @@ export const resendOtp = async (req, res) => {
         const otp = generateOTP(4, "numeric");
 
         // ✅ Send OTP via WhatsApp
-        const otpResponse = await sendWhatsAppMessage(
-            whatsapp_number,
-            process.env.WHATSAPP_TEMPLATE_NAME || "otp_verification_template",
-            [name, otp, "valid for 10 minutes", ""]
-        );
+        const otpResponse = await sendWhatsAppOtp(whatsapp_number);
 
-
-        if (!otpResponse?.data) {
+        if (!otpResponse?.success) {
             return res.status(500).json({
                 success: false,
                 message: "Failed to send OTP via WhatsApp"
@@ -379,11 +374,12 @@ export const resendOtp = async (req, res) => {
 
 
         // ✅ Save new OTP + UID
-        if (otpResponse.data) {
-            user.whatsapp_uid = otpResponse.data;  // 🔹 store provider UID
+        if (otpResponse.uid) {
+            user.whatsapp_uid = otpResponse.uid;  // 🔹 store provider UID
         }
         user.otp_code = otp;                          // keep OTP for internal checks if needed
         user.otp_expires_at = setOtpExpiry();
+        user.otp_attempts = 0;
         await user.save();
 
         return res.status(200).json({
@@ -493,11 +489,7 @@ export const login = async (req, res) => {
         if (!user.otp_verified) {
             try {
                 const otp = generateOTP(4, "numeric");
-                const otpResponse = await sendWhatsAppMessage(
-                    user.whatsapp_number,
-                    process.env.WHATSAPP_TEMPLATE_NAME || "otp_verification_template",
-                    [user.name, otp, "valid for 10 minutes", ""]
-                );
+                const otpResponse = await sendWhatsAppOtp(user.whatsapp_number);
 
                 if (!otpResponse?.success) {
                     return res.status(500).json({
@@ -506,8 +498,12 @@ export const login = async (req, res) => {
                     });
                 }
 
+                if (otpResponse.uid) {
+                    user.whatsapp_uid = otpResponse.uid;
+                }
                 user.otp_code = otp;
                 user.otp_expires_at = setOtpExpiry();
+                user.otp_attempts = 0;
                 await user.save();
 
                 return res.status(403).json({
@@ -571,10 +567,138 @@ export const login = async (req, res) => {
     }
 };
 
+// Admin OTP Login - Send OTP
+export const adminSendOtp = async (req, res) => {
+    try {
+        const { whatsapp_number } = req.body;
 
+        if (!whatsapp_number || !/^\d{10,15}$/.test(whatsapp_number)) {
+            return res.status(422).json({ success: false, message: "Invalid WhatsApp number" });
+        }
 
+        const user = await User.findOne({ whatsapp_number });
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
 
-// Refresh access token
+        if (!["superadmin", "admin"].includes(user.domain_type)) {
+            return res.status(403).json({ success: false, message: "Access denied. Admin only." });
+        }
+
+        // Prevent spam - if OTP sent within last 2 minutes
+        const recentOtpTime = new Date(Date.now() - 2 * 60 * 1000);
+        if (user.otp_sent_at && user.otp_sent_at > recentOtpTime) {
+            return res.status(429).json({
+                success: false,
+                message: "OTP already sent recently. Please wait before requesting another."
+            });
+        }
+
+        const otpResponse = await sendWhatsAppOtp(whatsapp_number);
+
+        if (!otpResponse.success || !otpResponse.uid) {
+            console.error("WhatsApp OTP failed:", otpResponse.error);
+            return res.status(500).json({
+                success: false,
+                message: "Failed to send OTP via WhatsApp"
+            });
+        }
+
+        user.whatsapp_uid = otpResponse.uid;
+        user.otp_sent_at = new Date();
+        user.otp_expires_at = setOtpExpiry();
+        user.otp_verified = false;
+        user.otp_attempts = 0;
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "OTP sent successfully via WhatsApp",
+            data: { whatsapp_number, otpSent: true }
+        });
+    } catch (error) {
+        console.error("Admin OTP send error:", error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};
+
+// Admin OTP Login - Verify OTP & Issue Tokens
+export const adminVerifyOtp = async (req, res) => {
+    try {
+        const { whatsapp_number, otp } = req.body;
+
+        if (!whatsapp_number || !/^\d{10,15}$/.test(whatsapp_number)) {
+            return res.status(422).json({ success: false, message: "Invalid WhatsApp number" });
+        }
+        if (!otp || !/^\d{4,6}$/.test(otp)) {
+            return res.status(422).json({ success: false, message: "Invalid OTP format" });
+        }
+
+        const user = await User.findOne({ whatsapp_number });
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        if (!["superadmin", "admin"].includes(user.domain_type)) {
+            return res.status(403).json({ success: false, message: "Access denied. Admin only." });
+        }
+
+        if (!user.isOtpValid()) {
+            return res.status(400).json({ success: false, message: "OTP expired. Request a new one" });
+        }
+
+        if (!user.whatsapp_uid) {
+            return res.status(400).json({ success: false, message: "OTP session invalid. Please request a new OTP." });
+        }
+
+        const verificationResponse = await verifyWhatsAppOtp(user.whatsapp_uid, otp);
+
+        if (!verificationResponse.success) {
+            user.otp_attempts += 1;
+            await user.save();
+
+            return res.status(400).json({
+                success: false,
+                message: "Invalid OTP. Please check and try again",
+                attempts: user.otp_attempts
+            });
+        }
+
+        // OTP verified successfully
+        user.otp_verified = true;
+        user.otp_attempts = 0;
+        user.otp_expires_at = null;
+
+        const { accessToken, refreshToken } = user.generateTokens();
+        user.access_token = accessToken;
+        user.refresh_token = refreshToken;
+
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Admin login successful",
+            data: {
+                accessToken,
+                refreshToken,
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    domain_type: user.domain_type,
+                    whatsapp_number: user.whatsapp_number
+                }
+            }
+        });
+    } catch (error) {
+        console.error("Admin OTP verify error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "OTP verification failed",
+            error: process.env.NODE_ENV === "development" ? error.message : undefined
+        });
+    }
+};
 export const refreshToken = async (req, res) => {
     try {
         const { refresh_token } = req.body;

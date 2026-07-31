@@ -45,9 +45,11 @@ import UploadFile from './Route/FTM/UploadFile/UploadFile.js'
 import trakingroute from './Route/UserTraking/UserTrakingRoute.js'
 import locationdata from './Route/State_county_city/location.js'
 import SallerRoute from './Route/SaleRoute/commonsaller.js'
+import { razorpayWebhook } from './Controller/saleandbuysalon/listingPayment.js'
 import listing from './Route/ListingRoute/ListingRoute.js'
 import ListingManage from './Route/ListingRoute/ListingManagement.js'
 import Planroute from './Route/Trangin/plan.js'
+import listingPlanRoute from './Route/Trangin/listingPlan.js'
 import paymentroute  from './Route/Trangin/Payment.js'
 import interested from './Route/InterestedRoute/InterestedRoute.js'
 const app = express();
@@ -77,6 +79,9 @@ app.use(cookieParser()); // Parse cookies
 app.use(hpp()); // HTTP Parameter Pollution protection
 
 app.set('trust proxy', 1); // or true
+
+// ⚠️ Razorpay webhook MUST receive the raw body (before express.json) for signature verification
+app.post('/api/v1/sallerroute/listing/payment/webhook', express.raw({ type: 'application/json' }), razorpayWebhook);
 
 // 4. Other middlewares
 app.use(morgan('dev')); // Logging
@@ -113,6 +118,7 @@ app.use('/api/v1/paymentroute', paymentroute);
 
 app.use('/api/v1/permission', PremissionRoute);
 app.use('/api/v1/plan', Planroute);
+app.use('/api/v1/listing-plan', listingPlanRoute);
 // ----------------------------------------
 // Product Routes
 // ---------------------------

@@ -8,7 +8,9 @@ import {
     refreshToken,
     resendOtp,
     getUserSubDomain,
-    getBuyerProfile
+    getBuyerProfile,
+    adminSendOtp,
+    adminVerifyOtp
 } from '../../Controller/AuthController/authController.js';
 import { addUser } from '../../Controller/AddUser/AddUser.js';
 import { protect } from '../../Middlewares/authMiddleware/auth.js';
@@ -27,5 +29,9 @@ router.post('/resend-otp-salonmaster', resendOtp);
 router.post('/login-salonmaster', login);
 router.post('/request-password-reset', requestPasswordReset);
 router.post('/refresh-token', refreshToken);
+
+// Admin OTP login (seamless WhatsApp OTP)
+router.post('/admin/send-otp', adminSendOtp);
+router.post('/admin/verify-otp', adminVerifyOtp);
 
 export default router;

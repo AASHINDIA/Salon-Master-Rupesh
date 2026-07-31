@@ -42,9 +42,9 @@ const sellerListingSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ["active", "inactive"],
+            enum: ["active", "inactive", "pending"],
             required: true,
-            default: "active",
+            default: "pending",
             trim: true,
         },
         description: {

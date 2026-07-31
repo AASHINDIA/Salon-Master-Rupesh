@@ -307,15 +307,18 @@ export const createSellerListing = async (req, res) => {
         } = req.body;
 
         // Validate required fields
-        if (!fullName || !idDetails || !phoneNumber || !email || !shopName || !status || !heading || !termsAccepted) {
+        if (!fullName || !idDetails || !phoneNumber || !email || !shopName || !heading || !termsAccepted) {
             return res.status(400).json({
                 success: false,
                 message: "Required fields are missing or terms not accepted",
             });
         }
 
-        if (!["active", "inactive"].includes(status)) {
-            return res.status(400).json({ success: false, message: "status must be 'active' or 'inactive'" });
+        if (status && !["pending", "inactive"].includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: "status must be 'pending' or 'inactive'; listing becomes 'active' only after payment",
+            });
         }
 
 
@@ -329,7 +332,7 @@ export const createSellerListing = async (req, res) => {
             }
         }
 
-        // Create new listing
+        // Create new listing (status forced to "pending" — activates only after payment)
         const newListing = new SellerListing({
             userId,
             fullName,
@@ -337,7 +340,7 @@ export const createSellerListing = async (req, res) => {
             phoneNumber,
             email,
             shopName,
-            status,
+            status: status === "inactive" ? "inactive" : "pending",
             heading,
             description,
             short_description,
@@ -351,7 +354,7 @@ export const createSellerListing = async (req, res) => {
 
         return res.status(201).json({
             success: true,
-            message: "Seller listing created successfully",
+            message: "Seller listing created successfully. Payment required to activate the listing.",
             data: newListing,
         });
     } catch (error) {

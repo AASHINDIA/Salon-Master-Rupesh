@@ -52,6 +52,9 @@ const UserSchema = new mongoose.Schema({
         type: String,
         maxlength: 500 // Increased length to handle long UIDs
     },
+    otp_code: {
+        type: String,
+    },
     otp_sent_at: {
         type: Date,
     },
