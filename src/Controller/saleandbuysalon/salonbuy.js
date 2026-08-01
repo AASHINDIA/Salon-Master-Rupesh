@@ -393,6 +393,11 @@ export const getSellerListingsByUser = async (req, res) => {
         // Step 2: Build filter object
         const filter = { userId: commonSeller.userId };
 
+        // Show only ACTIVE + NON-EXPIRED listings (pending/inactive unpaid listings are hidden)
+        const now = new Date();
+        filter.status = "active";
+        filter.expiredAt = { $gte: now };
+
         // Add Date filter (from / to)
         if (fromDate && toDate) {
             filter.createdAt = { $gte: new Date(fromDate), $lte: new Date(toDate) };
@@ -402,11 +407,15 @@ export const getSellerListingsByUser = async (req, res) => {
             filter.createdAt = { $lte: new Date(toDate) };
         }
 
-        // Add Search filter (adjust fields based on your schema)
+        // Add Search filter
         if (search.trim()) {
             filter.$or = [
-                { title: { $regex: search, $options: "i" } },
+                { heading: { $regex: search, $options: "i" } },
+                { shopName: { $regex: search, $options: "i" } },
                 { description: { $regex: search, $options: "i" } },
+                { short_description: { $regex: search, $options: "i" } },
+                { advertisementDetails: { $regex: search, $options: "i" } },
+                { address: { $regex: search, $options: "i" } },
             ];
         }
 
