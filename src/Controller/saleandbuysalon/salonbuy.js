@@ -291,6 +291,16 @@ export const getCommonSellerProfile = async (req, res) => {
 export const createSellerListing = async (req, res) => {
     try {
         const userId = req.user.id;
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
+
+        const isPrivilegedUser = ["admin", "superadmin"].includes(user.domain_type);
+
         const {
             fullName,
             idDetails,
@@ -307,21 +317,26 @@ export const createSellerListing = async (req, res) => {
         } = req.body;
 
         // Validate required fields
-        if (!fullName || !idDetails || !phoneNumber || !email || !shopName || !heading || !termsAccepted) {
+        if (!fullName  || !phoneNumber  || !shopName || !heading || !termsAccepted) {
             return res.status(400).json({
                 success: false,
                 message: "Required fields are missing or terms not accepted",
             });
         }
 
-        if (status && !["pending", "inactive"].includes(status)) {
+        // Non-privileged users can only set 'pending' or 'inactive'; admins/superadmins may also go 'active' directly
+        const allowedStatuses = isPrivilegedUser
+            ? ["pending", "inactive", "active"]
+            : ["pending", "inactive"];
+
+        if (status && !allowedStatuses.includes(status)) {
             return res.status(400).json({
                 success: false,
-                message: "status must be 'pending' or 'inactive'; listing becomes 'active' only after payment",
+                message: isPrivilegedUser
+                    ? "status must be 'pending', 'inactive', or 'active'"
+                    : "status must be 'pending' or 'inactive'; listing becomes 'active' only after payment",
             });
         }
-
-
 
         // Upload advertisement images if provided
         let advertisementImages = [];
@@ -332,7 +347,16 @@ export const createSellerListing = async (req, res) => {
             }
         }
 
-        // Create new listing (status forced to "pending" — activates only after payment)
+        // Determine final status:
+        // - Admin/superadmin: skip payment entirely, default to 'active' unless they explicitly chose 'inactive'
+        // - Everyone else: forced to 'pending' (or 'inactive' if explicitly requested), activates only after payment
+        let finalStatus;
+        if (isPrivilegedUser) {
+            finalStatus = status === "inactive" ? "inactive" : "active";
+        } else {
+            finalStatus = status === "inactive" ? "inactive" : "pending";
+        }
+
         const newListing = new SellerListing({
             userId,
             fullName,
@@ -340,7 +364,7 @@ export const createSellerListing = async (req, res) => {
             phoneNumber,
             email,
             shopName,
-            status: status === "inactive" ? "inactive" : "pending",
+            status: finalStatus,
             heading,
             description,
             short_description,
@@ -354,7 +378,9 @@ export const createSellerListing = async (req, res) => {
 
         return res.status(201).json({
             success: true,
-            message: "Seller listing created successfully. Payment required to activate the listing.",
+            message: isPrivilegedUser
+                ? "Seller listing created and activated successfully."
+                : "Seller listing created successfully. Payment required to activate the listing.",
             data: newListing,
         });
     } catch (error) {
