@@ -8,12 +8,10 @@ const UserSchema = new mongoose.Schema({
         required: true,
         trim: true,
     },
-    // email: {
-    //     type: String,
-    //     required: true,
-    //     unique: true,
-    //     lowercase: true,
-    // },
+    email: {
+        type: String,
+       
+    },
     password: {
         type: String,
         required: true,
@@ -81,7 +79,23 @@ const UserSchema = new mongoose.Schema({
     },
     devicetoken: {
         type: String,
-    }
+    },
+      password: {
+        type: String,
+        required: function () {
+            return this.auth_provider === 'local'; // only required for local signups
+        },
+    },
+    auth_provider: {
+        type: String,
+        enum: ['local', 'google'],
+        default: 'local',
+    },
+    provider_id: {
+        type: String, // Google's `sub` claim
+        sparse: true,
+        index: true,
+    },
 }, {
     timestamps: true
 });

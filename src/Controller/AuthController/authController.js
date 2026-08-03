@@ -11,12 +11,134 @@ import axios from 'axios';
 import Company from '../../Modal/Compony/ComponyModal.js';
 import Salon from '../../Modal/Salon/Salon.js';
 import Candidate from '../../Modal/Candidate/Candidate.js';
-
+import { verifyGoogleOwnership, verifyGoogleWebOwnership } from '../../Config/OAuth.js';
 import { sendWhatsAppOtp, verifyWhatsAppOtp } from '../../Utils/whatsapp.js';
 const TEMPLATE = process.env.WHATSAPP_TEMPLATE_NAME
 // Helper function to set OTP expiry (10 minutes from now)
 
+im
 
+
+
+
+export const googleAuth = async (req, res) => {
+    try {
+        const { idToken, accessToken, platform, domain_type } = req.body;
+
+        if (!idToken && !accessToken) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing idToken or accessToken",
+            });
+        }
+
+        // Step 1: Verify with Google — pick the right verifier per platform
+        let googleUser;
+        try {
+            googleUser = platform === 'web'
+                ? await verifyGoogleWebOwnership(accessToken)
+                : await verifyGoogleOwnership(idToken);
+        } catch (err) {
+            return res.status(401).json({
+                success: false,
+                message: "Google authentication failed",
+            });
+        }
+
+        if (!googleUser.emailVerified) {
+            return res.status(403).json({
+                success: false,
+                message: "Google email is not verified",
+            });
+        }
+
+        // Step 2: Look up by provider_id first (stable), fall back to email
+        let user = await User.findOne({
+            $or: [
+                { provider_id: googleUser.providerId, auth_provider: 'google' },
+                { email: googleUser.email },
+            ],
+        });
+
+        let isNewUser = false;
+
+        if (user) {
+            // ---- LOGIN PATH ----
+            if (user.isSuspended) {
+                return res.status(403).json({
+                    success: false,
+                    message: "This account has been suspended",
+                });
+            }
+
+            // Link Google to an existing local account on first OAuth login
+            if (user.auth_provider === 'local') {
+                user.auth_provider = 'google';
+                user.provider_id = googleUser.providerId;
+            }
+        } else {
+            // ---- REGISTER PATH ----
+            // domain_type is required for a brand-new account, same as your /register flow
+            if (!domain_type) {
+                return res.status(400).json({
+                    success: false,
+                    message: "domain_type is required to complete registration",
+                });
+            }
+
+            isNewUser = true;
+
+            user = new User({
+                name: googleUser.name,
+                email: googleUser.email,
+                auth_provider: 'google',
+                provider_id: googleUser.providerId,
+                domain_type,
+                whatsapp_number, // optional at this stage, can be collected later
+                email_verified_at: new Date(),
+            });
+        }
+
+        // Step 3: Issue tokens
+        const { accessToken: jwtAccessToken, refreshToken: jwtRefreshToken } = user.generateTokens();
+        user.access_token = jwtAccessToken;
+        user.refresh_token = jwtRefreshToken;
+        await user.save();
+
+        // Step 4: Create related profile records only on first-time registration
+        if (isNewUser) {
+            if (domain_type === 'company') {
+                await new Company({ user_id: user._id, whatsapp_number }).save();
+            } else if (domain_type === 'salon') {
+                await new Salon({ user_id: user._id, whatsapp_number }).save();
+            } else if (domain_type === 'worker') {
+                await new Candidate({ user_id: user._id, contact_no: whatsapp_number }).save();
+            }
+        }
+
+        return res.status(isNewUser ? 201 : 200).json({
+            success: true,
+            message: isNewUser ? "Registered successfully via Google" : "Login successful",
+            data: {
+                userId: user._id,
+                name: user.name,
+                email: user.email,
+                domain_type: user.domain_type,
+                isNewUser,
+                accessToken: jwtAccessToken,
+                refreshToken: jwtRefreshToken,
+            },
+        });
+
+    } catch (error) {
+        console.error("Google auth error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: process.env.NODE_ENV === "development" ? error.message : undefined,
+        });
+    }
+};
 
 
 // Register User
