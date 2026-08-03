@@ -16,7 +16,7 @@ import { sendWhatsAppOtp, verifyWhatsAppOtp } from '../../Utils/whatsapp.js';
 const TEMPLATE = process.env.WHATSAPP_TEMPLATE_NAME
 // Helper function to set OTP expiry (10 minutes from now)
 
-im
+
 
 
 
