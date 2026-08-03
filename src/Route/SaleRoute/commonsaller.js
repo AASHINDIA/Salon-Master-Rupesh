@@ -7,7 +7,17 @@ const router = express.Router();
 
 // memory storage for Cloudinary upload
 const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const upload = multer({
+    storage,
+    limits: { fileSize: 1 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed'));
+        }
+    },
+});
 
 router.post("/createOrUpdateCommonSeller", protect, upload.single("profileImage"), createOrUpdateCommonSeller);
 router.post("/createSellerListing", protect, upload.array("advertisementImages", 5), createSellerListing);
