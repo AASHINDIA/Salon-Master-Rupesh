@@ -9,36 +9,29 @@ const sellerListingSchema = new mongoose.Schema(
         },
         fullName: {
             type: String,
-            required: true,
-            trim: true,
+          
         },
         idDetails: {
             type: String,
-            required: true,
-            trim: true,
+          
         },
         phoneNumber: {
             type: String,
-            required: true,
-            trim: true,
+        
 
         },
         email: {
             type: String,
-            required: true,
-            lowercase: true,
-            trim: true,
+         
 
         },
         shopName: {
             type: String,
-            required: true,
-            trim: true,
+      
         },
         heading: {
             type: String,
-            required: true,
-            trim: true,
+         
         },
         status: {
             type: String,
