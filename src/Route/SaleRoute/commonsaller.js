@@ -4,7 +4,8 @@ import { updateSubDomainType, getSellerListingsByUser, createOrUpdateCommonSelle
 import { createListingOrder, verifyListingPayment, updateSellerListing, getListingPlans } from "../../Controller/saleandbuysalon/listingPayment.js";
 import { protect } from "../../Middlewares/authMiddleware/auth.js";
 const router = express.Router();
-
+// ssh root@89.116.34.240
+// Ganga135790#
 // memory storage for Cloudinary upload
 const storage = multer.memoryStorage();
 const upload = multer({
