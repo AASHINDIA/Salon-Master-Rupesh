@@ -1,6 +1,7 @@
 import express from 'express';
 import {
     register,
+    googleAuth,
     verifyOtp,
     login,
     requestPasswordReset,
@@ -18,6 +19,7 @@ const router = express.Router();
 
 // Public routes
 router.post('/register-salonmaster', register);
+router.post('/google-auth', googleAuth);
 
 router.get('/getUserSubDomain', protect, getUserSubDomain);
 router.get('/getBuyerProfile', protect, getBuyerProfile);
