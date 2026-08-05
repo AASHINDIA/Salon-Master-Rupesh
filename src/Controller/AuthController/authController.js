@@ -134,7 +134,16 @@ export const googleAuth = async (req, res) => {
                 refreshToken: jwtRefreshToken,
             },
         });
-
+        console.log("Google Auth Success:", {
+            userId: user._id,
+            name: user.name,
+            email: user.email,
+            domain_type: user.domain_type,
+            isNewUser,
+            accessToken: jwtAccessToken,
+            refreshToken: jwtRefreshToken,
+        });
+        
     } catch (error) {
         console.error("Google auth error:", error);
         return res.status(500).json({
