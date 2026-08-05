@@ -10,11 +10,13 @@ const UserSchema = new mongoose.Schema({
     },
     email: {
         type: String,
-       
+
     },
     password: {
         type: String,
-        required: true,
+        required: function () {
+            return this.auth_provider === 'local'; // only required for local signups
+        },
     },
     permissions: [{
         type: mongoose.Schema.Types.ObjectId,
@@ -80,7 +82,7 @@ const UserSchema = new mongoose.Schema({
     devicetoken: {
         type: String,
     },
-      password: {
+    password: {
         type: String,
         required: function () {
             return this.auth_provider === 'local'; // only required for local signups
@@ -98,6 +100,17 @@ const UserSchema = new mongoose.Schema({
     },
 }, {
     timestamps: true
+});
+
+
+const UserSchema = new mongoose.Schema({
+    // Only this one password field
+    password: {
+        type: String,
+        required: function () {
+            return this.auth_provider === 'local'; // only required for local signups
+        },
+    },
 });
 
 UserSchema.pre('save', async function (next) {
