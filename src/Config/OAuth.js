@@ -2,6 +2,12 @@ import { OAuth2Client } from "google-auth-library";
 import axios from "axios";
 const client = new OAuth2Client();
 
+const allowedAudiences = [
+    process.env.GOOGLE_WEB_CLIENT_ID,
+    process.env.GOOGLE_ANDROID_CLIENT_ID,
+    process.env.GOOGLE_IOS_CLIENT_ID, // optional future-proof
+].filter(Boolean).map((aud) => aud.trim());
+
 /**
  * Verify Google ID Token (Production Grade)
  */
@@ -10,12 +16,6 @@ export const verifyGoogleOwnership = async (idToken) => {
         if (!idToken) {
             throw new Error("MISSING_ID_TOKEN");
         }
-
-        const allowedAudiences = [
-            process.env.GOOGLE_WEB_CLIENT_ID,
-            process.env.GOOGLE_ANDROID_CLIENT_ID,
-            process.env.GOOGLE_IOS_CLIENT_ID, // optional future-proof
-        ].filter(Boolean);
 
         // 🔐 Step 1: Verify token with Google
         const ticket = await client.verifyIdToken({
@@ -41,7 +41,7 @@ export const verifyGoogleOwnership = async (idToken) => {
 
         // 🔒 Step 3: Audience validation (multi-platform safe)
         if (!allowedAudiences.includes(payload.aud)) {
-            throw new Error("INVALID_AUDIENCE");
+            throw new Error(`INVALID_AUDIENCE`);
         }
 
         // 🔒 Step 4: Email verification
@@ -54,13 +54,6 @@ export const verifyGoogleOwnership = async (idToken) => {
             throw new Error("INVALID_SUBJECT");
         }
 
-        // 🔒 Step 6: Optional domain restriction (enterprise use-case)
-        // if (payload.hd !== "yourcompany.com") {
-        //   throw new Error("UNAUTHORIZED_DOMAIN");
-        // }
-
-
-        // ✅ Normalized user object (standard across services)
         return {
             provider: "google",
             providerId: payload.sub,
@@ -75,16 +68,28 @@ export const verifyGoogleOwnership = async (idToken) => {
             stack: error.stack,
         });
 
+        // Rethrow specific validation errors so callers can react to them
+        if (/^(MISSING_ID_TOKEN|INVALID_PAYLOAD|INVALID_ISSUER|INVALID_AUDIENCE|EMAIL_NOT_VERIFIED|INVALID_SUBJECT)$/.test(error.message)) {
+            throw error;
+        }
+
         // 🔥 Standardized error response (like AWS / Stripe style)
         throw new Error("GOOGLE_AUTH_FAILED");
     }
 };
 
-
-
-
-
+/**
+ * Verify Google Web token.
+ * Accepts either a real OAuth2 access token OR a Google Identity Services
+ * `credential` (a JWT ID token). If the access-token request fails, we fall
+ * back to ID-token verification so the web login works in both cases.
+ */
 export const verifyGoogleWebOwnership = async (accessToken) => {
+    if (!accessToken) {
+        throw new Error("MISSING_ACCESS_TOKEN");
+    }
+
+    // Try as an access token first
     try {
         const response = await axios.get(
             "https://www.googleapis.com/oauth2/v3/userinfo",
@@ -95,7 +100,6 @@ export const verifyGoogleWebOwnership = async (accessToken) => {
             }
         );
 
-        // logger.info("✅ Google ID Token verified successfully", response.data);
         const data = response.data;
         return {
             provider: "google",
@@ -105,9 +109,17 @@ export const verifyGoogleWebOwnership = async (accessToken) => {
             avatar: data.picture || null,
             emailVerified: data.email_verified || false,
         };
-        // logger.info("✅ Google Web Token verified successfully11", data);
-    } catch (error) {
-        console.log(error);
-        throw new Error("GOOGLE_AUTH_FAILED");
+    } catch (accessTokenError) {
+        // Not a valid access token → try verifying it as a Google ID token
+        console.error("❌ Google Web access-token failed, falling back to ID-token verification:", {
+            status: accessTokenError.response?.status,
+            data: accessTokenError.response?.data,
+        });
+
+        try {
+            return await verifyGoogleOwnership(accessToken);
+        } catch (idTokenError) {
+            throw new Error("INVALID_ACCESS_TOKEN");
+        }
     }
 };

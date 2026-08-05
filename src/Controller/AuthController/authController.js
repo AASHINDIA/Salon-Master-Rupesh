@@ -24,24 +24,20 @@ const TEMPLATE = process.env.WHATSAPP_TEMPLATE_NAME
 export const googleAuth = async (req, res) => {
     try {
         const { idToken, accessToken, platform, domain_type } = req.body;
+        console.log(`Google Auth Request: platform=${platform}, domain_type=${domain_type}`);
 
-        if (!idToken && !accessToken) {
+        // Step 1: Verify with Google — use whichever token is provided.
+        // Web (Google Identity Services) often sends the `credential` as idToken,
+        // so fall back to it when no accessToken is present.
+        let googleUser;
+        if (accessToken) {
+            googleUser = await verifyGoogleWebOwnership(accessToken);
+        } else if (idToken) {
+            googleUser = await verifyGoogleOwnership(idToken);
+        } else {
             return res.status(400).json({
                 success: false,
                 message: "Missing idToken or accessToken",
-            });
-        }
-
-        // Step 1: Verify with Google — pick the right verifier per platform
-        let googleUser;
-        try {
-            googleUser = platform === 'web'
-                ? await verifyGoogleWebOwnership(accessToken)
-                : await verifyGoogleOwnership(idToken);
-        } catch (err) {
-            return res.status(401).json({
-                success: false,
-                message: "Google authentication failed",
             });
         }
 
@@ -94,7 +90,6 @@ export const googleAuth = async (req, res) => {
                 auth_provider: 'google',
                 provider_id: googleUser.providerId,
                 domain_type,
-                whatsapp_number, // optional at this stage, can be collected later
                 email_verified_at: new Date(),
             });
         }
@@ -132,6 +127,27 @@ export const googleAuth = async (req, res) => {
 
     } catch (error) {
         console.error("Google auth error:", error);
+
+        const authFailures = [
+            "MISSING_ID_TOKEN",
+            "INVALID_PAYLOAD",
+            "INVALID_ISSUER",
+            "INVALID_AUDIENCE",
+            "EMAIL_NOT_VERIFIED",
+            "INVALID_SUBJECT",
+            "GOOGLE_AUTH_FAILED",
+            "MISSING_ACCESS_TOKEN",
+            "INVALID_ACCESS_TOKEN",
+        ];
+
+        if (authFailures.includes(error.message)) {
+            return res.status(401).json({
+                success: false,
+                message: "Google authentication failed",
+                error: error.message,
+            });
+        }
+
         return res.status(500).json({
             success: false,
             message: "Internal server error",
