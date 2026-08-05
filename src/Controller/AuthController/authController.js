@@ -162,7 +162,7 @@ export const register = async (req, res) => {
     try {
         const { name, password, domain_type, whatsapp_number } = req.body;
 
-
+        
         // Check if user exists
         const existingUser = await User.findOne(
             { whatsapp_number }
