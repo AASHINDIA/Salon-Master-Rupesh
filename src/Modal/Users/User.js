@@ -103,15 +103,6 @@ const UserSchema = new mongoose.Schema({
 });
 
 
-UserSchema = new mongoose.Schema({
-    // Only this one password field
-    password: {
-        type: String,
-        required: function () {
-            return this.auth_provider === 'local'; // only required for local signups
-        },
-    },
-});
 
 UserSchema.pre('save', async function (next) {
     if (!this.isModified('password')) return next();
