@@ -103,7 +103,7 @@ const UserSchema = new mongoose.Schema({
 });
 
 
-const UserSchema = new mongoose.Schema({
+UserSchema = new mongoose.Schema({
     // Only this one password field
     password: {
         type: String,
