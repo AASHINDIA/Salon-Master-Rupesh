@@ -120,7 +120,15 @@ export const googleAuth = async (req, res) => {
                 await new Candidate({ user_id: user._id, contact_no: user.whatsapp_number }).save();
             }
         }
-
+        console.log("Google Auth Success:", {
+            userId: user._id,
+            name: user.name,
+            email: user.email,
+            domain_type: user.domain_type,
+            isNewUser,
+            accessToken: jwtAccessToken,
+            refreshToken: jwtRefreshToken,
+        });
         return res.status(isNewUser ? 201 : 200).json({
             success: true,
             message: isNewUser ? "Registered successfully via Google" : "Login successful",
@@ -134,16 +142,8 @@ export const googleAuth = async (req, res) => {
                 refreshToken: jwtRefreshToken,
             },
         });
-        console.log("Google Auth Success:", {
-            userId: user._id,
-            name: user.name,
-            email: user.email,
-            domain_type: user.domain_type,
-            isNewUser,
-            accessToken: jwtAccessToken,
-            refreshToken: jwtRefreshToken,
-        });
-        
+
+
     } catch (error) {
         console.error("Google auth error:", error);
         return res.status(500).json({
