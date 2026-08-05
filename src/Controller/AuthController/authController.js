@@ -26,6 +26,27 @@ export const googleAuth = async (req, res) => {
         const { idToken, accessToken, platform, domain_type } = req.body;
         console.log(`Google Auth Request: platform=${platform}, domain_type=${domain_type}`);
 
+        if (!platform || !['web', 'android', 'ios'].includes(platform)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid or missing platform. Must be 'web', 'android', or 'ios'.",
+            });
+        }
+        if(idToken && typeof idToken !== 'string' ) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid idToken. Must be a string.",
+            });
+
+        }
+        if(accessToken && typeof accessToken !== 'string' ) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid accessToken. Must be a string.",
+            });
+        }
+        
+
         // Step 1: Verify with Google — use whichever token is provided.
         // Web (Google Identity Services) often sends the `credential` as idToken,
         // so fall back to it when no accessToken is present.
@@ -162,7 +183,7 @@ export const register = async (req, res) => {
     try {
         const { name, password, domain_type, whatsapp_number } = req.body;
 
-        
+
         // Check if user exists
         const existingUser = await User.findOne(
             { whatsapp_number }
