@@ -1,7 +1,7 @@
 
 import Candidate from "../../Modal/Candidate/Candidate.js";
 import JobPosting from "../../Modal/JOB/JobPosting.js";
-import JobPostingDummy from "../../Modal/JOB/JobPosting.js";
+import JobPostingDummy from "../../Modal/Dummaydata/jobsDummay.js";
 import Skill from "../../Modal/skill/skill.js";
 import Salon from "../../Modal/Salon/Salon.js";
 // Helper to mask name (first + last letter, rest * )
@@ -85,7 +85,7 @@ const maskString = (str) => {
 
 
 
-/**
+/**        
  * Safely converts a value to a plain string, returns null if not usable.
  */
 const safeString = (val) => {
@@ -115,38 +115,47 @@ const normalizeJob = (job, isPremium) => {
     const salonDoc =
       job.salon_id && typeof job.salon_id === "object" ? job.salon_id : null;
 
+    const contactPerson =
+      job.contact_person && typeof job.contact_person === "object"
+        ? {
+            name: safeString(job.contact_person.name),
+            phone: safeString(job.contact_person.phone),
+            email: safeString(job.contact_person.email),
+          }
+        : null;
+
     const salaryRange =
       job.salary_range && typeof job.salary_range === "object"
         ? {
-            min:
-              typeof job.salary_range.min === "number"
-                ? job.salary_range.min
-                : null,
-            max:
-              typeof job.salary_range.max === "number"
-                ? job.salary_range.max
-                : null,
-          }
+          min:
+            typeof job.salary_range.min === "number"
+              ? job.salary_range.min
+              : null,
+          max:
+            typeof job.salary_range.max === "number"
+              ? job.salary_range.max
+              : null,
+        }
         : null;
 
     const workTimings =
       job.work_timings && typeof job.work_timings === "object"
         ? {
-            start: safeString(job.work_timings.start),
-            end: safeString(job.work_timings.end),
-          }
+          start: safeString(job.work_timings.start),
+          end: safeString(job.work_timings.end),
+        }
         : null;
 
     const address =
       job.address && typeof job.address === "object"
         ? {
-            country: safeString(job.address.country),
-            state: safeString(job.address.state),
-            city: safeString(job.address.city),
-            pincode: safeString(job.address.pincode),
-            countryIsoCode: safeString(job.address.countryIsoCode),
-            stateIsoCode: safeString(job.address.stateIsoCode),
-          }
+          country: safeString(job.address.country),
+          state: safeString(job.address.state),
+          city: safeString(job.address.city),
+          pincode: safeString(job.address.pincode),
+          countryIsoCode: safeString(job.address.countryIsoCode),
+          stateIsoCode: safeString(job.address.stateIsoCode),
+        }
         : null;
 
     let requiredSkills = [];
@@ -169,14 +178,14 @@ const normalizeJob = (job, isPremium) => {
     const salon = {
       name: isPremium
         ? safeString(salonDoc?.salon_name)
-        : safeString(salonDoc?.name),
+        : safeString(contactPerson?.name) || safeString(salonDoc?.name),
       brand_name: isPremium ? null : safeString(salonDoc?.brand_name),
       year_of_start: isPremium
         ? safeString(salonDoc?.year_of_start)
         : null,
       contact_number: isPremium
         ? safeString(salonDoc?.contact_number)
-        : safeString(salonDoc?.contact_no),
+        : safeString(contactPerson?.phone) || safeString(salonDoc?.contact_no),
     };
 
     return {
@@ -200,6 +209,7 @@ const normalizeJob = (job, isPremium) => {
       location: safeString(job.location),
       required_skills: requiredSkills,
       salon,
+      contact_person: contactPerson,
       is_premium: !!isPremium,
     };
   } catch (err) {
