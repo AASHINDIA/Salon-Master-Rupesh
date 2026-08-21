@@ -22,8 +22,8 @@ export const sendInterestedEmail = async (notification) => {
     }
 
     const [ad, owner, interestedUser] = await Promise.all([
-        AdModel.findById(notification.adId).select('heading shopName fullName email userId status expiredAt').lean(),
-        User.findById(notification.ownerUserId).select('name email').lean(),
+        AdModel.findById(notification.adId).select('heading shopName fullName email userId status expiredAt phoneNumber address description short_description advertisementDetails createdAt').lean(),
+        User.findById(notification.ownerUserId).select('name email whatsapp_number').lean(),
         User.findById(notification.interestedUserId).select('name whatsapp_number email').lean(),
     ]);
 

@@ -312,6 +312,8 @@ export const createSellerListing = async (req, res) => {
             description,
             short_description,
             address,
+            country,
+            contactVisibility,
             advertisementDetails,
             termsAccepted,
         } = req.body;
@@ -369,6 +371,8 @@ export const createSellerListing = async (req, res) => {
             description,
             short_description,
             address,
+            country,
+            contactVisibility: contactVisibility || 'public',
             advertisementDetails,
             advertisementImages,
             termsAccepted,

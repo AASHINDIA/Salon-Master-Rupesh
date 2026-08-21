@@ -60,6 +60,17 @@ const sellerListingSchema = new mongoose.Schema(
             maxlength: 200,
             trim: true,
         },
+        country: {
+            type: String,
+            trim: true,
+            maxlength: 100,
+        },
+        contactVisibility: {
+            type: String,
+            enum: ["public", "masked"],
+            default: "public",
+            trim: true,
+        },
         advertisementImages: {
             type: [String],
             validate: [

@@ -9,6 +9,7 @@ import traininginstitute from "../../Modal/traininginstitute/training_institute.
 import franchise from "../../Modal/franchise/franchise.js";
 import { uploadToCloudinary } from "../../Utils/imageUpload.js";
 import ListingInterestSchema from "../../Modal/InterstedSchema/ListingInterestSchema.js";
+import { maskPhone, maskEmail } from "../../Utils/maskContact.js";
 
 // creating Listing For
 export const createTraningList = async (req, res) => {
@@ -25,6 +26,8 @@ export const createTraningList = async (req, res) => {
             description,
             short_description,
             address,
+            country,
+            contactVisibility,
             advertisementDetails,
             termsAccepted,
         } = req.body;
@@ -66,6 +69,8 @@ export const createTraningList = async (req, res) => {
             description,
             short_description,
             address,
+            country,
+            contactVisibility: contactVisibility || 'public',
             advertisementDetails,
             advertisementImages,
             termsAccepted,
@@ -102,6 +107,8 @@ export const createFranchiseList = async (req, res) => {
             description,
             short_description,
             address,
+            country,
+            contactVisibility,
             advertisementDetails,
             termsAccepted,
         } = req.body;
@@ -143,6 +150,8 @@ export const createFranchiseList = async (req, res) => {
             description,
             short_description,
             address,
+            country,
+            contactVisibility: contactVisibility || 'public',
             advertisementDetails,
             advertisementImages,
             termsAccepted,
@@ -603,13 +612,16 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
         const queryTime = Date.now() - queryStartTime;
 
 
-        // 🔹 Add interest status to each listing
+        // 🔹 Add interest status to each listing (mask contact if owner chose 'masked')
         const listingsWithInterest = listings.map(listing => {
             const listingId = listing._id.toString();
             const isInterested = userId ? interestedAdIds.includes(listingId) : false;
 
+            const isMasked = listing.contactVisibility === 'masked';
             const result = {
                 ...listing,
+                phoneNumber: isMasked ? maskPhone(listing.phoneNumber) : listing.phoneNumber,
+                email: isMasked ? maskEmail(listing.email) : listing.email,
                 isInterested,
                 interestStatus: isInterested ? 'interested' : 'not_interested'
             };

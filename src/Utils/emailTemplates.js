@@ -146,10 +146,23 @@ export const interestedOwnerTemplate = (owner, interestedUser, ad) => {
     const interestedName = interestedUser?.name || 'Someone';
     const adTitle = ad?.heading || ad?.shopName || 'Listing';
     const ownerFullName = ad?.fullName || owner?.name || '';
+    const ownerEmail = owner?.email || '';
+    const ownerWhatsApp = owner?.whatsapp_number || '';
+    const interestedWhatsApp = interestedUser?.whatsapp_number || '';
+    const interestedEmail = interestedUser?.email || '';
+    const adPhone = ad?.phoneNumber || '';
+    const adAddress = ad?.address || '';
+    const adShortDesc = ad?.short_description || '';
+    const adExpiredAt = ad?.expiredAt ? new Date(ad.expiredAt).toLocaleDateString('en-IN') : '';
+    const now = new Date();
+    const interestDate = now.toLocaleString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     const text = `
 Hello ${ownerFullName},
 
 ${interestedName} has expressed interest in your "${adTitle}" listing.
+
+${adShortDesc ? `Description: ${adShortDesc}\n` : ''}${adPhone ? `Phone: ${adPhone}\n` : ''}${adAddress ? `Address: ${adAddress}\n` : ''}Expires: ${adExpiredAt || 'N/A'}
+Interested on: ${interestDate}
 
 If you'd like to connect with them, please check your Salon Master dashboard.
 
@@ -164,7 +177,22 @@ Salon Master Team
             <div style="padding: 24px;">
                 <p>Hello <strong>${ownerFullName}</strong>,</p>
                 <p><strong>${interestedName}</strong> has expressed interest in your <strong>"${adTitle}"</strong> listing.</p>
-                <p>If you'd like to connect with them, please check your Salon Master dashboard.</p>
+                <hr/>
+                <h3>Interested User Details</h3>
+                <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+                    ${interestedWhatsApp ? `<tr><td style="padding: 8px; border: 1px solid #eee; width: 30%;"><strong>WhatsApp</strong></td><td style="padding: 8px; border: 1px solid #eee;">${interestedWhatsApp}</td></tr>` : ''}
+                    ${interestedEmail ? `<tr><td style="padding: 8px; border: 1px solid #eee; width: 30%;"><strong>Email</strong></td><td style="padding: 8px; border: 1px solid #eee;">${interestedEmail}</td></tr>` : ''}
+                    ${ownerWhatsApp ? `<tr><td style="padding: 8px; border: 1px solid #eee; width: 30%;"><strong>Owner WhatsApp</strong></td><td style="padding: 8px; border: 1px solid #eee;">${ownerWhatsApp}</td></tr>` : ''}
+                    <tr><td style="padding: 8px; border: 1px solid #eee; width: 30%;"><strong>Date</strong></td><td style="padding: 8px; border: 1px solid #eee;">${interestDate}</td></tr>
+                </table>
+                <h3>Listing Details</h3>
+                <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+                    ${adTitle ? `<tr><td style="padding: 8px; border: 1px solid #eee; width: 30%;"><strong>Heading</strong></td><td style="padding: 8px; border: 1px solid #eee;">${adTitle}</td></tr>` : ''}
+                    ${adPhone ? `<tr><td style="padding: 8px; border: 1px solid #eee; width: 30%;"><strong>Phone</strong></td><td style="padding: 8px; border: 1px solid #eee;">${adPhone}</td></tr>` : ''}
+                    ${adAddress ? `<tr><td style="padding: 8px; border: 1px solid #eee; width: 30%;"><strong>Address</strong></td><td style="padding: 8px; border: 1px solid #eee;">${adAddress}</td></tr>` : ''}
+                    ${adShortDesc ? `<tr><td style="padding: 8px; border: 1px solid #eee; width: 30%;"><strong>Description</strong></td><td style="padding: 8px; border: 1px solid #eee;">${adShortDesc}</td></tr>` : ''}
+                    ${adExpiredAt ? `<tr><td style="padding: 8px; border: 1px solid #eee; width: 30%;"><strong>Valid Until</strong></td><td style="padding: 8px; border: 1px solid #eee;">${adExpiredAt}</td></tr>` : ''}
+                </table>
                 <hr/>
                 <p style="font-size: 0.85em; color: #666;">Best regards,<br/>Salon Master Team</p>
             </div>
