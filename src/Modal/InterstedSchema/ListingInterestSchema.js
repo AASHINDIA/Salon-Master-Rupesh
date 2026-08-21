@@ -30,4 +30,13 @@ const ListingInterestSchema = new Schema({
     }
 }, { timestamps: true });
 
+// Prevent duplicate interest records for the same user + listing (idempotency)
+ListingInterestSchema.index(
+    { interestedUserId: 1, category: 1, adId: 1 },
+    { unique: true, name: 'uniq_user_category_ad' }
+);
+
+// Speeds up owner-side queries (getInterestsForUserListings)
+ListingInterestSchema.index({ adUserId: 1, createdAt: -1 });
+
 export default model('ListingInterest', ListingInterestSchema);

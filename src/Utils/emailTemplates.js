@@ -140,6 +140,38 @@ Transaction ID: ${payment.razorpayPaymentId}
     `;
     return { subject, text, html };
 };
+
+// 📩 Owner notification when a user expresses interest
+export const interestedOwnerTemplate = (owner, interestedUser, ad) => {
+    const interestedName = interestedUser?.name || 'Someone';
+    const adTitle = ad?.heading || ad?.shopName || 'Listing';
+    const ownerFullName = ad?.fullName || owner?.name || '';
+    const text = `
+Hello ${ownerFullName},
+
+${interestedName} has expressed interest in your "${adTitle}" listing.
+
+If you'd like to connect with them, please check your Salon Master dashboard.
+
+Best regards,
+Salon Master Team
+`;
+    const html = `
+        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+            <div style="background: #1d1d1d; color: #fff; padding: 16px 24px;">
+                <h2 style="margin: 0;">New Interest Expression</h2>
+            </div>
+            <div style="padding: 24px;">
+                <p>Hello <strong>${ownerFullName}</strong>,</p>
+                <p><strong>${interestedName}</strong> has expressed interest in your <strong>"${adTitle}"</strong> listing.</p>
+                <p>If you'd like to connect with them, please check your Salon Master dashboard.</p>
+                <hr/>
+                <p style="font-size: 0.85em; color: #666;">Best regards,<br/>Salon Master Team</p>
+            </div>
+        </div>
+    `;
+    return { subject: `New Interest Expression: ${adTitle}`, text, html };
+};
 export const superAdminCartEmailTemplate = (user, product, company) => {
     const subject = `Super Admin Alert - ${user.name} added a product`;
     const text = `

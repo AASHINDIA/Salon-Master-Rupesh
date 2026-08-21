@@ -1,61 +1,84 @@
 import ListingInterestSchema from "../../Modal/InterstedSchema/ListingInterestSchema.js";
+import InterestedNotification from "../../Modal/InterestedNotification/InterestedNotificationSchema.js";
 import mongoose from "mongoose";
 import FranchiseList from "../../Modal/franchise/FranchiseList.js";
 import TraningList from "../../Modal/traininginstitute/TraningList.js";
 import SellerListing from "../../Modal/sales/SellerListing.js";
+
+const CATEGORY_MODELS = {
+    FranchiseList,
+    TraningList,
+    SellerListing,
+};
+const VALID_CATEGORIES = Object.keys(CATEGORY_MODELS);
 
 
 // Function to express interest in a listing
 export const expressInterest = async (req, res) => {
     const { category, adId } = req.body;
     const interestedUserId = req.user.id;
-    try {
-        // Validate category
-        const validCategories = ['FranchiseList', 'TraningList', 'SellerListing'];
-        if (!validCategories.includes(category)) {
-            return res.status(400).json({ message: 'Invalid category' });
-        }
-        // Check if the interest already exists
-        const existingInterest = await ListingInterestSchema.findOne({ interestedUserId, category, adId });
-        if (existingInterest) {
-            return res.status(400).json({ message: 'You have already expressed interest in this listing. Our Team Will Connect You' });
-        }
 
-        // Validate adId
-        if (!mongoose.Types.ObjectId.isValid(adId)) {
-            return res.status(400).json({ message: 'Invalid adId' });
-        }
-        let ad;
-        switch (category) {
-            case 'FranchiseList':
-                ad = await FranchiseList.findById(adId);
-                break;
-            case 'TraningList':
-                ad = await TraningList.findById(adId);
-                break;
-            case 'SellerListing':
-                ad = await SellerListing.findById(adId);
-                break;
-            default:
-                return res.status(400).json({ message: 'Invalid category' });
-        }
+    // 1. Validate inputs early (cheap, no DB)
+    if (!category || !VALID_CATEGORIES.includes(category)) {
+        return res.status(400).json({ message: 'Invalid category' });
+    }
+    if (!adId || !mongoose.Types.ObjectId.isValid(adId)) {
+        return res.status(400).json({ message: 'Invalid adId' });
+    }
+
+    try {
+        // 2. Fetch the ad by its category model
+        const AdModel = CATEGORY_MODELS[category];
+        const ad = await AdModel.findById(adId).lean();
         if (!ad) {
             return res.status(404).json({ message: 'Listing not found' });
         }
-        // Create a new interest entry
-        const newInterest = new ListingInterestSchema({
-            interestedUserId,
-            category,
-            adId,
-            adUserId: ad.userId // Assuming adUserId is sent in the request 
-        });
-        await newInterest.save();
-        // Send notification to the listing owner
 
-        res.status(201).json({ message: 'Interest expressed successfully.' });
-    }
+        // 3. Guard: listing must be active and not expired
+        if (ad.status !== 'active') {
+            return res.status(400).json({ message: 'Listing not available' });
+        }
+        if (ad.expiredAt && new Date(ad.expiredAt) < new Date()) {
+            return res.status(400).json({ message: 'Listing has expired' });
+        }
 
-    catch (error) {
+        // 4. Guard: owner cannot interest their own listing
+        if (String(ad.userId) === String(interestedUserId)) {
+            return res.status(400).json({ message: 'You cannot express interest in your own listing' });
+        }
+
+        // 5. Atomic txn: Interest + Notification must succeed together
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        try {
+            const [interest] = await ListingInterestSchema.create([{
+                interestedUserId,
+                category,
+                adId,
+                adUserId: ad.userId,
+            }], { session });
+
+            await InterestedNotification.create([{
+                interestId: interest._id,
+                category,
+                adId,
+                interestedUserId,
+                ownerUserId: ad.userId,
+            }], { session });
+
+            await session.commitTransaction();
+            res.status(201).json({ message: 'Interest expressed successfully.' });
+        } catch (txnError) {
+            await session.abortTransaction().catch(() => {});
+            // Duplicate key on the compound unique index = user already expressed interest
+            if (txnError.code === 11000) {
+                return res.status(409).json({ message: 'You have already expressed interest in this listing.' });
+            }
+            throw txnError;
+        } finally {
+            session.endSession();
+        }
+    } catch (error) {
         console.error('Error expressing interest:', error);
         res.status(500).json({ message: 'Server error' });
     }
@@ -68,7 +91,7 @@ export const getUserInterests = async (req, res) => {
     try {
         const interests = await ListingInterestSchema.find({
             interestedUserId
-        }).populate('adId').populate('adUserId', 'name whatsapp_numbe'); // Populate ad details and ad owner details
+        }).populate('adId').populate('adUserId', 'name whatsapp_numbe');
         res.status(200).json(interests);
     }
     catch (error) {
@@ -183,8 +206,6 @@ export const getInterestsForUserListings = async (req, res) => {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
-
-
 
 
 
