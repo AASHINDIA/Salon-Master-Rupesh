@@ -8,11 +8,22 @@ const router = express.Router();
 // Ganga135790#
 // memory storage for Cloudinary upload
 const storage = multer.memoryStorage();
+
 const upload = multer({
     storage,
-    limits: { fileSize: 2 * 1024 * 1024 },
+    limits: {
+        fileSize: 2 * 1024 * 1024, // 2MB
+    },
     fileFilter: (req, file, cb) => {
-        if (file.mimetype.startsWith('image/')) {
+        const allowedTypes = [
+            'image/jpeg',
+            'image/jpg',
+            'image/png',
+            'image/webp',
+            'image/gif',
+        ];
+
+        if (allowedTypes.includes(file.mimetype)) {
             cb(null, true);
         } else {
             cb(new Error('Only image files are allowed'));
