@@ -7,7 +7,7 @@ import { Parser } from 'json2csv';
 // FranchiseList Controllers
 export const getAllFranchiseLists = async (req, res) => {
     try {
-        const { page = 1, limit = 10, search, fromDate, toDate, export: exportOption } = req.query;
+        const { page = 1, limit = 10, search, fromDate, toDate, country, export: exportOption } = req.query;
         const query = {};
 
         if (search) {
@@ -17,6 +17,10 @@ export const getAllFranchiseLists = async (req, res) => {
                 { email: { $regex: search, $options: 'i' } },
                 { phoneNumber: { $regex: search, $options: 'i' } },
             ];
+        }
+
+        if (country) {
+            query.country = { $regex: country, $options: 'i' };
         }
 
         if (fromDate) {
@@ -33,6 +37,7 @@ export const getAllFranchiseLists = async (req, res) => {
             const fields = [
                 'userId', 'fullName', 'idDetails', 'phoneNumber', 'email', 'shopName',
                 'status', 'heading', 'description', 'short_description', 'address',
+                'country', 'contactVisibility',
                 'advertisementDetails', 'advertisementImages', 'termsAccepted',
                 'createdAt', 'updatedAt', 'expiredAt'
             ];
@@ -196,7 +201,7 @@ export const toggleFranchiseListStatus = async (req, res) => {
 // TraningList Controllers
 export const getAllTraningLists = async (req, res) => {
     try {
-        const { page = 1, limit = 10, search, fromDate, toDate, export: exportOption } = req.query;
+        const { page = 1, limit = 10, search, fromDate, toDate, country, export: exportOption } = req.query;
         const query = {};
 
         if (search) {
@@ -206,6 +211,10 @@ export const getAllTraningLists = async (req, res) => {
                 { email: { $regex: search, $options: 'i' } },
                 { phoneNumber: { $regex: search, $options: 'i' } },
             ];
+        }
+
+        if (country) {
+            query.country = { $regex: country, $options: 'i' };
         }
 
         if (fromDate) {
@@ -222,6 +231,7 @@ export const getAllTraningLists = async (req, res) => {
             const fields = [
                 'userId', 'fullName', 'idDetails', 'phoneNumber', 'email', 'shopName',
                 'status', 'heading', 'description', 'short_description', 'address',
+                'country', 'contactVisibility',
                 'advertisementDetails', 'advertisementImages', 'termsAccepted',
                 'createdAt', 'updatedAt', 'expiredAt'
             ];
@@ -385,7 +395,7 @@ export const toggleTraningListStatus = async (req, res) => {
 // SellerListing Controllers
 export const getAllSellerListings = async (req, res) => {
     try {
-        const { page = 1, limit = 10, search, fromDate, toDate, export: exportOption } = req.query;
+        const { page = 1, limit = 10, search, fromDate, toDate, country, export: exportOption } = req.query;
         const query = {};
 
         if (search) {
@@ -395,6 +405,10 @@ export const getAllSellerListings = async (req, res) => {
                 { email: { $regex: search, $options: 'i' } },
                 { phoneNumber: { $regex: search, $options: 'i' } },
             ];
+        }
+
+        if (country) {
+            query.country = { $regex: country, $options: 'i' };
         }
 
         if (fromDate) {
@@ -411,6 +425,7 @@ export const getAllSellerListings = async (req, res) => {
             const fields = [
                 'userId', 'fullName', 'idDetails', 'phoneNumber', 'email', 'shopName',
                 'status', 'heading', 'description', 'short_description', 'address',
+                'country', 'contactVisibility',
                 'advertisementDetails', 'advertisementImages', 'termsAccepted',
                 'createdAt', 'updatedAt', 'expiredAt'
             ];
@@ -568,5 +583,67 @@ export const toggleSellerListingStatus = async (req, res) => {
             message: "Server error",
             error: error.message,
         });
+    }
+};
+
+// Toggle Contact Visibility Controllers
+const toggleVisibility = async (Model, id, modelName) => {
+    const listing = await Model.findById(id);
+    if (!listing) {
+        return { success: false, status: 404, message: `${modelName} listing not found` };
+    }
+    listing.contactVisibility = listing.contactVisibility === 'public' ? 'masked' : 'public';
+    await listing.save();
+    return { success: true, listing };
+};
+
+export const toggleFranchiseContactVisibility = async (req, res) => {
+    try {
+        const result = await toggleVisibility(FranchiseList, req.params.id, 'Franchise');
+        if (!result.success) {
+            return res.status(result.status).json({ success: false, message: result.message });
+        }
+        return res.status(200).json({
+            success: true,
+            message: "Franchise contact visibility toggled successfully",
+            data: result.listing,
+        });
+    } catch (error) {
+        console.error("Error in toggleFranchiseContactVisibility:", error);
+        return res.status(500).json({ success: false, message: "Server error", error: error.message });
+    }
+};
+
+export const toggleTraningContactVisibility = async (req, res) => {
+    try {
+        const result = await toggleVisibility(TraningList, req.params.id, 'Training');
+        if (!result.success) {
+            return res.status(result.status).json({ success: false, message: result.message });
+        }
+        return res.status(200).json({
+            success: true,
+            message: "Training contact visibility toggled successfully",
+            data: result.listing,
+        });
+    } catch (error) {
+        console.error("Error in toggleTraningContactVisibility:", error);
+        return res.status(500).json({ success: false, message: "Server error", error: error.message });
+    }
+};
+
+export const toggleSellerContactVisibility = async (req, res) => {
+    try {
+        const result = await toggleVisibility(SellerListing, req.params.id, 'Seller');
+        if (!result.success) {
+            return res.status(result.status).json({ success: false, message: result.message });
+        }
+        return res.status(200).json({
+            success: true,
+            message: "Seller contact visibility toggled successfully",
+            data: result.listing,
+        });
+    } catch (error) {
+        console.error("Error in toggleSellerContactVisibility:", error);
+        return res.status(500).json({ success: false, message: "Server error", error: error.message });
     }
 };
