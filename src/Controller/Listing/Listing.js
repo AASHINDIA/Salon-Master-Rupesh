@@ -516,6 +516,7 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
             toDate,
             city,
             state,
+            country,
             page = 1,
             limit = 10,
             sort = "latest",    // latest | old
@@ -565,6 +566,11 @@ export const getPublicFranchiseListings = async (Model, req, res) => {
         }
         if (state) {
             filter.address = { $regex: state, $options: "i" };
+
+        }
+
+        if (country) {
+            filter.country = { $regex: country, $options: "i" };
 
         }
 
