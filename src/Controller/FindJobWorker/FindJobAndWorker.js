@@ -260,13 +260,6 @@ export const findJobsForWorker = async (req, res) => {
             }
         }
 
-        if (!candidate.available_for_join) {
-            return res.status(400).json({
-                success: false,
-                message: 'Candidate is not available for joining'
-            });
-        }
-
         // Build match criteria for both premium and dummy jobs
         const matchCriteria = {
             is_active: true,
