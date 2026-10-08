@@ -6,19 +6,23 @@ import {
     createPermission,
     listPermissions
 } from "../../Controller/AuthController/permissionController.js";
-import { protect } from "../../Middlewares/authMiddleware/auth.js";
+import { assignAdminPermissions } from "../../Controller/AddPermision/assignAdminPermissions.js";
+import { protect, authorizeDomain } from "../../Middlewares/authMiddleware/auth.js";
 const router = express.Router();
 
 // Only superadmins can create permissions
-router.post("/create", createPermission);
+router.post("/create", protect, authorizeDomain('superadmin'), createPermission);
 
 // Only superadmins can assign permissions to users
-router.post("/assign", assignPermissions);
+router.post("/assign", protect, authorizeDomain('superadmin'), assignPermissions);
 
 // Any logged-in user can get their permissions
 router.get("/my", protect, getUserPermissions);
 
 // Only superadmins can see all permissions
-router.get("/all", listPermissions);
+router.get("/all", protect, authorizeDomain('superadmin'), listPermissions);
+
+// Superadmin can assign permissions to admin users
+router.put("/admin/:userId/permissions", protect, authorizeDomain('superadmin'), assignAdminPermissions);
 
 export default router;

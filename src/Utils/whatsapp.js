@@ -9,6 +9,10 @@ const WHATSAPP_SEND = process.env.WHATSAPP_SEND_OTP_URL;
 const WHATSAPP_VERIFY = process.env.WHATSAPP_VERIFY_OTP_URL;
 const WHATSAPP_TEMPLATE_NAME = process.env.WHATSAPP_TEMPLATE_NAME || "otp";
 
+const generateRandomOtp = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString(); // Generates a 6-digit OTP
+};
+
 // Extract the UID from the provider send-OTP response
 export function extractUid(responseData) {
     if (!responseData) return null;
@@ -23,14 +27,32 @@ export function extractUid(responseData) {
 }
 
 // Send OTP
-export async function sendWhatsAppOtp(mobile) {
+export async function sendWhatsAppOtp(mobile, otp) {
     const number = mobile;
     try {
         console.log("Sending OTP to:", number);
-        const url = `${WHATSAPP_SEND}?apikey=${WHATSAPP_API_KEY}&mobile=${number}&templatename=${WHATSAPP_TEMPLATE_NAME}`;
 
-        const resp = await axios.get(url, {
-            headers: { Accept: "application/json" },
+        const body = {
+            sessionId: process.env.WHATSAPP_SESSION_ID,
+            to: number,
+            templateName: process.env.WHATSAPP_TEMPLATE_NAME || "otp",
+            languageCode: process.env.WHATSAPP_LANGUAGE_CODE || "en",
+            templateParams: [otp],
+            templateBodyText: "*{{1}}* is your verification code. For your security, do not share this code.",
+            header: {
+                type: "image",
+                id: process.env.WHATSAPP_MEDIA_ID || ""
+            },
+            components: [otp]
+        };
+
+        const url = WHATSAPP_SEND;
+
+        const resp = await axios.post(url, body, {
+            headers: {
+                "Content-Type": "application/json",
+                "X-API-Key": WHATSAPP_API_KEY
+            },
             timeout: 30000,
         });
 
