@@ -498,6 +498,7 @@ export const resendOtp = async (req, res) => {
 
         const name = user.name;
         const otp = generateOTP(4, "numeric");
+        console.log(`Generated OTP for ${whatsapp_number}:`, otp);
 
         // ✅ Send OTP via WhatsApp
         const otpResponse = await sendWhatsAppOtp(whatsapp_number, otp);
