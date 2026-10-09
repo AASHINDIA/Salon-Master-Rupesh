@@ -31,6 +31,7 @@ export async function sendWhatsAppOtp(mobile, otp) {
     const number = mobile;
     try {
         console.log("Sending OTP to:", number);
+        console.log("Sending OTP to:", otp);
 
         const body = {
             sessionId: process.env.WHATSAPP_SESSION_ID,
