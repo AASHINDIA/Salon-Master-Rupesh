@@ -173,10 +173,10 @@ export const register = async (req, res) => {
                 message: "User already exists with this email or WhatsApp number",
             });
         }
-
+        const otp = generateOTP(4, "numeric");
         // Send OTP via WhatsApp
         console.log("Sending WhatsApp OTP...");
-        const otpResponse = await sendWhatsAppOtp(whatsapp_number);
+        const otpResponse = await sendWhatsAppOtp(whatsapp_number,otp);
 
         console.log("OTP Response:", otpResponse.data);
 
@@ -498,6 +498,7 @@ export const resendOtp = async (req, res) => {
 
         const name = user.name;
         const otp = generateOTP(4, "numeric");
+
         console.log(`Generated OTP for ${whatsapp_number}:`, otp);
 
         // ✅ Send OTP via WhatsApp
