@@ -283,13 +283,15 @@ export const verifyOtp = async (req, res) => {
 
 
 
-        // Check OTP expiry
-        if (!user.isOtpValid()) {
-            return res.status(400).json({ success: false, message: "OTP expired. Request new one" });
+        // Check if user has whatsapp_uid (OTP session validity)
+        if (!user.whatsapp_uid) {
+            return res.status(400).json({ success: false, message: "OTP session invalid. Please request a new OTP." });
         }
 
-        // Verify OTP code from DB
-        if (user.otp_code !== otp) {
+        // Verify OTP with WhatsApp service (instead of DB check)
+        const verificationResponse = await verifyWhatsAppOtp(user.whatsapp_uid, otp);
+
+        if (!verificationResponse.success) {
             // Increment OTP attempts
             user.otp_attempts += 1;
             await user.save();
