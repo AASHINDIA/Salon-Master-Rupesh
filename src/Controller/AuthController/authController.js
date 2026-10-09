@@ -13,6 +13,7 @@ import Salon from '../../Modal/Salon/Salon.js';
 import Candidate from '../../Modal/Candidate/Candidate.js';
 import { verifyGoogleOwnership, verifyGoogleWebOwnership } from '../../Config/OAuth.js';
 import { sendWhatsAppOtp, verifyWhatsAppOtp } from '../../Utils/whatsapp.js';
+import { loggers } from 'winston';
 const TEMPLATE = process.env.WHATSAPP_TEMPLATE_NAME
 // Helper function to set OTP expiry (10 minutes from now)
 
@@ -180,7 +181,7 @@ export const register = async (req, res) => {
             return res.status(500).json({
                 success: false,
                 message: "Failed to generate OTP",
-            }); 
+            });
         }
 
         const otpResponse = await sendWhatsAppOtp(whatsapp_number);
@@ -197,8 +198,8 @@ export const register = async (req, res) => {
         }
 
         // Safely extract and handle UID
-        const whatsappUid = otpResponse.uid;
-
+        const whatsappUid = otpResponse.data;
+        console.log("whatsappUid", whatsappUid)
         // Create user with OTP
         const newUser = new User({
             name,
