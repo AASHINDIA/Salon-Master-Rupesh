@@ -291,7 +291,7 @@ export const verifyOtp = async (req, res) => {
 
         // Verify OTP with WhatsApp service (instead of DB check)
         const verificationResponse = await verifyWhatsAppOtp(user.whatsapp_uid, otp);
-
+            console.log("verificationResponse",verificationResponse)
         if (!verificationResponse.success) {
             // Increment OTP attempts
             user.otp_attempts += 1;
