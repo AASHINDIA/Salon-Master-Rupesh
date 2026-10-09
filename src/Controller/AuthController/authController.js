@@ -176,7 +176,7 @@ export const register = async (req, res) => {
         const otp = generateOTP(4, "numeric");
         // Send OTP via WhatsApp
         console.log("Sending WhatsApp OTP...");
-        const otpResponse = await sendWhatsAppOtp(whatsapp_number,otp);
+        const otpResponse = await sendWhatsAppOtp(whatsapp_number, otp);
 
         console.log("OTP Response:", otpResponse.data);
 
@@ -280,20 +280,11 @@ export const verifyOtp = async (req, res) => {
         if (!user.isOtpValid()) {
             return res.status(400).json({ success: false, message: "OTP expired. Request new one" });
         }
+     // Check if we have a UID
+      
 
-        // Check if we have a UID
-        if (!user.whatsapp_uid) {
-            return res.status(400).json({
-                success: false,
-                message: "OTP session invalid. Please request a new OTP."
-            });
-        }
-
-        // Verify OTP with WhatsApp service
-        const verificationResponse = await verifyWhatsAppOtp(user.whatsapp_uid, otp);
-
-
-        if (!verificationResponse.success) {
+        // Verify OTP from DB
+        if (user.otp_code !== otp) {
             // Increment OTP attempts
             user.otp_attempts += 1;
             await user.save();
@@ -309,7 +300,6 @@ export const verifyOtp = async (req, res) => {
         user.otp_verified = true;
         user.otp_attempts = 0;
         user.otp_expires_at = null;
-
         // Generate tokens
         const { accessToken, refreshToken } = user.generateTokens();
         user.access_token = accessToken;
@@ -733,7 +723,7 @@ export const adminSendOtp = async (req, res) => {
             });
         }
 
-    
+
 
         // Generate OTP
         const otp = generateOTP(4, "numeric");
