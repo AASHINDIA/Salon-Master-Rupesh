@@ -183,7 +183,7 @@ export const register = async (req, res) => {
             }); 
         }
 
-        const otpResponse = await sendWhatsAppOtp(whatsapp_number, otp);
+        const otpResponse = await sendWhatsAppOtp(whatsapp_number);
 
         console.log("OTP Response:", otpResponse.data);
 
@@ -366,7 +366,7 @@ export const requestPasswordReset = async (req, res) => {
         const otp = generateOTP(4, "numeric");
 
         // Send OTP via WhatsApp
-        const otpResponse = await sendWhatsAppOtp(whatsapp_number, otp);
+        const otpResponse = await sendWhatsAppOtp(whatsapp_number);
 
         if (!otpResponse.success) {
             console.error("WhatsApp OTP failed:", otpResponse.error);
@@ -499,7 +499,7 @@ export const resendOtp = async (req, res) => {
         const otp = generateOTP(4, "numeric");
 
         // ✅ Send OTP via WhatsApp
-        const otpResponse = await sendWhatsAppOtp(whatsapp_number, otp);
+        const otpResponse = await sendWhatsAppOtp(whatsapp_number);
 
         if (!otpResponse?.success) {
             return res.status(500).json({
@@ -625,7 +625,7 @@ export const login = async (req, res) => {
         if (!user.otp_verified) {
             try {
                 const otp = generateOTP(4, "numeric");
-                const otpResponse = await sendWhatsAppOtp(user.whatsapp_number, otp);
+                const otpResponse = await sendWhatsAppOtp(user.whatsapp_number);
 
                 if (!otpResponse?.success) {
                     return res.status(500).json({
@@ -733,7 +733,7 @@ export const adminSendOtp = async (req, res) => {
         // Generate OTP
         const otp = generateOTP(4, "numeric");
 
-        const otpResponse = await sendWhatsAppOtp(whatsapp_number, otp);
+        const otpResponse = await sendWhatsAppOtp(whatsapp_number);
 
         if (!otpResponse.success || !otpResponse.uid) {
             console.error("WhatsApp OTP failed:", otpResponse.error);
