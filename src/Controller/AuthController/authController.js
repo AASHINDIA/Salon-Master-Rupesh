@@ -13,6 +13,7 @@ import Salon from '../../Modal/Salon/Salon.js';
 import Candidate from '../../Modal/Candidate/Candidate.js';
 import { verifyGoogleOwnership, verifyGoogleWebOwnership } from '../../Config/OAuth.js';
 import { sendWhatsAppOtp, verifyWhatsAppOtp } from '../../Utils/whatsapp.js';
+import { getPremiumStatus } from '../../Utils/premium.js';
 import { loggers } from 'winston';
 const TEMPLATE = process.env.WHATSAPP_TEMPLATE_NAME
 // Helper function to set OTP expiry (10 minutes from now)
@@ -568,9 +569,16 @@ export const getBuyerProfile = async (req, res) => {
             });
         }
 
+        const premium = await getPremiumStatus(userId);
+
         res.status(200).json({
             success: true,
-            data: user
+            data: {
+                ...user.toObject(),
+                isPremium: premium.isPremium,
+                premiumExpiry: premium.expiresAt || null,
+                adsEnabled: !premium.isPremium,
+            }
         });
     } catch (error) {
         console.error('Get user profile error:', error);

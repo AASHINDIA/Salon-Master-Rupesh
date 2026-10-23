@@ -10,7 +10,8 @@ import {
     getfranchiseListingsByUser,
     getFranchiseListings,
     getTraningListListings,
-    getSellerListing
+    getSellerListing,
+    revealListingContact
 
 } from '../../Controller/Listing/Listing.js';
 import multer from 'multer';
@@ -44,6 +45,9 @@ router.get('/gettraininginstituteListingsByUser', protect, gettraininginstituteL
 router.get('/getFranchiseListings', authMiddleware1, getFranchiseListings)
 router.get('/getTraningListListings', authMiddleware1, getTraningListListings)
 router.get('/getSellerListing', authMiddleware1, getSellerListing)
+
+// Reveal masked contact (premium users bypass the rewarded ad)
+router.post('/reveal-contact', protect, revealListingContact)
 
 
 

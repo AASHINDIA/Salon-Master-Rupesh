@@ -1,3 +1,4 @@
+import dotenv from "dotenv";
 import TraningList from "../../Modal/traininginstitute/TraningList.js";
 import FranchiseList from "../../Modal/franchise/FranchiseList.js";
 import SellerListing from "../../Modal/sales/SellerListing.js";
@@ -9,7 +10,9 @@ import traininginstitute from "../../Modal/traininginstitute/training_institute.
 import franchise from "../../Modal/franchise/franchise.js";
 import { uploadToCloudinary } from "../../Utils/imageUpload.js";
 import ListingInterestSchema from "../../Modal/InterstedSchema/ListingInterestSchema.js";
+import AdReward from "../../Modal/Ads/AdReward.js";
 import { maskPhone, maskEmail } from "../../Utils/maskContact.js";
+import { getPremiumStatus } from "../../Utils/premium.js";
 
 // creating Listing For
 export const createTraningList = async (req, res) => {
@@ -691,5 +694,165 @@ export const getTraningListListings = (req, res) => {
 // For dealer listings
 export const getSellerListing = (req, res) => {
     return getPublicFranchiseListings(SellerListing, req, res);
+};
+
+
+const REVEAL_LISTING_MODELS = {
+    FranchiseList,
+    TraningList,
+    SellerListing,
+};
+
+dotenv.config();
+
+const AD_REWARD_CLAIM_REPLAY_MS = (() => {
+    const parsed = parseInt(process.env.AD_REWARD_CLAIM_REPLAY_MS, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 10 * 60 * 1000;
+})();
+
+const revealPayload = (listingType, listingId, listing) => ({
+    listingType,
+    listingId,
+    phoneNumber: listing.phoneNumber,
+    email: listing.email,
+});
+
+/**
+ * Reveal a masked listing contact.
+ *
+ * Priority: owner > public contactVisibility > premium > rewarded-ad reward.
+ */
+export const revealListingContact = async (req, res) => {
+    try {
+        const userId = req.user?._id || req.user?.id;
+        const { listingType, listingId, requestId } = req.body || {};
+
+        const Model = REVEAL_LISTING_MODELS[listingType];
+
+        if (!Model) {
+            return res.status(400).json({ success: false, message: "Invalid listing type" });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(listingId)) {
+            return res.status(400).json({ success: false, message: "Invalid listing id" });
+        }
+
+        const listing = await Model.findById(listingId).lean();
+
+        if (!listing) {
+            return res.status(404).json({ success: false, message: "Listing not found" });
+        }
+
+        if (listing.status === "inactive" || (listing.expiredAt && new Date(listing.expiredAt).getTime() <= Date.now())) {
+            return res.status(410).json({ success: false, message: "This listing is no longer available" });
+        }
+
+        const isOwner = Boolean(listing.userId && listing.userId.toString() === userId.toString());
+        const premium = await getPremiumStatus(userId);
+
+        const directSource = isOwner
+            ? "owner"
+            : listing.contactVisibility !== "masked"
+                ? "public"
+                : premium.isPremium
+                    ? "premium"
+                    : null;
+
+        if (directSource) {
+            res.set("Cache-Control", "no-store");
+
+            return res.status(200).json({
+                success: true,
+                source: directSource,
+                data: revealPayload(listingType, listing._id, listing),
+            });
+        }
+
+        if (!requestId || !mongoose.Types.ObjectId.isValid(requestId)) {
+            return res.status(403).json({
+                success: false,
+                code: "AD_REQUIRED",
+                message: "Watch a rewarded ad to reveal this contact.",
+            });
+        }
+
+        const now = new Date();
+
+        const consumed = await AdReward.findOneAndUpdate(
+            {
+                _id: requestId,
+                user: userId,
+                purpose: "contact_reveal",
+                targetType: listingType,
+                targetId: listing._id,
+                status: "verified",
+                expiresAt: { $gt: now },
+            },
+            {
+                $set: { status: "consumed", consumedAt: now },
+                $inc: { claimCount: 1 },
+            },
+            { new: true }
+        );
+
+        if (consumed) {
+            res.set("Cache-Control", "no-store");
+
+            return res.status(200).json({
+                success: true,
+                source: "ad",
+                data: revealPayload(listingType, listing._id, listing),
+            });
+        }
+
+        const existing = await AdReward.findOne({
+            _id: requestId,
+            user: userId,
+            purpose: "contact_reveal",
+            targetType: listingType,
+            targetId: listing._id,
+        }).lean();
+
+        if (!existing) {
+            return res.status(403).json({
+                success: false,
+                code: "AD_REQUIRED",
+                message: "Watch a rewarded ad to reveal this contact.",
+            });
+        }
+
+        if (existing.status === "pending") {
+            return res.status(202).json({
+                success: false,
+                code: "VERIFICATION_PENDING",
+                message: "Your reward is still being verified. Please retry.",
+                retryAfterMs: 1000,
+            });
+        }
+
+        if (
+            existing.status === "consumed" &&
+            existing.consumedAt &&
+            now.getTime() - new Date(existing.consumedAt).getTime() <= AD_REWARD_CLAIM_REPLAY_MS
+        ) {
+            res.set("Cache-Control", "no-store");
+
+            return res.status(200).json({
+                success: true,
+                source: "ad",
+                alreadyClaimed: true,
+                data: revealPayload(listingType, listing._id, listing),
+            });
+        }
+
+        return res.status(410).json({
+            success: false,
+            code: "REWARD_EXPIRED",
+            message: "This reward is no longer valid. Please watch an ad again.",
+        });
+    } catch (error) {
+        console.error("REVEAL_LISTING_CONTACT_ERROR:", error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
+    }
 };
 

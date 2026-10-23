@@ -78,6 +78,37 @@ const subscriptionSchema = new mongoose.Schema(
             default: "plan",
         },
 
+        // "premium" = app-wide entitlement, "usage" = legacy click/usage packs
+        scope: {
+            type: String,
+            enum: ["premium", "usage"],
+            default: "usage",
+            index: true,
+        },
+
+        source: {
+            type: String,
+            enum: ["razorpay", "admin", "system"],
+            default: "system",
+        },
+
+        orderId: {
+            type: String,
+            default: null,
+            index: true,
+        },
+
+        paymentId: {
+            type: String,
+            default: null,
+        },
+
+        // Snapshot so a purchased entitlement survives plan edits/deletes
+        planSnapshot: {
+            type: mongoose.Schema.Types.Mixed,
+            default: null,
+        },
+
         notes: {
             type: String,
             default: "",
@@ -87,5 +118,12 @@ const subscriptionSchema = new mongoose.Schema(
         timestamps: true,
     }
 );
+
+subscriptionSchema.index(
+    { paymentId: 1 },
+    { unique: true, partialFilterExpression: { paymentId: { $type: "string" } } }
+);
+
+subscriptionSchema.index({ userId: 1, scope: 1, status: 1, expiryDate: -1 });
 
 export default mongoose.model("Subscription", subscriptionSchema);

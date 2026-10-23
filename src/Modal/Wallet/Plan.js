@@ -59,6 +59,22 @@ const PlanSchema = new Schema({
         min: 0
     },
 
+    // "video" keeps the existing per-video purchase behaviour.
+    // "premium" marks an app-wide subscription plan.
+    scope: {
+        type: String,
+        enum: ["video", "premium"],
+        default: "video",
+        index: true
+    },
+
+    // Only used for premium plans. Video plans keep 0.
+    durationDays: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+
     discount: {
         type: Number,
         default: 0,
@@ -99,5 +115,6 @@ PlanSchema.virtual("discountedPrice").get(function () {
 /* Compound index */
 PlanSchema.index({ isActive: 1, priority: -1 });
 PlanSchema.index({ slug: 1 });
+PlanSchema.index({ scope: 1, isActive: 1, priority: -1 });
 
 export default mongoose.model("Plan", PlanSchema);

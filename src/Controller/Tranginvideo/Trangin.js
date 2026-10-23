@@ -5,6 +5,8 @@ import TrainingPurchase from "../../Modal/SuperAdmin/BuyTraning.js";
 import mongoose from "mongoose";
 import * as videoService from './trainingVideo.service.js'
 import VideoLike from "../../Modal/videoLike.js";
+import AdReward from "../../Modal/Ads/AdReward.js";
+import { getPremiumStatus } from "../../Utils/premium.js";
 import { uploadToCloudinary } from "../../Utils/imageUpload.js";
 import multer from 'multer';
 
@@ -173,6 +175,110 @@ export const checkUserPurchase = async (userId, videoId) => {
 
 
 /**
+ * Resolve how a user can access a training video.
+ *
+ * Priority: admin/instructor > premium > existing purchase > rewarded ad
+ * session (free videos only).
+ */
+export const resolveVideoAccess = async (userId, video, userDomain = null) => {
+    const requiresPurchase = video.accessType !== "free";
+
+    if (!userId) {
+        return {
+            hasAccess: false,
+            source: null,
+            requiresAd: video.accessType === "free",
+            requiresPurchase,
+            accessExpiresAt: null,
+        };
+    }
+
+    if (["admin", "superadmin"].includes(userDomain)) {
+        return {
+            hasAccess: true,
+            source: "admin",
+            requiresAd: false,
+            requiresPurchase: false,
+            accessExpiresAt: null,
+        };
+    }
+
+    const premium = await getPremiumStatus(userId);
+
+    if (premium.isPremium) {
+        return {
+            hasAccess: true,
+            source: "premium",
+            requiresAd: false,
+            requiresPurchase: false,
+            accessExpiresAt: null,
+        };
+    }
+
+    if (video.accessType === "free") {
+        const grant = await AdReward.findOne({
+            user: userId,
+            targetType: "TrainingVideo",
+            targetId: video._id,
+            purpose: "free_video_access",
+            status: "consumed",
+            accessExpiresAt: { $gt: new Date() },
+        })
+            .sort({ accessExpiresAt: -1 })
+            .lean();
+
+        if (grant) {
+            return {
+                hasAccess: true,
+                source: "ad",
+                requiresAd: false,
+                requiresPurchase: false,
+                accessExpiresAt: grant.accessExpiresAt,
+            };
+        }
+
+        return {
+            hasAccess: false,
+            source: null,
+            requiresAd: true,
+            requiresPurchase: false,
+            accessExpiresAt: null,
+        };
+    }
+
+    const purchase = await TrainingPurchase.findOne({
+        user: userId,
+        training: video._id,
+        paymentStatus: "completed",
+        isActive: true,
+        $or: [
+            { accessExpiresAt: { $exists: false } },
+            { accessExpiresAt: null },
+            { accessExpiresAt: { $gt: new Date() } },
+        ],
+    }).lean();
+
+    if (purchase) {
+        return {
+            hasAccess: true,
+            source: "purchase",
+            requiresAd: false,
+            requiresPurchase: false,
+            accessExpiresAt: purchase.accessExpiresAt || null,
+        };
+    }
+
+    return {
+        hasAccess: false,
+        source: null,
+        requiresAd: false,
+        requiresPurchase: true,
+        accessExpiresAt: null,
+    };
+};
+
+
+/**
  * @desc Get Training Video By ID (Enterprise Level)
  * @route GET /api/training-video/:id
  * @access Private/Public (based on accessType)
@@ -222,21 +328,26 @@ export const getVideoById = async (req, res) => {
         }
 
         /* ---------------------------------------------
-           3. Access Control (Netflix-style gating)
+           3. Access Control (premium / purchase / ad)
         ---------------------------------------------- */
-        if (video.accessType === "paid") {
-            // TODO: Check if user purchased
-            // Example:
-            const hasAccess = await checkUserPurchase(userId, video._id);
+        const instructorId = video.instructor?._id || video.instructor;
+        const isInstructor = Boolean(
+            instructorId && userId && instructorId.toString() === userId.toString()
+        );
 
+        const access = await resolveVideoAccess(userId, video, req.user?.domain_type);
+        const hasAccess = access.hasAccess || isInstructor;
 
-            if (!hasAccess) {
-                return res.status(403).json({
-                    success: false,
-                    message: "Access denied. Please purchase this video.",
-                    previewVideoId: video.previewVideoId
-                });
-            }
+        if (!hasAccess) {
+            return res.status(403).json({
+                success: false,
+                message: access.requiresPurchase
+                    ? "Access denied. Please purchase this video."
+                    : "Watch a rewarded ad to unlock this video.",
+                previewVideoId: video.previewVideoId,
+                requiresAd: Boolean(access.requiresAd),
+                requiresPurchase: Boolean(access.requiresPurchase),
+            });
         }
 
         /* ---------------------------------------------
@@ -252,7 +363,12 @@ export const getVideoById = async (req, res) => {
         ---------------------------------------------- */
         return res.status(200).json({
             success: true,
-            data: video
+            data: {
+                ...video,
+                hasAccess: true,
+                accessSource: isInstructor ? "instructor" : access.source,
+                accessExpiresAt: access.accessExpiresAt || null,
+            }
         });
 
     } catch (error) {
@@ -287,12 +403,25 @@ export const checkPurchaseVideo = async (req, res) => {
             });
         }
 
-        // Single query to get both access status and purchase details
+        const video = await TrainingVideo.findOne({
+            _id: videoId,
+            isDeleted: false,
+        }).lean();
+
+        if (!video) {
+            return res.status(404).json({
+                success: false,
+                message: "Training video not found"
+            });
+        }
+
+        const access = await resolveVideoAccess(userId, video, req.user?.domain_type);
+
         const purchase = await TrainingPurchase.findOne({
             user: userId,
             training: videoId,
             paymentStatus: "completed",
-          
+            isActive: true,
         })
             .select("transactionId plan accessExpiresAt createdAt")
             .populate("plan", "name duration")
@@ -301,7 +430,11 @@ export const checkPurchaseVideo = async (req, res) => {
         return res.status(200).json({
             success: true,
             data: {
-                hasAccess: purchase !== null,
+                hasAccess: access.hasAccess,
+                accessSource: access.source,
+                requiresAd: Boolean(access.requiresAd),
+                requiresPurchase: Boolean(access.requiresPurchase),
+                accessExpiresAt: access.accessExpiresAt || null,
                 purchaseDetails: purchase || null,
                 userId: userId,
                 videoId: videoId
@@ -740,43 +873,16 @@ export const getTrainingVideoById = async (req, res) => {
             });
         }
 
-        let canAccess = false;
-
         /* ===============================
            2. Access Control Logic
         =============================== */
 
-        if (video.accessType === "free") {
-            canAccess = true;
-        }
-
-        if (video.accessType === "paid" || video.accessType === "trial") {
-
-            if (!userId) {
-                return res.status(401).json({
-                    success: false,
-                    message: "Authentication required"
-                });
-            }
-
-            const purchase = await TrainingPurchase.findOne({
-                user: userId,
-                training: video._id,
-                paymentStatus: "completed",
-                isActive: true
-            }).lean();
-
-            if (purchase) {
-
-                if (!purchase.accessExpiresAt) {
-                    canAccess = true;
-                }
-
-                if (purchase.accessExpiresAt > new Date()) {
-                    canAccess = true;
-                }
-            }
-        }
+        const access = await resolveVideoAccess(userId, video, req.user?.domain_type);
+        const instructorId = video.instructor?._id || video.instructor;
+        const isInstructor = Boolean(
+            instructorId && userId && instructorId.toString() === userId.toString()
+        );
+        const canAccess = access.hasAccess || isInstructor;
 
         /* ===============================
            3. Response DTO
@@ -798,7 +904,11 @@ export const getTrainingVideoById = async (req, res) => {
             plan: video.plan || null,
 
             youtubeVideoId: canAccess ? video.youtubeVideoId : null,
-            locked: !canAccess
+            locked: !canAccess,
+            requiresAd: !canAccess && Boolean(access.requiresAd),
+            requiresPurchase: !canAccess && Boolean(access.requiresPurchase),
+            accessSource: canAccess ? (isInstructor ? "instructor" : access.source) : null,
+            accessExpiresAt: canAccess ? (access.accessExpiresAt || null) : null
         };
 
         return res.status(200).json({

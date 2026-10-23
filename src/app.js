@@ -52,6 +52,10 @@ import Planroute from './Route/Trangin/plan.js'
 import listingPlanRoute from './Route/Trangin/listingPlan.js'
 import paymentroute  from './Route/Trangin/Payment.js'
 import interested from './Route/InterestedRoute/InterestedRoute.js'
+import adRoutes from './Route/Ads/adRoute.js'
+import premiumRoutes from './Route/Premium/premiumRoute.js'
+import { admobSsv } from './Controller/Ads/admobSsv.js'
+import { premiumWebhook } from './Controller/Premium/premiumPayment.js'
 const app = express();
 
 // ---------------------------
@@ -71,6 +75,12 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 }));
+
+// AdMob SSV callback must use the raw query string (no JSON body)
+app.get('/api/v1/ads/ssv/admob', admobSsv);
+
+// Razorpay premium webhook must receive the raw body BEFORE express.json()
+app.post('/api/v1/premium/webhook', express.raw({ type: 'application/json' }), premiumWebhook);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -185,6 +195,10 @@ app.use('/api/v1/sallerroute', SallerRoute)
 app.use('/api/v1/listing', listing)
 
 app.use('/api/v1/listing_managment', ListingManage)
+
+// Rewarded ads (AdMob SSV) + premium subscriptions
+app.use('/api/v1/ads', adRoutes)
+app.use('/api/v1/premium', premiumRoutes)
 
 // Interested Routes
 app.use('/api/v1/interested', interested)

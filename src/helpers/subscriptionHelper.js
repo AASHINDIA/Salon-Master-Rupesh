@@ -1,7 +1,7 @@
 // import Subscription from "../models/subscription.js";
 // import UsageLog from "../models/usageLog.js";
-import Subscription from "../Modal/Subscriptions/subscriptions";
-import UsageLog from "../Modal/Subscriptions/usageLogSchema";
+import Subscription from "../Modal/Subscriptions/subscriptions.js";
+import UsageLog from "../Modal/Subscriptions/usageLogSchema.js";
 
 /**
  * Handle click event, reduce subscription count and log usage
@@ -25,6 +25,7 @@ export const handleClickHelper = async ({
   // 🔍 Find active subscription for salon
   const subscription = await Subscription.findOne({
     userId: salonId,
+    scope: "usage",
     status: "active",
   }).sort({ expiryDate: -1 });
 
