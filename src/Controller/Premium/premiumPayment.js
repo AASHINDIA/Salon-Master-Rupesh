@@ -58,7 +58,6 @@ const mapPaymentMethod = (payment) => {
 
 const serializeStatus = (status) => ({
     isPremium: status.isPremium,
-    adsEnabled: status.adsEnabled,
     plan: status.plan || null,
     startedAt: status.startedAt || null,
     expiresAt: status.expiresAt || null,

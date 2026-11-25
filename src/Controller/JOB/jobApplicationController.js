@@ -3,7 +3,6 @@ import JobPosting from '../../Modal/JOB/JobPosting.js';
 import JobApplication from '../../Modal/JOB/JobApplication.js';
 import Salon from '../../Modal/Salon/Salon.js';
 import mongoose from 'mongoose';
-import JobPostingDummy from '../../Modal/Dummaydata/jobsDummay.js';
 // Apply for Job
 export const applyForJob = async (req, res) => {
     const session = await mongoose.startSession();
@@ -17,18 +16,12 @@ export const applyForJob = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Candidate profile not found' });
         }
 
-        let job = await JobPosting.findById(req.params.jobId).session(session);
-        let isDummy = false;
+        const job = await JobPosting.findById(req.params.jobId).session(session);
 
-        // If not found in real jobs, check dummy jobs
         if (!job) {
-            job = await JobPostingDummy.findById(req.params.jobId).session(session);
-            if (!job) {
-                await session.abortTransaction();
-                session.endSession();
-                return res.status(404).json({ success: false, message: 'Job not found or closed' });
-            }
-            isDummy = true;
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ success: false, message: 'Job not found or closed' });
         }
 
         // Check if already applied
@@ -60,7 +53,7 @@ export const applyForJob = async (req, res) => {
             expected_salary: req.body.expected_salary || null,
             availability: req.body.availability || null,
             gender_match: genderPreference === 'Any' || genderPreference === candidate.gender,
-            status: isDummy ? 'Hired' : 'Applied'
+            status: 'Applied'
         });
 
         await application.save({ session });

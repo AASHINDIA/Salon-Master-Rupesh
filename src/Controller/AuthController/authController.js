@@ -14,7 +14,18 @@ import Candidate from '../../Modal/Candidate/Candidate.js';
 import { verifyGoogleOwnership, verifyGoogleWebOwnership } from '../../Config/OAuth.js';
 import { sendWhatsAppOtp, verifyWhatsAppOtp } from '../../Utils/whatsapp.js';
 import { getPremiumStatus } from '../../Utils/premium.js';
+import { normalizePhone } from '../../services/jobPostingImport.service.js';
 import { loggers } from 'winston';
+
+// Look up a user regardless of how the phone number was formatted
+// (e.g. 9876543210, 09876543210, +919876543210).
+const findUserByPhone = (number, projection) => {
+    const variants = normalizePhone(number).variants;
+    const found = variants.length
+        ? User.findOne({ whatsapp_number: { $in: variants } })
+        : User.findOne({ _id: null });
+    return projection ? found.select(projection) : found;
+};
 const TEMPLATE = process.env.WHATSAPP_TEMPLATE_NAME
 // Helper function to set OTP expiry (10 minutes from now)
 
@@ -117,7 +128,13 @@ export const googleAuth = async (req, res) => {
             if (domain_type === 'company') {
                 await new Company({ user_id: user._id, whatsapp_number: user.whatsapp_number }).save();
             } else if (domain_type === 'salon') {
-                await new Salon({ user_id: user._id, whatsapp_number: user.whatsapp_number }).save();
+                await new Salon({
+                    user_id: user._id,
+                    whatsapp_number: user.whatsapp_number,
+                    is_claimed: true,
+                    claimed_at: new Date(),
+                    source: 'app',
+                }).save();
             } else if (domain_type === 'worker') {
                 await new Candidate({ user_id: user._id, contact_no: user.whatsapp_number }).save();
             }
@@ -162,22 +179,39 @@ export const register = async (req, res) => {
     try {
         const { name, password, domain_type, whatsapp_number, } = req.body;
 
+        const { normalized: normalizedPhone, variants: phoneVariants } =
+            normalizePhone(whatsapp_number);
+
+        if (!normalizedPhone || !/^\d{10,15}$/.test(normalizedPhone)) {
+            return res.status(422).json({
+                success: false,
+                message: "Invalid WhatsApp number",
+            });
+        }
 
         // Check if user exists
-        const existingUser = await User.findOne(
-            { whatsapp_number }
-        );
+        const existingUser = await User.findOne({
+            whatsapp_number: { $in: phoneVariants },
+        });
 
-        if (existingUser) {
+        // An imported (CSV) salon profile can be claimed by signing up with the
+        // phone number on file. Normal, verified accounts still cannot duplicate.
+        if (existingUser && !(existingUser.imported && !existingUser.otp_verified)) {
             return res.status(400).json({
                 success: false,
                 message: "User already exists with this email or WhatsApp number",
             });
         }
+        if (existingUser && !password) {
+            return res.status(422).json({
+                success: false,
+                message: "Set a password to claim your existing business profile",
+            });
+        }
         const otp = generateOTP(4, "numeric");
         // Send OTP via WhatsApp
         console.log("Sending WhatsApp OTP...");
-        const otpResponse = await sendWhatsAppOtp(whatsapp_number, otp);
+        const otpResponse = await sendWhatsAppOtp(normalizedPhone, otp);
 
         console.log("OTP Response:", otpResponse.data);
 
@@ -193,55 +227,68 @@ export const register = async (req, res) => {
         // Safely extract and handle UID
         const whatsappUid = otpResponse.uid;
 
-        // Create user with WhatsApp UID
-        const newUser = new User({
-            name,
+        let user;
 
-            password,
-            domain_type,
-            whatsapp_number,
-            whatsapp_uid: whatsappUid,
-            otp_code: otp,
-            otp_sent_at: new Date(),
-            otp_expires_at: setOtpExpiry(),
-            otp_verified: false,
-        });
-
-        const user = await newUser.save();
-
-
-        // Create User Registration if salon
-        if (domain_type === 'company') {
-            const newCompany = new Company({
-                user_id: newUser._id,
-                whatsapp_number: newUser.whatsapp_number,
-
-
-            });
-            await newCompany.save();
-        } else if (domain_type === 'salon') {
-            const newSalon = new Salon({
-                user_id: newUser._id,
-                whatsapp_number: newUser.whatsapp_number,
-
-            });
-            await newSalon.save();
-        } else if (domain_type === 'worker') {
-            const newCandidate = new Candidate({
-                user_id: newUser._id,
-                contact_no: newUser.whatsapp_number,
+        if (existingUser) {
+            // Claim the imported salon profile instead of creating a duplicate account.
+            existingUser.name = name || existingUser.name;
+            if (password) existingUser.password = password;
+            if (domain_type) existingUser.domain_type = domain_type;
+            existingUser.whatsapp_number = normalizedPhone;
+            existingUser.whatsapp_uid = whatsappUid;
+            existingUser.otp_code = otp;
+            existingUser.otp_sent_at = new Date();
+            existingUser.otp_expires_at = setOtpExpiry();
+            existingUser.otp_verified = false;
+            existingUser.otp_attempts = 0;
+            user = await existingUser.save();
+        } else {
+            const newUser = new User({
+                name,
+                password,
+                domain_type,
+                whatsapp_number: normalizedPhone,
+                whatsapp_uid: whatsappUid,
+                otp_code: otp,
+                otp_sent_at: new Date(),
+                otp_expires_at: setOtpExpiry(),
+                otp_verified: false,
             });
 
-            await newCandidate.save();
+            user = await newUser.save();
+
+            // Create the matching profile record for the user's domain
+            if (domain_type === 'company') {
+                await new Company({
+                    user_id: user._id,
+                    whatsapp_number: user.whatsapp_number,
+                }).save();
+            } else if (domain_type === 'salon') {
+                await new Salon({
+                    user_id: user._id,
+                    whatsapp_number: user.whatsapp_number,
+                    is_claimed: true,
+                    claimed_at: new Date(),
+                    source: 'app',
+                }).save();
+            } else if (domain_type === 'worker') {
+                await new Candidate({
+                    user_id: user._id,
+                    contact_no: user.whatsapp_number,
+                }).save();
+            }
         }
 
         return res.status(201).json({
             success: true,
-            message: "User registered successfully. OTP sent via WhatsApp.",
+            message: existingUser
+                ? "OTP sent to claim your existing business profile."
+                : "User registered successfully. OTP sent via WhatsApp.",
             data: {
                 userId: user._id,
                 whatsapp_number: user.whatsapp_number,
-                otpSent: true
+                otpSent: true,
+                requiresClaim: Boolean(existingUser),
             },
         });
 
@@ -262,7 +309,8 @@ export const verifyOtp = async (req, res) => {
         const { whatsapp_number, otp } = req.body;
 
         // Validate inputs
-        if (!whatsapp_number || !/^\d{10,15}$/.test(whatsapp_number)) {
+        const { normalized: normalizedPhone } = normalizePhone(whatsapp_number);
+        if (!normalizedPhone || !/^\d{10,15}$/.test(normalizedPhone)) {
             return res.status(422).json({ success: false, message: "Invalid WhatsApp number" });
         }
         if (!otp || !/^\d{4,6}$/.test(otp)) {
@@ -270,7 +318,7 @@ export const verifyOtp = async (req, res) => {
         }
 
         // Find user
-        const user = await User.findOne({ whatsapp_number });
+        const user = await findUserByPhone(whatsapp_number);
         if (!user) {
             return res.status(404).json({ success: false, message: "User not found" });
         }
@@ -308,6 +356,21 @@ export const verifyOtp = async (req, res) => {
 
         await user.save();
 
+        // A verified signup for a salon owner also claims the existing business profile.
+        if (user.imported) {
+            user.imported = false;
+            await user.save();
+        }
+        if (user.domain_type === 'salon') {
+            const salon = await Salon.findOne({ user_id: user._id });
+            if (salon && !salon.is_claimed) {
+                salon.is_claimed = true;
+                salon.claimed_at = new Date();
+                salon.source = salon.source || 'app';
+                await salon.save();
+            }
+        }
+
         return res.status(200).json({
             success: true,
             message: "WhatsApp number verified successfully",
@@ -340,7 +403,7 @@ export const requestPasswordReset = async (req, res) => {
         const { whatsapp_number } = req.body;
 
         // Find user by WhatsApp number
-        const user = await User.findOne({ whatsapp_number });
+        const user = await findUserByPhone(whatsapp_number);
         if (!user) {
             return res.status(404).json({
                 success: false,
@@ -358,7 +421,7 @@ export const requestPasswordReset = async (req, res) => {
         }
 
         // Send OTP via WhatsApp (auto-generated by service)
-        const otpResponse = await sendWhatsAppOtp(whatsapp_number);
+        const otpResponse = await sendWhatsAppOtp(user.whatsapp_number);
 
         if (!otpResponse.success) {
             console.error("WhatsApp OTP failed:", otpResponse.error);
@@ -413,7 +476,7 @@ export const resetPassword = async (req, res) => {
         const { whatsapp_number, otp, newPassword } = req.body;
 
         // Find user
-        const user = await User.findOne({ whatsapp_number });
+        const user = await findUserByPhone(whatsapp_number);
         if (!user) {
             return res.status(404).json({
                 success: false,
@@ -479,7 +542,7 @@ export const resendOtp = async (req, res) => {
         const { whatsapp_number } = req.body;
 
         // ✅ Find user
-        const user = await User.findOne({ whatsapp_number });
+        const user = await findUserByPhone(whatsapp_number);
         if (!user) {
             return res.status(404).json({
                 success: false,
@@ -493,7 +556,7 @@ export const resendOtp = async (req, res) => {
         console.log(`Generated OTP for ${whatsapp_number}:`, otp);
 
         // ✅ Send OTP via WhatsApp
-        const otpResponse = await sendWhatsAppOtp(whatsapp_number, otp);
+        const otpResponse = await sendWhatsAppOtp(user.whatsapp_number, otp);
 
         if (!otpResponse?.success) {
             return res.status(500).json({
@@ -577,7 +640,6 @@ export const getBuyerProfile = async (req, res) => {
                 ...user.toObject(),
                 isPremium: premium.isPremium,
                 premiumExpiry: premium.expiresAt || null,
-                adsEnabled: !premium.isPremium,
             }
         });
     } catch (error) {
@@ -604,12 +666,33 @@ export const login = async (req, res) => {
         }
 
         // Find user with password
-        const user = await User.findOne({ whatsapp_number }).select('+password');
+        const user = await findUserByPhone(whatsapp_number, '+password');
 
         if (!user) {
             return res.status(401).json({
                 success: false,
                 message: 'Invalid credentials'
+            });
+        }
+
+        // Imported salon profiles must be claimed before they can log in
+        if (user.imported && !user.otp_verified) {
+            const salon = await Salon.findOne({ user_id: user._id }).select('_id salon_name is_claimed');
+            return res.status(403).json({
+                success: false,
+                message: 'This business profile has not been claimed yet. Please claim it with OTP.',
+                data: {
+                    requiresClaim: true,
+                    salonId: salon?._id,
+                    salon_name: salon?.salon_name,
+                },
+            });
+        }
+
+        if (!user.password) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid credentials',
             });
         }
 
@@ -709,11 +792,12 @@ export const adminSendOtp = async (req, res) => {
     try {
         const { whatsapp_number } = req.body;
 
-        if (!whatsapp_number || !/^\d{10,15}$/.test(whatsapp_number)) {
+        const { normalized: normalizedPhone } = normalizePhone(whatsapp_number);
+        if (!normalizedPhone || !/^\d{10,15}$/.test(normalizedPhone)) {
             return res.status(422).json({ success: false, message: "Invalid WhatsApp number" });
         }
 
-        const user = await User.findOne({ whatsapp_number });
+        const user = await findUserByPhone(whatsapp_number);
         if (!user) {
             return res.status(404).json({ success: false, message: "User not found" });
         }
@@ -736,7 +820,7 @@ export const adminSendOtp = async (req, res) => {
         // Generate OTP
         const otp = generateOTP(4, "numeric");
 
-        const otpResponse = await sendWhatsAppOtp(whatsapp_number, otp);
+        const otpResponse = await sendWhatsAppOtp(user.whatsapp_number, otp);
 
         if (!otpResponse.success || !otpResponse.uid) {
             console.error("WhatsApp OTP failed:", otpResponse.error);
@@ -770,14 +854,15 @@ export const adminVerifyOtp = async (req, res) => {
     try {
         const { whatsapp_number, otp } = req.body;
 
-        if (!whatsapp_number || !/^\d{10,15}$/.test(whatsapp_number)) {
+        const { normalized: normalizedPhone } = normalizePhone(whatsapp_number);
+        if (!normalizedPhone || !/^\d{10,15}$/.test(normalizedPhone)) {
             return res.status(422).json({ success: false, message: "Invalid WhatsApp number" });
         }
         if (!otp || !/^\d{4,6}$/.test(otp)) {
             return res.status(422).json({ success: false, message: "Invalid OTP format" });
         }
 
-        const user = await User.findOne({ whatsapp_number });
+        const user = await findUserByPhone(whatsapp_number);
         if (!user) {
             return res.status(404).json({ success: false, message: "User not found" });
         }

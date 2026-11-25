@@ -46,7 +46,7 @@ router.get('/getFranchiseListings', authMiddleware1, getFranchiseListings)
 router.get('/getTraningListListings', authMiddleware1, getTraningListListings)
 router.get('/getSellerListing', authMiddleware1, getSellerListing)
 
-// Reveal masked contact (premium users bypass the rewarded ad)
+// Reveal masked contact (premium users only)
 router.post('/reveal-contact', protect, revealListingContact)
 
 

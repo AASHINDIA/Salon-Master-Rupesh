@@ -26,7 +26,7 @@ export const buildPlanSnapshot = (plan) => {
  */
 export const getPremiumStatus = async (userId) => {
     if (!userId) {
-        return { isPremium: false, adsEnabled: true, subscription: null, expiresAt: null, daysLeft: 0 };
+        return { isPremium: false, subscription: null, expiresAt: null, daysLeft: 0 };
     }
 
     const now = new Date();
@@ -54,7 +54,7 @@ export const getPremiumStatus = async (userId) => {
     );
 
     if (!subscription) {
-        return { isPremium: false, adsEnabled: true, subscription: null, expiresAt: null, daysLeft: 0 };
+        return { isPremium: false, subscription: null, expiresAt: null, daysLeft: 0 };
     }
 
     const daysLeft = Math.max(
@@ -64,7 +64,6 @@ export const getPremiumStatus = async (userId) => {
 
     return {
         isPremium: true,
-        adsEnabled: false,
         subscription,
         plan: subscription.planSnapshot || null,
         startedAt: subscription.startDate,

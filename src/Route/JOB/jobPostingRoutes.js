@@ -10,9 +10,11 @@ import {
     getJobRequestsForCandidate,
     getRequestedCandidatesForSalon,
     getCandidateRequests,
-    getSuggestedCandidates
+    getSuggestedCandidates,
+    bulkUploadJobPostings
 } from '../../Controller/JOB/jobPostingController.js';
-import { protect, roleCheck } from '../../Middlewares/authMiddleware/auth.js';
+import { protect, roleCheck, authorizeDomain } from '../../Middlewares/authMiddleware/auth.js';
+import upload from '../../Middlewares/Uploadcsv/Uploadcsv.js';
 
 const router = express.Router();
 
@@ -30,6 +32,14 @@ router.get('/getRequestedCandidatesForSalon', getRequestedCandidatesForSalon);
 
 // Create a new job posting
 router.post('/', createJobPosting);
+
+// Bulk upload jobs for the logged-in salon
+router.post(
+    '/bulk-upload',
+    authorizeDomain('salon'),
+    upload.single('file'),
+    bulkUploadJobPostings
+);
 router.post('/suggestcandidate', getSuggestedCandidates);
 
 router.post('/RequestForJobToSuggestedCandidates', RequestForJobToSuggestedCandidates);

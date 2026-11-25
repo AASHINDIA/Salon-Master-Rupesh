@@ -8,6 +8,9 @@ import SuggestedCandidate from '../../Modal/RequestJobSuggestedCandidate/Request
 import admin from '../../Utils/firebaseAdmin.js';
 import User from '../../Modal/Users/User.js'
 import Emp from '../../Modal/Dummaydata/Emp.js';
+import fs from 'fs';
+import csv from 'csv-parser';
+import { importJobPostings } from '../../services/jobPostingImport.service.js';
 
 
 export const createJobPosting = async (req, res) => {
@@ -92,6 +95,76 @@ export const createJobPosting = async (req, res) => {
             message: 'Error creating job posting',
             error: error.message
         });
+    }
+};
+
+// Bulk upload job postings for the logged-in (claimed) salon.
+export const bulkUploadJobPostings = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'No file uploaded' });
+        }
+
+        const salon = await Salon.findOne({ user_id: req.user._id });
+
+        if (!salon) {
+            return res.status(404).json({ success: false, message: 'Salon not found' });
+        }
+
+        // Legacy salons created before the claim flag existed belong to their
+        // owning user already, so treat them as claimed.
+        const isClaimed =
+            salon.is_claimed === true ||
+            (salon.is_claimed === undefined && !req.user.imported);
+
+        if (!isClaimed) {
+            return res.status(403).json({
+                success: false,
+                message: 'Claim your business with OTP before uploading jobs',
+            });
+        }
+
+        const rows = [];
+
+        await new Promise((resolve, reject) => {
+            fs.createReadStream(req.file.path)
+                .pipe(csv())
+                .on('data', (row) => rows.push(row))
+                .on('end', resolve)
+                .on('error', reject);
+        });
+
+        if (rows.length === 0) {
+            return res.status(400).json({ success: false, message: 'CSV file is empty' });
+        }
+
+        const summary = await importJobPostings(rows, {
+            forcedSalon: salon,
+            source: 'owner-csv',
+        });
+
+        if (summary.jobsCreated === 0 && summary.errors.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'No valid rows to insert',
+                ...summary,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'Job postings uploaded successfully',
+            ...summary,
+        });
+    } catch (error) {
+        console.error('Bulk upload job postings error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error uploading job postings',
+            error: error.message,
+        });
+    } finally {
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     }
 };
 

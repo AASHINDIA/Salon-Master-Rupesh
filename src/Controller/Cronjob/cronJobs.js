@@ -1,5 +1,4 @@
 import cron from "node-cron";
-import JobPostingDummy from "../../Modal/Dummaydata/jobsDummay.js";
 import JobPosting from "../../Modal/JOB/JobPosting.js";
 import Candidate from "../../Modal/Candidate/Candidate.js";
 import Emp from "../../Modal/Dummaydata/Emp.js";
@@ -14,11 +13,6 @@ cron.schedule("0 0 * * *", async () => {
 
     // Update jobs older than 10 days
     await JobPosting.updateMany(
-      { createdAt: { $lt: tenDaysAgo }, is_active: true },
-      { $set: { is_active: false } }
-    );
-
-    await JobPostingDummy.updateMany(
       { createdAt: { $lt: tenDaysAgo }, is_active: true },
       { $set: { is_active: false } }
     );

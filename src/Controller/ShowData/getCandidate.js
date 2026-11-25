@@ -1,7 +1,6 @@
 
 import Candidate from "../../Modal/Candidate/Candidate.js";
 import JobPosting from "../../Modal/JOB/JobPosting.js";
-import JobPostingDummy from "../../Modal/Dummaydata/jobsDummay.js";
 import Skill from "../../Modal/skill/skill.js";
 import Salon from "../../Modal/Salon/Salon.js";
 // Helper to mask name (first + last letter, rest * )
@@ -258,39 +257,13 @@ export const getJobPostings = async (req, res) => {
       ];
     }
 
-    // Fetch from both schemas with the SAME filter, so behavior is consistent.
-    // Each promise is guarded individually — if one collection errors out,
-    // we still return data from the other instead of failing the whole request.
-    const [premiumResult, dummyResult] = await Promise.allSettled([
-      JobPosting.find(filter)
-        .populate("salon_id", "salon_name year_of_start contact_number")
-        .populate("required_skills", "skill_name")
-        .lean(),
-      JobPostingDummy.find(filter).lean(),
-    ]);
-
-    const premiumJobs =
-      premiumResult.status === "fulfilled" && Array.isArray(premiumResult.value)
-        ? premiumResult.value
-        : [];
-
-    const dummyJobs =
-      dummyResult.status === "fulfilled" && Array.isArray(dummyResult.value)
-        ? dummyResult.value
-        : [];
-
-    if (premiumResult.status === "rejected") {
-      console.error("JobPosting query failed:", premiumResult.reason);
-    }
-    if (dummyResult.status === "rejected") {
-      console.error("JobPostingDummy query failed:", dummyResult.reason);
-    }
+    const jobsFromDb = await JobPosting.find(filter)
+      .populate("salon_id", "salon_name year_of_start contact_number")
+      .populate("required_skills", "skill_name")
+      .lean();
 
     // Normalize + drop any doc that failed to normalize (null)
-    const allJobs = [
-      ...premiumJobs.map((job) => normalizeJob(job, true)),
-      ...dummyJobs.map((job) => normalizeJob(job, false)),
-    ].filter(Boolean);
+    const allJobs = jobsFromDb.map((job) => normalizeJob(job, true)).filter(Boolean);
 
     // Sort by posted_date (newest first), treating missing dates as oldest
     allJobs.sort((a, b) => {

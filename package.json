@@ -8,6 +8,7 @@
     "dev": "nodemon src/server.js",
     "seed:listing-plans": "node src/seeders/seedListingPlans.js",
     "seed:permissions": "node src/seeders/seedPermissions.js",
+    "migrate:dummy-jobs": "node scripts/migrateDummyJobPostings.js",
     "test": "echo \"No tests yet\" && exit 0"
   },
   "author": "",

@@ -15,8 +15,15 @@ const UserSchema = new mongoose.Schema({
     password: {
         type: String,
         required: function () {
-            return this.auth_provider === 'local'; // only required for local signups
+            // Imported salon profiles exist only as claim placeholders until the
+            // business owner sets a password through the OTP claim flow.
+            return this.auth_provider === 'local' && !this.imported;
         },
+    },
+    imported: {
+        type: Boolean,
+        default: false,
+        index: true,
     },
     permissions: [{
         type: mongoose.Schema.Types.ObjectId,

@@ -12,6 +12,19 @@ const salonSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  is_claimed: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
+  claimed_at: {
+    type: Date,
+  },
+  source: {
+    type: String,
+    enum: ['app', 'csv'],
+    default: 'app',
+  },
   unique_name: {
     type: String,
 

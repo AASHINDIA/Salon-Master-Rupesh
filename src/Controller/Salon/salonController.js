@@ -203,7 +203,8 @@ export const getAllSalon = async (req, res) => {
             country,
             state,
             city,
-            year_of_start
+            year_of_start,
+            is_claimed
         } = req.query;
 
         page = parseInt(page);
@@ -228,6 +229,7 @@ export const getAllSalon = async (req, res) => {
         if (state) query["address.state"] = state;
         if (city) query["address.city"] = city;
         if (year_of_start) query.year_of_start = parseInt(year_of_start);
+        if (is_claimed !== undefined) query.is_claimed = is_claimed === 'true';
 
         // Sort options
         let sortOptions = {};
@@ -235,7 +237,7 @@ export const getAllSalon = async (req, res) => {
 
         // Fetch paginated salons
         let salons = await Salon.find(query)
-            .select("salon_name brand_name year_of_start address whatsapp_number contact_number female_employees_count male_employees_count managers_count instagram_link facebook_link youtube_link createdAt")
+            .select("salon_name brand_name year_of_start address whatsapp_number contact_number female_employees_count male_employees_count managers_count instagram_link facebook_link youtube_link is_claimed claimed_at source createdAt")
             .sort(sortOptions)
             .skip((page - 1) * limit)
             .limit(limit);

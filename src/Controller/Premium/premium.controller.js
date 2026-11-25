@@ -17,7 +17,6 @@ const isObjectId = (value) => mongoose.Types.ObjectId.isValid(value);
 
 const serializeStatus = (status) => ({
     isPremium: status.isPremium,
-    adsEnabled: status.adsEnabled,
     plan: status.plan || null,
     startedAt: status.startedAt || null,
     expiresAt: status.expiresAt || null,

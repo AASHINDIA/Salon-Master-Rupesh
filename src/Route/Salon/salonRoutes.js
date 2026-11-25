@@ -1,6 +1,7 @@
 import express from 'express';
 
 import { getSalonProfile, saveSalonProfile,getAllSalon } from '../../Controller/Salon/salonController.js';
+import { sendClaimOtp, resendClaimOtp, verifyClaimOtp, getClaimStatus } from '../../Controller/Salon/claimController.js';
 import { protect } from '../../Middlewares/authMiddleware/auth.js';
 import { roleCheck } from '../../Middlewares/authMiddleware/auth.js';
 import multer from 'multer';
@@ -15,6 +16,13 @@ const upload = multer({
 }); 
 
 router.get('/getallsalon', getAllSalon);
+
+// Public business-claim routes (OTP verified via WhatsApp)
+router.post('/claim/send-otp', sendClaimOtp);
+router.post('/claim/resend-otp', resendClaimOtp);
+router.post('/claim/verify-otp', verifyClaimOtp);
+router.get('/claim/status', getClaimStatus);
+
 router.use(protect);
 // router.use(roleCheck('salon'));
 
