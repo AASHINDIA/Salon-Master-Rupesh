@@ -64,7 +64,7 @@ export async function sendWhatsAppOtp(mobile, otp) {
         return {
             success: true,
             data: responseData,
-         
+            uid: extractUid(responseData),
         };
     } catch (err) {
         console.error("WhatsApp OTP Send Error:", err?.response?.data || err.message);
