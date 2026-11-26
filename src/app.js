@@ -54,6 +54,7 @@ import paymentroute  from './Route/Trangin/Payment.js'
 import interested from './Route/InterestedRoute/InterestedRoute.js'
 import premiumRoutes from './Route/Premium/premiumRoute.js'
 import { premiumWebhook } from './Controller/Premium/premiumPayment.js'
+import leadsdatasalonemp from './Route/salon_leads/leads.routes.js'
 const app = express();
 
 // ---------------------------
@@ -120,7 +121,7 @@ app.get('/', (req, res) => {
 app.use('/api/v1/auth', authRout);
 app.use('/api/v1/tranging', TraningV);
 app.use('/api/v1/paymentroute', paymentroute);
-
+app.use('/api/v1/leadsdata', leadsdatasalonemp);
 app.use('/api/v1/permission', PremissionRoute);
 app.use('/api/v1/plan', Planroute);
 app.use('/api/v1/listing-plan', listingPlanRoute);
