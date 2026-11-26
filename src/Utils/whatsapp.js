@@ -20,6 +20,7 @@ export function extractUid(responseData) {
     return (
         responseData?.data?.uid ||
         responseData?.uid ||
+        responseData?.id ||
         responseData?.Data?.Uid ||
         responseData?.data?.data?.uid ||
         null
@@ -63,7 +64,7 @@ export async function sendWhatsAppOtp(mobile, otp) {
         return {
             success: true,
             data: responseData,
-            uid: extractUid(responseData),
+         
         };
     } catch (err) {
         console.error("WhatsApp OTP Send Error:", err?.response?.data || err.message);
