@@ -879,17 +879,28 @@ export const adminVerifyOtp = async (req, res) => {
             return res.status(400).json({ success: false, message: "OTP session invalid. Please request a new OTP." });
         }
 
+        // Since we are using an external service that may not have a GET verify endpoint
+        // Or if the UID format from the provider isn't a standard 'uid' for their GET API
+        // We will trust the local OTP validation if the provider check fails with "Invalid uid"
         const verificationResponse = await verifyWhatsAppOtp(user.whatsapp_uid, otp);
 
         if (!verificationResponse.success) {
-            user.otp_attempts += 1;
-            await user.save();
-
-            return res.status(400).json({
-                success: false,
-                message: "Invalid OTP. Please check and try again",
-                attempts: user.otp_attempts
-            });
+            // Ponytail: If provider returns "Invalid uid", fallback to checking user.otp_code locally
+            if (verificationResponse.error && (verificationResponse.error.message?.includes("Invalid uid") || verificationResponse.error === "Invalid uid" || String(verificationResponse.error).includes("Invalid uid"))) {
+                if (user.otp_code !== otp) {
+                    user.otp_attempts += 1;
+                    await user.save();
+                    return res.status(400).json({ success: false, message: "Invalid OTP", attempts: user.otp_attempts });
+                }
+            } else {
+                user.otp_attempts += 1;
+                await user.save();
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid OTP. Please check and try again",
+                    attempts: user.otp_attempts
+                });
+            }
         }
 
         // OTP verified successfully
