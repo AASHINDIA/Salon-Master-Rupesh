@@ -6,9 +6,9 @@ dotenv.config();
 
 const WHATSAPP_API_KEY = process.env.WHATSAPP_API_KEY;
 const WHATSAPP_SEND = process.env.WHATSAPP_SEND_OTP_URL;
-const WHATSAPP_VERIFY = process.env.WHATSAPP_VERIFY_OTP_URL;
 const WHATSAPP_TEMPLATE_NAME = process.env.WHATSAPP_TEMPLATE_NAME || "otp";
 
+const WHATSAPP_VERIFY = process.env.WHATSAPP_VERIFY_OTP_URL;
 const generateRandomOtp = () => {
     return Math.floor(100000 + Math.random() * 900000).toString(); // Generates a 6-digit OTP
 };

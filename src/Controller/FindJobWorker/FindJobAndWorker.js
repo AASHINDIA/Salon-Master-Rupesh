@@ -5,6 +5,7 @@ import Salon from "../../Modal/Salon/Salon.js";
 import Emp from '../../Modal/Dummaydata/Emp.js'
 import JobApplication from "../../Modal/JOB/JobApplication.js";
 import SuggestedCandidate from "../../Modal/RequestJobSuggestedCandidate/RequestJobSuggestCandidate.js";
+import Skill from "../../Modal/skill/skill.js";
 
 // Helper function to mask sensitive information
 const maskData = {
@@ -44,6 +45,46 @@ const maskData = {
     }
 };
 
+// Escape a string so it can be used safely inside a RegExp
+const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Job gender_preference is stored as 'Male' | 'Female' | 'Any'
+const getJobGenderValues = (gender) => {
+    if (!gender) return [];
+    const normalized = String(gender).trim().toLowerCase();
+    if (normalized !== 'male' && normalized !== 'female') return [];
+    return [normalized.charAt(0).toUpperCase() + normalized.slice(1)];
+};
+
+// Premium candidates store skill ObjectIds, dummy employees store skill names.
+// Resolve both to a list of Skill IDs so job filtering works for both.
+const getCandidateSkillIds = async (candidate, isPremium) => {
+    const skills = candidate.skills || [];
+
+    if (isPremium) {
+        return skills
+            .filter(skill => skill && skill._id)
+            .map(skill => skill._id);
+    }
+
+    const skillNames = skills
+        .map(skill => (typeof skill === 'string' ? skill : skill?.skill_name || skill?.name))
+        .filter(Boolean)
+        .map(name => String(name).trim())
+        .filter(Boolean);
+
+    if (!skillNames.length) return [];
+
+    const matchedSkills = await Skill.find({
+        skill_name: { $in: skillNames.map(name => new RegExp(`^${escapeRegex(name)}$`, 'i')) }
+    })
+        .select('_id')
+        .lean()
+        .exec();
+
+    return matchedSkills.map(skill => skill._id);
+};
+
 export const findWorkersForJob = async (req, res) => {
     try {
         const { jobId } = req.params;
@@ -67,42 +108,89 @@ export const findWorkersForJob = async (req, res) => {
             });
         }
 
-        // Build match criteria
-        const matchCriteria = {
-            available_for_join: true,
-            $or: [
-                { 'preferred_locations': { $in: [jobPost.address.state] } },
-                { 'preferred_locations': { $size: 0 } } // Include candidates with no location preference
-            ]
+        // Build filter tiers from strict to relaxed. The first tier that returns
+        // results wins, so a worker is never hidden just because the gender,
+        // skill, location or salary filter is too strict - we fall back to all
+        // available candidates instead of returning an empty list.
+        const jobSkillIds = (jobPost.required_skills || [])
+            .filter(skill => skill && skill._id)
+            .map(skill => skill._id);
+
+        const jobStates = [jobPost.address?.state].filter(Boolean);
+
+        const buildWorkerCriteria = (tier) => {
+            const criteria = { available_for_join: true };
+
+            // Gender filter (only when the job wants a specific gender)
+            if (tier.gender && jobPost.gender_preference && jobPost.gender_preference !== 'Any') {
+                criteria.gender = jobPost.gender_preference.toLowerCase();
+            }
+
+            // Skill filter (candidate must have at least one required skill)
+            if (tier.skill && jobSkillIds.length) {
+                criteria.skills = { $in: jobSkillIds };
+            }
+
+            // Location filter
+            if (tier.location && jobStates.length) {
+                criteria.$or = [
+                    { 'preferred_locations': { $in: jobStates } },
+                    { 'preferred_locations': { $size: 0 } } // Include candidates with no location preference
+                ];
+            }
+
+            // Salary range filter
+            if (tier.salary && (jobPost.salary_range?.min > 0 || jobPost.salary_range?.max > 0)) {
+                criteria.$and = [{
+                    $or: [
+                        {
+                            $and: [
+                                { 'expected_salary.min': { $lte: jobPost.salary_range.max || Number.MAX_SAFE_INTEGER } },
+                                { 'expected_salary.max': { $gte: jobPost.salary_range.min } }
+                            ]
+                        },
+                        {
+                            $and: [
+                                { 'expected_salary.min': 0 },
+                                { 'expected_salary.max': 0 }
+                            ]
+                        }
+                    ]
+                }];
+            }
+
+            return criteria;
         };
 
-        // Add gender filter if specified (not 'Any')
-        if (jobPost.gender_preference !== 'Any') {
-            matchCriteria.gender = jobPost.gender_preference.toLowerCase();
-        }
+        const workerFilterTiers = [
+            { name: 'all_filters', gender: true, skill: true, location: true, salary: true },
+            { name: 'without_location', gender: true, skill: true, location: false, salary: true },
+            { name: 'without_gender', gender: false, skill: true, location: false, salary: true },
+            { name: 'all_candidates', gender: false, skill: false, location: false, salary: false }
+        ];
 
-        // Add salary range filter
-        if (jobPost.salary_range.min > 0 || jobPost.salary_range.max > 0) {
-            matchCriteria.$or = [
-                ...(matchCriteria.$or || []),
-                {
-                    $and: [
-                        { 'expected_salary.min': { $lte: jobPost.salary_range.max || Number.MAX_SAFE_INTEGER } },
-                        { 'expected_salary.max': { $gte: jobPost.salary_range.min } }
-                    ]
-                },
-                {
-                    $and: [
-                        { 'expected_salary.min': 0 },
-                        { 'expected_salary.max': 0 }
-                    ]
-                }
-            ];
-        }
+        let matchingCandidates = [];
+        let appliedFilters = 'all_candidates';
+        const triedWorkerCriteria = new Set();
 
-        let matchingCandidates = await Candidate.find(matchCriteria)
-            .populate('skills')
-            .exec();
+        for (const tier of workerFilterTiers) {
+            const criteria = buildWorkerCriteria(tier);
+            const signature = JSON.stringify(criteria);
+
+            // Skip tiers that are identical to one already tried
+            if (triedWorkerCriteria.has(signature)) continue;
+            triedWorkerCriteria.add(signature);
+
+            const candidates = await Candidate.find(criteria)
+                .populate('skills')
+                .exec();
+
+            if (candidates.length) {
+                matchingCandidates = candidates;
+                appliedFilters = tier.name;
+                break;
+            }
+        }
 
         // Fetch suggested candidates for the jobId
         const suggestedCandidates = await SuggestedCandidate.find({ job_id: jobId })
@@ -173,6 +261,7 @@ export const findWorkersForJob = async (req, res) => {
             data: {
                 jobPost: jobPostResponse,
                 totalMatches: candidatesWithScores.length,
+                filtersApplied: appliedFilters,
                 candidates: candidatesWithScores
             }
         });
@@ -217,33 +306,78 @@ export const findJobsForWorker = async (req, res) => {
             }
         }
 
-        // Build match criteria for both premium and dummy jobs
-        const matchCriteria = {
-            is_active: true,
-            $or: [
-                { 'address.state': { $in: candidate.preferred_locations || [] } },
-                { 'address.state': candidate.address?.state || candidate.looking_job_location || '' }
-            ]
+        // Resolve candidate skills to Skill IDs (premium candidates already store
+        // ObjectIds, dummy employees store plain skill names).
+        const candidateSkillIds = await getCandidateSkillIds(candidate, isPremium);
+
+        // Gender values accepted by the job's gender_preference enum
+        const candidateGenderValues = getJobGenderValues(candidate.gender);
+
+        // Locations the candidate is interested in
+        const candidateStates = [
+            ...(candidate.preferred_locations || []),
+            candidate.address?.state,
+            candidate.looking_job_location
+        ].filter(Boolean);
+
+        // Build filter tiers from strict to relaxed. The first tier that returns
+        // jobs wins, so when gender/skill/location has no matching job we still
+        // show all available jobs instead of an empty list.
+        const buildJobCriteria = (tier) => {
+            const criteria = { is_active: true };
+
+            // Gender filter (candidate gender must match the job preference or 'Any')
+            if (tier.gender && candidateGenderValues.length) {
+                criteria.gender_preference = { $in: [...candidateGenderValues, 'Any'] };
+            }
+
+            // Skill filter (job must require at least one of the candidate's skills,
+            // or not require any specific skill)
+            if (tier.skill && candidateSkillIds.length) {
+                criteria.$or = [
+                    { required_skills: { $in: candidateSkillIds } },
+                    { required_skills: { $size: 0 } }
+                ];
+            }
+
+            // Location filter
+            if (tier.location && candidateStates.length) {
+                criteria['address.state'] = { $in: candidateStates };
+            }
+
+            return criteria;
         };
 
-        // Add gender filter if candidate has specific gender (AND-ed with location)
-        if (candidate.gender !== 'other') {
-            const capitalizedGender = candidate.gender.charAt(0).toUpperCase() + candidate.gender.slice(1);
-            matchCriteria.gender_preference = { $in: [capitalizedGender, 'Any'] };
-        } else {
-            matchCriteria.gender_preference = 'Any';
-        }
+        const jobFilterTiers = [
+            { name: 'all_filters', gender: true, skill: true, location: true },
+            { name: 'without_location', gender: true, skill: true, location: false },
+            { name: 'without_gender', gender: false, skill: true, location: false },
+            { name: 'all_jobs', gender: false, skill: false, location: false }
+        ];
 
-        // Add salary range filter (AND-ed with location and gender)
-        if (candidate.expected_salary?.min > 0 || candidate.expected_salary?.max > 0) {
-            matchCriteria['salary_range.min'] = { $lte: candidate.expected_salary.max || Number.MAX_SAFE_INTEGER };
-            matchCriteria['salary_range.max'] = { $gte: candidate.expected_salary.min || 0 };
-        }
+        let matchingJobs = [];
+        let appliedFilters = 'all_jobs';
+        const triedJobCriteria = new Set();
 
-        const matchingJobs = await JobPosting.find(matchCriteria)
-            .populate('required_skills')
-            .populate('salon_id')
-            .exec();
+        for (const tier of jobFilterTiers) {
+            const criteria = buildJobCriteria(tier);
+            const signature = JSON.stringify(criteria);
+
+            // Skip tiers that are identical to one already tried
+            if (triedJobCriteria.has(signature)) continue;
+            triedJobCriteria.add(signature);
+
+            const jobs = await JobPosting.find(criteria)
+                .populate('required_skills')
+                .populate('salon_id')
+                .exec();
+
+            if (jobs.length) {
+                matchingJobs = jobs;
+                appliedFilters = tier.name;
+                break;
+            }
+        }
 
         // Fetch job applications for the candidateId
         const jobApplications = await JobApplication.find({ candidate_id: candidate._id })
@@ -320,6 +454,7 @@ export const findJobsForWorker = async (req, res) => {
             data: {
                 candidate: candidateResponse,
                 totalMatches: jobsWithScores.length,
+                filtersApplied: appliedFilters,
                 jobs: jobsWithScores
             }
         });
@@ -404,20 +539,32 @@ const getMatchingSkills = (candidateSkills, jobSkills) => {
         return [];
     }
 
-    // Map candidate skill IDs, ensuring _id exists
-    const candidateSkillIds = candidateSkills
-        .filter(skill => skill && skill._id) // Check for valid skill object with _id
-        .map(skill => skill._id.toString());
-
     // Map job skill IDs, ensuring _id exists
     const jobSkillIds = jobSkills
         .filter(skill => skill && skill._id) // Check for valid skill object with _id
         .map(skill => skill._id.toString());
 
-    // Return matching skills
-    return candidateSkills.filter(skill =>
-        skill && skill._id && jobSkillIds.includes(skill._id.toString())
-    );
+    // Job skill names (used for dummy employees whose skills are plain strings)
+    const jobSkillNames = jobSkills
+        .map(skill => (typeof skill === 'string' ? skill : skill?.skill_name || skill?.name))
+        .filter(Boolean)
+        .map(name => String(name).trim().toLowerCase());
+
+    // Return matching skills (supports ObjectId skills and plain skill names)
+    return candidateSkills.filter(skill => {
+        if (!skill) return false;
+
+        if (typeof skill === 'string') {
+            return jobSkillNames.includes(skill.trim().toLowerCase());
+        }
+
+        if (skill._id && jobSkillIds.includes(skill._id.toString())) {
+            return true;
+        }
+
+        const name = skill.skill_name || skill.name;
+        return !!name && jobSkillNames.includes(String(name).trim().toLowerCase());
+    });
 };
 
 

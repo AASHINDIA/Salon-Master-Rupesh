@@ -8,10 +8,9 @@ const router = express.Router();
 router.get('/', getAllSkills);
 
 // Add a new skill  
-router.post('/addSkill', addSkill);
-
+router.post('/addSkill', protect, addSkill);
 // Update an existing skill
-router.put('/:id', updateSkill);
+router.put('/:id', protect, updateSkill);
 // Delete a skill
-router.delete('/:id', deleteSkill);
+router.delete('/:id', protect, deleteSkill);
 export default router;  
