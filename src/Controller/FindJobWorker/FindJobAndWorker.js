@@ -3,6 +3,7 @@ import Candidate from "../../Modal/Candidate/Candidate.js";
 
 import Salon from "../../Modal/Salon/Salon.js";
 import Emp from '../../Modal/Dummaydata/Emp.js'
+import DummyJobPosting from '../../Modal/Dummaydata/DummyJobPosting.js'
 import JobApplication from "../../Modal/JOB/JobApplication.js";
 import SuggestedCandidate from "../../Modal/RequestJobSuggestedCandidate/RequestJobSuggestCandidate.js";
 import Skill from "../../Modal/skill/skill.js";
@@ -83,6 +84,112 @@ const getCandidateSkillIds = async (candidate, isPremium) => {
         .exec();
 
     return matchedSkills.map(skill => skill._id);
+};
+
+// Normalize a skills field (populated docs, plain strings, or comma separated
+// strings) into a list of trimmed skill names, preserving the original casing.
+const normalizeSkillList = (skills) => {
+    const list = Array.isArray(skills) ? skills : String(skills || '').split(',');
+    return list
+        .map(skill => (typeof skill === 'string' ? skill : skill?.skill_name || skill?.name))
+        .filter(Boolean)
+        .map(name => String(name).trim())
+        .filter(Boolean);
+};
+
+// Lowercase version used for case-insensitive comparisons.
+const getSkillNames = (skills) => normalizeSkillList(skills).map(name => name.toLowerCase());
+
+// Dummy jobs are stored in a raw collection with a loose schema, so filtering is
+// done in JS instead of a Mongo query.
+const dummyJobMatchesTier = (job, tier, candidateFilters) => {
+    if (!job) return false;
+
+    const isActive = job.is_active;
+    if (isActive === false || isActive === 'false' || isActive === 0) return false;
+
+    // Gender filter
+    if (tier.gender && candidateFilters.genderValues.length) {
+        const preference = String(job.gender_preference || 'Any').trim().toLowerCase();
+        if (preference !== 'any' && !candidateFilters.genderValues.some(gender => gender.toLowerCase() === preference)) {
+            return false;
+        }
+    }
+
+    // Skill filter (job must require at least one of the candidate's skills,
+    // or not require any specific skill)
+    if (tier.skill && candidateFilters.skillNames.length) {
+        const jobSkillNames = getSkillNames(job.required_skills);
+        if (jobSkillNames.length && !jobSkillNames.some(name => candidateFilters.skillNames.includes(name))) {
+            return false;
+        }
+    }
+
+    // Location filter
+    if (tier.location && candidateFilters.states.length) {
+        const jobState = String(job.address?.state || '').trim().toLowerCase();
+        if (jobState && !candidateFilters.states.some(state => String(state).trim().toLowerCase() === jobState)) {
+            return false;
+        }
+    }
+
+    return true;
+};
+
+const buildDummyJobResponse = (jobPost, applicationStatus) => {
+    const salon = jobPost.salon_id && typeof jobPost.salon_id === 'object' ? jobPost.salon_id : {};
+    const contactPerson = jobPost.contact_person && typeof jobPost.contact_person === 'object'
+        ? jobPost.contact_person
+        : null;
+
+    const requiredSkills = normalizeSkillList(jobPost.required_skills).map(name => ({ skill_name: name }));
+
+    return {
+        _id: jobPost._id,
+        job_title: jobPost.job_title,
+        custom_job_title: jobPost.custom_job_title,
+        salon_id: {
+            _id: salon._id || jobPost.salon_id,
+            salon_name: maskData.maskName(salon.name || ''),
+            brand_name: maskData.maskName(salon.brand_name || ''),
+            contact_number: maskData.maskPhone(salon.contact_no || salon.contact_number || ''),
+            whatsapp_number: maskData.maskWhatsApp(salon.whatsapp_number || salon.contact_no || ''),
+            address: maskData.partialAddress(jobPost.address || {})
+        },
+        required_skills: requiredSkills,
+        gender_preference: jobPost.gender_preference || 'Any',
+        salary_range: jobPost.salary_range || { min: 0, max: 0 },
+        job_type: jobPost.job_type,
+        work_timings: jobPost.work_timings,
+        working_days: jobPost.working_days,
+        address: maskData.partialAddress(jobPost.address || {}),
+        location: jobPost.location,
+        contact_person: contactPerson ? {
+            name: maskData.maskName(contactPerson.name || ''),
+            phone: maskData.maskPhone(contactPerson.phone || ''),
+            email: contactPerson.email || ''
+        } : null,
+        is_premium: false,
+        application_status: applicationStatus
+    };
+};
+
+// Fetch legacy/dummy job postings once. Failures are non-fatal so the main
+// JobPosting results are still returned.
+const fetchDummyJobs = async () => {
+    try {
+        const docs = await DummyJobPosting.find({ is_active: { $ne: false } }).lean().exec();
+
+        // Normalize loose fields so scoring/matching/response code can treat the
+        // dummy docs like JobPosting docs.
+        return docs.map(doc => ({
+            ...doc,
+            required_skills: normalizeSkillList(doc.required_skills)
+        }));
+    } catch (error) {
+        console.error('Error fetching dummy job postings:', error.message);
+        return [];
+    }
 };
 
 export const findWorkersForJob = async (req, res) => {
@@ -355,7 +462,18 @@ export const findJobsForWorker = async (req, res) => {
             { name: 'all_jobs', gender: false, skill: false, location: false }
         ];
 
-        let matchingJobs = [];
+        // Candidate skill names (used for dummy jobs whose skills are plain strings)
+        const candidateFilters = {
+            genderValues: candidateGenderValues,
+            skillNames: getSkillNames(candidate.skills),
+            states: candidateStates
+        };
+
+        // Dummy/legacy jobs live in the raw `jobpostingdummies` collection and are
+        // filtered in JS, then merged with the premium JobPosting results.
+        const dummyJobs = await fetchDummyJobs();
+
+        let matchingJobEntries = [];
         let appliedFilters = 'all_jobs';
         const triedJobCriteria = new Set();
 
@@ -363,17 +481,24 @@ export const findJobsForWorker = async (req, res) => {
             const criteria = buildJobCriteria(tier);
             const signature = JSON.stringify(criteria);
 
-            // Skip tiers that are identical to one already tried
-            if (triedJobCriteria.has(signature)) continue;
+            // Skip the Mongo query for tiers identical to one already tried
+            const alreadyTried = triedJobCriteria.has(signature);
             triedJobCriteria.add(signature);
 
-            const jobs = await JobPosting.find(criteria)
-                .populate('required_skills')
-                .populate('salon_id')
-                .exec();
+            const premiumJobs = alreadyTried
+                ? []
+                : await JobPosting.find(criteria)
+                    .populate('required_skills')
+                    .populate('salon_id')
+                    .exec();
 
-            if (jobs.length) {
-                matchingJobs = jobs;
+            const tierDummyJobs = dummyJobs.filter(job => dummyJobMatchesTier(job, tier, candidateFilters));
+
+            if (premiumJobs.length || tierDummyJobs.length) {
+                matchingJobEntries = [
+                    ...premiumJobs.map(jobPost => ({ jobPost, isPremiumJob: true })),
+                    ...tierDummyJobs.map(jobPost => ({ jobPost, isPremiumJob: false }))
+                ];
                 appliedFilters = tier.name;
                 break;
             }
@@ -391,38 +516,40 @@ export const findJobsForWorker = async (req, res) => {
         );
 
         // Calculate match score for each job and include application status
-        const jobsWithScores = matchingJobs.map(jobPost => {
+        const jobsWithScores = matchingJobEntries.map(({ jobPost, isPremiumJob }) => {
             const score = calculateJobMatchScore(candidate, jobPost);
             const applicationStatus = jobApplicationMap.get(jobPost._id.toString()) || 'Not Applied';
 
-            const jobResponse = {
-                _id: jobPost._id,
-                job_title: jobPost.job_title,
-                custom_job_title: jobPost.custom_job_title,
-                salon_id: jobPost.salon_id ? {
-                    _id: jobPost.salon_id._id,
-                    salon_name: maskData.maskName(jobPost.salon_id.salon_name || ''),
-                    brand_name: maskData.maskName(jobPost.salon_id.brand_name || ''),
-                    contact_number: maskData.maskPhone(jobPost.salon_id.contact_number || ''),
-                    whatsapp_number: maskData.maskWhatsApp(jobPost.salon_id.whatsapp_number || ''),
-                    address: maskData.partialAddress(jobPost.salon_id.address || {})
-                } : null,
-                required_skills: jobPost.required_skills || [],
-                gender_preference: jobPost.gender_preference,
-                salary_range: jobPost.salary_range,
-                job_type: jobPost.job_type,
-                work_timings: jobPost.work_timings,
-                working_days: jobPost.working_days,
-                address: maskData.partialAddress(jobPost.address || {}),
-                location: jobPost.location,
-                contact_person: jobPost.contact_person ? {
-                    name: maskData.maskName(jobPost.contact_person.name || ''),
-                    phone: maskData.maskPhone(jobPost.contact_person.phone || ''),
-                    email: jobPost.contact_person.email || ''
-                } : null,
-                is_premium: true,
-                application_status: applicationStatus
-            };
+            const jobResponse = isPremiumJob
+                ? {
+                    _id: jobPost._id,
+                    job_title: jobPost.job_title,
+                    custom_job_title: jobPost.custom_job_title,
+                    salon_id: jobPost.salon_id ? {
+                        _id: jobPost.salon_id._id,
+                        salon_name: maskData.maskName(jobPost.salon_id.salon_name || ''),
+                        brand_name: maskData.maskName(jobPost.salon_id.brand_name || ''),
+                        contact_number: maskData.maskPhone(jobPost.salon_id.contact_number || ''),
+                        whatsapp_number: maskData.maskWhatsApp(jobPost.salon_id.whatsapp_number || ''),
+                        address: maskData.partialAddress(jobPost.salon_id.address || {})
+                    } : null,
+                    required_skills: jobPost.required_skills || [],
+                    gender_preference: jobPost.gender_preference,
+                    salary_range: jobPost.salary_range,
+                    job_type: jobPost.job_type,
+                    work_timings: jobPost.work_timings,
+                    working_days: jobPost.working_days,
+                    address: maskData.partialAddress(jobPost.address || {}),
+                    location: jobPost.location,
+                    contact_person: jobPost.contact_person ? {
+                        name: maskData.maskName(jobPost.contact_person.name || ''),
+                        phone: maskData.maskPhone(jobPost.contact_person.phone || ''),
+                        email: jobPost.contact_person.email || ''
+                    } : null,
+                    is_premium: true,
+                    application_status: applicationStatus
+                }
+                : buildDummyJobResponse(jobPost, applicationStatus);
 
             return {
                 jobPost: jobResponse,
